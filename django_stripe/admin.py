@@ -6,11 +6,11 @@ from django_stripe.utils.admin import ReadOnly
 
 
 class StripeTokenAdmin(ReadOnly):
-    list_display = ('id', 'user', 'created', 'is_active')
+    list_display = ("id", "user", "created", "is_active")
 
 
 class StripeChargeAdmin(ReadOnly):
-    list_display = ('id', 'user', 'token', 'created', 'updated', 'is_charged', 'amount')
+    list_display = ("id", "user", "token", "created", "updated", "is_charged", "amount")
 
 
 admin.site.register(StripeToken, StripeTokenAdmin)

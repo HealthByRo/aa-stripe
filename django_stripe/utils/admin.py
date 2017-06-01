@@ -10,7 +10,7 @@ class ReadOnlyBase(object):
     def get_readonly_fields(self, request, obj=None):
         from itertools import chain
         field_names = list(set(chain.from_iterable(
-            (field.name, field.attname) if hasattr(field, 'attname') else (field.name,)
+            (field.name, field.attname) if hasattr(field, "attname") else (field.name,)
             for field in self.model._meta.get_fields()
             # For complete backwards compatibility, you may want to exclude
             # GenericForeignKey from the results.
@@ -20,7 +20,7 @@ class ReadOnlyBase(object):
         )))
         fields = list(self.extra_fields)
         for field in field_names:
-            if not field == 'id':
+            if not field == "id":
                 if field not in self.editable_fields:
                     fields.append(field)
         return fields
