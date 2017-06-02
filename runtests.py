@@ -34,7 +34,7 @@ def isort_main():
     ret = subprocess.call(["sh", "run_isort", "--check-only"])
 
     if ret:
-        print("isort failed: Some modules have incorrectly ordered imports. Fix by running `./run_isort.`")
+        print("isort failed: Some modules have incorrectly ordered imports. Fix by running `./run_isortg`")
     else:
         print("isort passed")
 
