@@ -19,7 +19,7 @@ Usage
 
 Charging
 --------
-First of all, make sure to obtain Stripe user token from the Stripe API, and then save it to ``django_stripe.models.StripeToken``, for example:
+First of all, make sure to obtain Stripe user token from the Stripe API, and then save it to ``aa_stripe.models.StripeToken``, for example:
 ::
 
   import stripe
@@ -29,7 +29,7 @@ First of all, make sure to obtain Stripe user token from the Stripe API, and the
   token = StripeToken.objects.create(user=request.user, content=data,
                                      customer_id=customer["id"])
   
-To charge users, create an instance of ``django_stripe.models.StripeCharge`` model and then call the ``charge()`` method:
+To charge users, create an instance of ``aa_stripe.models.StripeCharge`` model and then call the ``charge()`` method:
 ::
 
   c = StripeCharge.objects.create(user=user, token=token, amount=500 # in cents
