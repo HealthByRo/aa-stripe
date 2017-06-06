@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from aa_stripe.models import StripeCharge, StripeToken
 from django.contrib import admin
+
+from aa_stripe.models import StripeCharge, StripeToken
 
 
 class StripeTokenAdmin(admin.ModelAdmin):
