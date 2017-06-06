@@ -1,0 +1,2 @@
+django-jsonfield>=1.0.1
+stripe>=1.49.0
