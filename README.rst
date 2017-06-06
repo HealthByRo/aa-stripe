@@ -32,8 +32,8 @@ First of all, make sure to obtain Stripe user token from the Stripe API, and the
 To charge users, create an instance of ``aa_stripe.models.StripeCharge`` model and then call the ``charge()`` method:
 ::
 
-  c = StripeCharge.objects.create(user=user, token=token, amount=500 # in cents
-                                  description="Charge for stuff" # sent to Stripe
+  c = StripeCharge.objects.create(user=user, token=token, amount=500,  # in cents
+                                  description="Charge for stuff",  # sent to Stripe
                                   comment="Comment for internal information")
   c.charge()
 

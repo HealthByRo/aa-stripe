@@ -7,9 +7,11 @@ from jsonfield import JSONField
 
 
 class StripeToken(models.Model):
+    """Actually it is Customer. TODO: rename"""
+
     created = models.DateField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_tokens')
     content = JSONField()
     customer_id = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
@@ -21,7 +23,7 @@ class StripeToken(models.Model):
 class StripeCharge(models.Model):
     created = models.DateField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_charges')
     token = models.ForeignKey(StripeToken, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField(null=True, help_text=_("in cents"))
     is_charged = models.BooleanField(default=False)
