@@ -1,10 +1,10 @@
 """Test charging users through the StripeCharge model"""
 import mock
+from aa_stripe.models import StripeCharge, StripeToken
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
-
-from django_stripe.models import StripeCharge, StripeToken
+from stripe.error import StripeError
 
 UserModel = get_user_model()
 
@@ -13,7 +13,7 @@ class TestCharge(TestCase):
     def setUp(self):
         self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
 
-    @mock.patch("django_stripe.management.commands.charge_stripe.stripe.Charge.create")
+    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.create")
     def test_charge(self, charge_create_mocked):
         data = {
             "customer_id": "cus_AlSWz1ZQw7qG2z",
@@ -29,6 +29,18 @@ class TestCharge(TestCase):
         charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], token=token,
                                              description=data["description"])
         self.assertFalse(charge.is_charged)
+
+        # test in case of an API error
+        charge_create_mocked.side_effect = StripeError()
+        with self.assertRaises(StripeError):
+            call_command("charge_stripe")
+            charge.refresh_from_db()
+            self.assertFalse(charge.is_charged)
+
+        charge_create_mocked.reset_mock()
+        charge_create_mocked.side_effect = None
+
+        # test regular case
         call_command("charge_stripe")
         charge.refresh_from_db()
         self.assertTrue(charge.is_charged)

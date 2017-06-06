@@ -48,7 +48,7 @@ def get_package_data(package):
     return {package: filepaths}
 
 
-version = get_version("django_stripe")
+version = get_version("aa_stripe")
 
 
 requirements = local_open("requirements/requirements-base.txt")
@@ -56,16 +56,16 @@ required_to_install = [dist.strip() for dist in requirements.readlines()]
 
 
 setup(
-    name="django_stripe",
+    name="aa_stripe",
     version=version,
-    url="https://github.com/ArabellaTech/django-stripe",
+    url="https://github.com/ArabellaTech/aa-stripe",
     license="MIT",
     description="Stripe integration for Django-based projects",
     long_description=read_file("README.rst"),
     author="Jacek Ostanski",
     author_email="jacek@arabel.la",
-    packages=get_packages("django_stripe"),
-    package_data=get_package_data("django_stripe"),
+    packages=get_packages("aa_stripe"),
+    package_data=get_package_data("aa_stripe"),
     zip_safe=False,
     install_requires=required_to_install,
     classifiers=[

@@ -17,7 +17,7 @@ def pytest_configure():
             "django.contrib.auth",
             "django.contrib.contenttypes",
             "django.contrib.admin",
-            "django_stripe"
+            "aa_stripe"
         ),
         TESTING=True,
 

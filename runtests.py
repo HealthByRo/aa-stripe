@@ -13,7 +13,7 @@ PYTEST_ARGS = {
     "default": ["tests", "--tb=short", "-s", "-rw"],
     "fast": ["tests", "--tb=short", "-q", "-s", "-rw"],
 }
-FLAKE8_ARGS = ["django_stripe", "tests", "--ignore=E501"]
+FLAKE8_ARGS = ["aa_stripe", "tests", "--ignore=E501"]
 
 sys.path.append(os.path.dirname(__file__))
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
                 "--cov-report",
                 "xml",
                 "--cov",
-                "django_stripe"] + pytest_args
+                "aa_stripe"] + pytest_args
 
         if first_arg.startswith("-"):
             # `runtests.py [flags]`

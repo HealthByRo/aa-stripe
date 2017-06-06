@@ -48,7 +48,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='stripecharge',
             name='token',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='django_stripe.StripeToken'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='aa_stripe.StripeToken'),
         ),
         migrations.AddField(
             model_name='stripecharge',

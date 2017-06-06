@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import stripe
 from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -27,3 +28,22 @@ class StripeCharge(models.Model):
     stripe_charge_id = models.CharField(max_length=255, blank=True)
     description = models.CharField(max_length=255, help_text=_("Description sent to Stripe"))
     comment = models.CharField(max_length=255, help_text=_("Comment for internal information"))
+
+    def charge(self):
+        stripe.api_key = settings.STRIPE_API_KEY
+        if not self.is_charged and self.token.is_active:
+            try:
+                stripe_charge = stripe.Charge.create(
+                    amount=self.amount,
+                    currency="usd",
+                    customer=self.token.customer_id,
+                    description=self.description
+                )
+            except stripe.error.StripeError:
+                self.is_charged = False
+                self.save()
+                raise
+
+            self.stripe_charge_id = stripe_charge["id"]
+            self.is_charged = True
+            self.save()
