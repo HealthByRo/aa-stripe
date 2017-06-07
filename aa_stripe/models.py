@@ -10,6 +10,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class StripeBasicModel(models.Model):
     created = models.DateField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+    stripe_response = JSONField()
 
     class Meta:
         abstract = True
@@ -20,6 +21,19 @@ class StripeCustomer(StripeBasicModel):
     stripe_js_response = JSONField()
     stripe_customer_id = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
+    is_created_at_stripe = models.BooleanField(default=False)
+
+    def create_at_stripe(self):
+        stripe.api_key = settings.STRIPE_API_KEY
+        customer = stripe.Customer.create(
+            source=self.stripe_js_response["id"],
+            description="{user.first_name} {user.last_name} id: {user.id}".format(user=self.user)
+        )
+        self.stripe_customer_id = customer["id"]
+        self.stripe_response = customer
+        self.is_created_at_stripe = True
+        self.save()
+        return self
 
     class Meta:
         ordering = ["id"]
@@ -50,6 +64,7 @@ class StripeCharge(StripeBasicModel):
                 raise
 
             self.stripe_charge_id = stripe_charge["id"]
+            self.stripe_response = stripe_charge
             self.is_charged = True
             self.save()
             return stripe_charge
@@ -115,7 +130,6 @@ class StripeSubscription(StripeBasicModel):
         max_length=255, help_text="https://stripe.com/docs/api/python#subscription_object-status, "
         "empty if not sent created at stripe", blank=True, choices=STATUS_CHOICES)
     metadata = JSONField(help_text="https://stripe.com/docs/api/python#create_subscription-metadata")
-    stripe_response = JSONField()
     tax_percent = models.DecimalField(
         default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], decimal_places=2, max_digits=3,
         help_text="https://stripe.com/docs/api/python#subscription_object-tax_percent")

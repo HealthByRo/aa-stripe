@@ -99,3 +99,4 @@ class TestCreatingUsers(APITestCase):
             self.assertEqual(customer.user, self.user)
             self.assertEqual(customer.stripe_js_response, stripe_js_response)
             self.assertEqual(customer.stripe_customer_id, "cus_9Oop0gQ1R1ATMi")
+            self.assertEqual(customer.stripe_response["id"], "cus_9Oop0gQ1R1ATMi")

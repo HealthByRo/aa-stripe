@@ -20,7 +20,10 @@ All notable changes to this project will be documented in this file.
 - creating subscription plans
 - subscription support
 - webhooks support
+- added stripe_response field to all models to store RAW stripe response data
 ### Changes
 - customer_id on StripeToken to stripe_customer_id
 - remaned StripeToken to StripeCustomer
 - remaned all X.token to X.customer
+- changed API url from /aa-stripe/tokens to /aa-stripe/customers
+- moved creating stripe customer (on stripe) into instance method, not serializer.create. This way it can be in example used by cron.
