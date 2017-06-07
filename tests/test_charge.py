@@ -1,6 +1,7 @@
 """Test charging users through the StripeCharge model"""
 import mock
 from aa_stripe.models import StripeCharge, StripeToken
+from aa_stripe.utils import get_latest_active_token_for_user
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
@@ -25,7 +26,10 @@ class TestCharge(TestCase):
         charge_create_mocked.return_value = {
             "id": 1
         }
+        StripeToken.objects.create(user=self.user, customer_id=data["customer_id"], stripe_js_response="foo")
         token = StripeToken.objects.create(user=self.user, customer_id=data["customer_id"], stripe_js_response="foo")
+        self.assertTrue(token, get_latest_active_token_for_user(self.user))
+
         charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], token=token,
                                              description=data["description"])
         self.assertFalse(charge.is_charged)
