@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-from django.contrib import admin
-
 from aa_stripe.models import StripeCharge, StripeToken
+from django.contrib import admin
 
 
 class StripeTokenAdmin(admin.ModelAdmin):
-    readonly_fields = ("created", "updated", "user", "content", "customer_id")
+    readonly_fields = ("created", "updated", "user", "stripe_js_response", "customer_id")
     list_display = ("id", "user", "created", "is_active")
 
     def has_delete_permission(self, request, obj=None):

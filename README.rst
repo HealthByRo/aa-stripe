@@ -14,8 +14,23 @@ Installation
 ============
 Add ``aa_stripe`` to your app's ``INSTALLED_APPS``, and also set ``STRIPE_API_KEY`` in project settings. After all please migrate the app (``./manage.py migrate aa_stripe``).
 
+Add ``aa_stripe.api_urls`` into your url conf.
+
 Usage
 =====
+
+
+Creating a token for user
+-------------------------
+Use stripe.js (https://stripe.com/docs/stripe.js) to get single use token (stripe.js->createToken) and send it to API using ``/aa-stripe/tokens`` to create Customer for the user. It runs:
+
+::
+
+    customer = stripe.Customer.create(source=data["id"]) # data is the response dictionary from Stripe API (in front-end)
+    token = StripeToken.objects.create(user=request.user, content=data,
+                                     customer_id=customer["id"])
+
+This endpoint requires authenticated user. In case you need diferent implementation (like one call with register) you'll have to adjust your code.
 
 Charging
 --------
@@ -32,8 +47,8 @@ First of all, make sure to obtain Stripe user token from the Stripe API, and the
 To charge users, create an instance of ``aa_stripe.models.StripeCharge`` model and then call the ``charge()`` method:
 ::
 
-  c = StripeCharge.objects.create(user=user, token=token, amount=500 # in cents
-                                  description="Charge for stuff" # sent to Stripe
+  c = StripeCharge.objects.create(user=user, token=token, amount=500,  # in cents
+                                  description="Charge for stuff",  # sent to Stripe
                                   comment="Comment for internal information")
   c.charge()
 

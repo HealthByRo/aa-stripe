@@ -2,10 +2,9 @@
 from time import sleep
 
 import stripe
+from aa_stripe.models import StripeCharge
 from django.conf import settings
 from django.core.management.base import BaseCommand
-
-from aa_stripe.models import StripeCharge
 
 
 class Command(BaseCommand):

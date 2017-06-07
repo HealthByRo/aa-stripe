@@ -6,3 +6,10 @@ All notable changes to this project will be documented in this file.
 - charging via StripeCharge model
 - StripeToken model
 - charge_stripe management command
+
+## [0.1.1]
+### Added
+- related names to user model "stripe_tokens", "stripe_charges"
+- utils.py with get_latest_active_token_for_user
+- renamed StripeToken.content to StripeToken.stripe_js_response
+- added API to create StripeToken (Customer) out of stripe.js card authentication response. (uses Django-REST-Framework)
