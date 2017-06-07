@@ -17,8 +17,10 @@ def pytest_configure():
             "django.contrib.auth",
             "django.contrib.contenttypes",
             "django.contrib.admin",
+            "rest_framework",
             "aa_stripe"
         ),
+        ROOT_URLCONF="aa_stripe.api_urls",
         TESTING=True,
 
         STRIPE_API_KEY="apikey"

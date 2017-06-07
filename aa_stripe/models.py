@@ -12,7 +12,7 @@ class StripeToken(models.Model):
     created = models.DateField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_tokens')
-    content = JSONField()
+    stripe_js_response = JSONField()
     customer_id = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
 

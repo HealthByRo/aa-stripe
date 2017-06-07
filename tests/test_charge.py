@@ -1,11 +1,10 @@
 """Test charging users through the StripeCharge model"""
 import mock
+from aa_stripe.models import StripeCharge, StripeToken
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 from stripe.error import StripeError
-
-from aa_stripe.models import StripeCharge, StripeToken
 
 UserModel = get_user_model()
 
@@ -26,7 +25,7 @@ class TestCharge(TestCase):
         charge_create_mocked.return_value = {
             "id": 1
         }
-        token = StripeToken.objects.create(user=self.user, customer_id=data["customer_id"], content="foo")
+        token = StripeToken.objects.create(user=self.user, customer_id=data["customer_id"], stripe_js_response="foo")
         charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], token=token,
                                              description=data["description"])
         self.assertFalse(charge.is_charged)
