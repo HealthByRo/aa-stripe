@@ -26,8 +26,10 @@ class TestCharge(TestCase):
         charge_create_mocked.return_value = {
             "id": 1
         }
-        StripeToken.objects.create(user=self.user, customer_id=data["customer_id"], stripe_js_response="foo")
-        token = StripeToken.objects.create(user=self.user, customer_id=data["customer_id"], stripe_js_response="foo")
+        StripeToken.objects.create(
+            user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
+        token = StripeToken.objects.create(
+            user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
         self.assertTrue(token, get_latest_active_token_for_user(self.user))
 
         charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], token=token,

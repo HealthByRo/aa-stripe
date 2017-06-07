@@ -19,7 +19,7 @@ class StripeTokenSerializer(ModelSerializer):
                     description="{user.first_name} {user.last_name} id: {user.id}".format(user=user)
                 )
                 instance = StripeToken.objects.create(
-                    user=user, customer_id=customer["id"], stripe_js_response=stripe_js_response)
+                    user=user, stripe_customer_id=customer["id"], stripe_js_response=stripe_js_response)
             except stripe.StripeError as e:
                 raise ValidationError({"stripe_js_response": e.message})
 

@@ -98,4 +98,4 @@ class TestCreatingUsers(APITestCase):
             self.assertTrue(token.is_active)
             self.assertEqual(token.user, self.user)
             self.assertEqual(token.stripe_js_response, stripe_js_response)
-            self.assertEqual(token.customer_id, "cus_9Oop0gQ1R1ATMi")
+            self.assertEqual(token.stripe_customer_id, "cus_9Oop0gQ1R1ATMi")

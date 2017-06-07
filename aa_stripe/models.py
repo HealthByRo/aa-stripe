@@ -4,25 +4,30 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
-class StripeToken(models.Model):
-    """Actually it is Customer. TODO: rename"""
-
+class StripeBasicModel(models.Model):
     created = models.DateField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class StripeToken(StripeBasicModel):
+    """Actually it is Customer. TODO: rename"""
+
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_tokens')
     stripe_js_response = JSONField()
-    customer_id = models.CharField(max_length=255)
+    stripe_customer_id = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["id"]
 
 
-class StripeCharge(models.Model):
-    created = models.DateField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
+class StripeCharge(StripeBasicModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_charges')
     token = models.ForeignKey(StripeToken, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField(null=True, help_text=_("in cents"))
@@ -38,7 +43,7 @@ class StripeCharge(models.Model):
                 stripe_charge = stripe.Charge.create(
                     amount=self.amount,
                     currency="usd",
-                    customer=self.token.customer_id,
+                    customer=self.token.stripe_customer_id,
                     description=self.description
                 )
             except stripe.error.StripeError:
@@ -50,3 +55,74 @@ class StripeCharge(models.Model):
             self.is_charged = True
             self.save()
             return stripe_charge
+
+
+class StripeSubscriptionPlan(StripeBasicModel):
+    INTERVAL_DAY = "day"
+    INTERVAL_WEEK = "week"
+    INTERVAL_MONTH = "month"
+    INTERVAL_YEAR = "year"
+
+    INTERVAL_CHOICES = (
+        (INTERVAL_DAY, INTERVAL_DAY),
+        (INTERVAL_WEEK, INTERVAL_WEEK),
+        (INTERVAL_MONTH, INTERVAL_MONTH),
+        (INTERVAL_YEAR, INTERVAL_YEAR),
+    )
+
+    is_created_at_stripe = models.BooleanField(default=False)
+    source = JSONField(blank=True, help_text=_("Source of the plan, ie: {\"prescription\": 1}"))
+    amount = models.IntegerField(help_text=_("In cents. More: https://stripe.com/docs/api#create_plan-amount"))
+    currency = models.CharField(
+        max_length=3, help_text=_("3 letter ISO code, default USD, , https://stripe.com/docs/api#create_plan-currency"),
+        default="USD")
+    name = models.CharField(
+        max_length=255, help_text=_("Name of the plan, to be displayed on invoices and in the web interface."))
+    interval = models.CharField(
+        max_length=10, help_text=_("Specifies billing frequency. Either day, week, month or year."),
+        choices=INTERVAL_CHOICES)
+    interval_count = models.IntegerField(default=1, validators=[MinValueValidator(1)])
+    metadata = JSONField(help_text=_("A set of key/value pairs that you can attach to a plan object. It can be useful"
+                         " for storing additional information about the plan in a structured format."))
+    statement_descriptor = models.CharField(
+        max_length=22, help_text=_("An arbitrary string to be displayed on your customer’s credit card statement."),
+        blank=True)
+    trial_period_days = models.IntegerField(
+        default=0, validators=[MinValueValidator(0)],
+        help_text=_("Specifies a trial period in (an integer number of) days. If you include a trial period,"
+                    " the customer won’t be billed for the first time until the trial period ends. If the customer "
+                    "cancels before the trial period is over, she’ll never be billed at all."))
+
+
+class StripeSubscription(StripeBasicModel):
+    STATUS_TRIAL = "trialing"
+    STATUS_ACTIVE = "active"
+    STATUS_PAST_DUE = "past_due"
+    STATUS_CANCELED = "canceled"
+    STATUS_UNPAID = "unpaid"
+
+    STATUS_CHOICES = (
+        (STATUS_TRIAL, STATUS_TRIAL),
+        (STATUS_ACTIVE, STATUS_ACTIVE),
+        (STATUS_PAST_DUE, STATUS_PAST_DUE),
+        (STATUS_CANCELED, STATUS_CANCELED),
+        (STATUS_UNPAID, STATUS_UNPAID),
+    )
+    stripe_subscription_id = models.CharField(max_length=255, blank=True)
+    is_created_at_stripe = models.BooleanField(default=False)
+    plan = models.ForeignKey(StripeSubscriptionPlan)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="stripe_subscriptions")
+    token = models.ForeignKey(StripeToken, on_delete=models.SET_NULL, null=True)
+    status = models.CharField(
+        max_length=255, help_text="https://stripe.com/docs/api/python#subscription_object-status, "
+        "empty if not sent created at stripe", blank=True, choices=STATUS_CHOICES)
+    metadata = JSONField(help_text="https://stripe.com/docs/api/python#create_subscription-metadata")
+    stripe_response = JSONField()
+    tax_percent = models.DecimalField(
+        default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], decimal_places=2, max_digits=3,
+        help_text="https://stripe.com/docs/api/python#subscription_object-tax_percent")
+    application_fee_percent = models.DecimalField(
+        default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], decimal_places=2, max_digits=3,
+        help_text="https://stripe.com/docs/api/python#create_subscription-application_fee_percent")
+    coupon = models.CharField(
+        max_length=255, blank=True, help_text="https://stripe.com/docs/api/python#create_subscription-coupon")
