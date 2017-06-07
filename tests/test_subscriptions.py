@@ -1,5 +1,5 @@
 """Test charging users through the StripeCharge model"""
-from aa_stripe.models import StripeToken, StripeSubscription, StripeSubscriptionPlan
+from aa_stripe.models import StripeCustomer, StripeSubscription, StripeSubscriptionPlan
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 import requests_mock
@@ -11,7 +11,8 @@ UserModel = get_user_model()
 class TestSubscriptions(TestCase):
     def setUp(self):
         self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
-        self.token = StripeToken.objects.create(user=self.user, stripe_customer_id="example", stripe_js_response="foo")
+        self.customer = StripeCustomer.objects.create(
+            user=self.user, stripe_customer_id="example", stripe_js_response="foo")
         self.plan = StripeSubscriptionPlan.objects.create(
             amount=100,
             is_created_at_stripe=True,
@@ -23,7 +24,7 @@ class TestSubscriptions(TestCase):
     def test_subscription_creation(self):
         self.assertEqual(StripeSubscription.objects.count(), 0)
         subscription = StripeSubscription.objects.create(
-            token=self.token,
+            customer=self.customer,
             user=self.user,
             plan=self.plan,
             metadata={"name": "test subscription"},

@@ -1,11 +1,11 @@
-from aa_stripe.models import StripeToken
+from aa_stripe.models import StripeCustomer
 from django.contrib import admin
 
 
-def get_latest_active_token_for_user(user):
-    """Returns last active stripe token for user"""
-    token = StripeToken.objects.filter(user_id=user.id, is_active=True).last()
-    return token
+def get_latest_active_customer_for_user(user):
+    """Returns last active stripe customer for user"""
+    customer = StripeCustomer.objects.filter(user_id=user.id, is_active=True).last()
+    return customer
 
 
 class ReadOnlyBase(object):

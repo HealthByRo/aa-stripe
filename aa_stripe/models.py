@@ -15,10 +15,8 @@ class StripeBasicModel(models.Model):
         abstract = True
 
 
-class StripeToken(StripeBasicModel):
-    """Actually it is Customer. TODO: rename"""
-
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_tokens')
+class StripeCustomer(StripeBasicModel):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_customers')
     stripe_js_response = JSONField()
     stripe_customer_id = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
@@ -29,7 +27,7 @@ class StripeToken(StripeBasicModel):
 
 class StripeCharge(StripeBasicModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_charges')
-    token = models.ForeignKey(StripeToken, on_delete=models.SET_NULL, null=True)
+    customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField(null=True, help_text=_("in cents"))
     is_charged = models.BooleanField(default=False)
     stripe_charge_id = models.CharField(max_length=255, blank=True)
@@ -38,12 +36,12 @@ class StripeCharge(StripeBasicModel):
 
     def charge(self):
         stripe.api_key = settings.STRIPE_API_KEY
-        if not self.is_charged and self.token.is_active:
+        if not self.is_charged and self.customer.is_active:
             try:
                 stripe_charge = stripe.Charge.create(
                     amount=self.amount,
                     currency="usd",
-                    customer=self.token.stripe_customer_id,
+                    customer=self.customer.stripe_customer_id,
                     description=self.description
                 )
             except stripe.error.StripeError:
@@ -112,7 +110,7 @@ class StripeSubscription(StripeBasicModel):
     is_created_at_stripe = models.BooleanField(default=False)
     plan = models.ForeignKey(StripeSubscriptionPlan)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="stripe_subscriptions")
-    token = models.ForeignKey(StripeToken, on_delete=models.SET_NULL, null=True)
+    customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     status = models.CharField(
         max_length=255, help_text="https://stripe.com/docs/api/python#subscription_object-status, "
         "empty if not sent created at stripe", blank=True, choices=STATUS_CHOICES)

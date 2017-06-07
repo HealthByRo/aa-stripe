@@ -1,5 +1,5 @@
 """Test charging users through the StripeCharge model"""
-from aa_stripe.models import StripeToken, StripeSubscription
+from aa_stripe.models import StripeCustomer, StripeSubscription
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 import requests_mock
@@ -15,9 +15,9 @@ class TestSubscriptionsPlans(TestCase):
     def test_subscription_creation(self):
         self.assertFalse(1)
         self.assertEqual(StripeSubscription.objects.count(), 0)
-        token = StripeToken.objects.create(user=self.user, stripe_id="example", stripe_js_response="foo")
+        customer = StripeCustomer.objects.create(user=self.user, stripe_id="example", stripe_js_response="foo")
         subscription = StripeSubscription.objects.create(
-            token=token,
+            customer=customer,
             user=self.user,
             metadata={"name": "test subscription"},
         )
@@ -95,7 +95,7 @@ class TestSubscriptionsPlans(TestCase):
         # Add help texts with links to stripe docs!
         # pola:
         # is_created_at_stripe=boolean
-        # token
+        # customer
         # user
         # stripe_response
         # status

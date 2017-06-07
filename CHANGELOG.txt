@@ -22,3 +22,5 @@ All notable changes to this project will be documented in this file.
 - webhooks support
 ### Changes
 - customer_id on StripeToken to stripe_customer_id
+- remaned StripeToken to StripeCustomer
+- remaned all X.token to X.customer
