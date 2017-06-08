@@ -71,7 +71,6 @@ class StripeCharge(StripeBasicModel):
                 self.save()
                 raise
 
-            print (type(stripe_charge))
             self.stripe_charge_id = stripe_charge["id"]
             self.stripe_response = stripe_charge
             self.is_charged = True

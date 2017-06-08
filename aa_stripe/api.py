@@ -22,7 +22,7 @@ class WebhookAPI(CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         payload = request.body.decode("utf-8")
-        sig_header = request.META['HTTP_STRIPE_SIGNATURE']
+        sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
         event = None
 
         try:
