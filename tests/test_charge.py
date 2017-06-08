@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 from stripe.error import StripeError
+import stripe
 
 UserModel = get_user_model()
 
@@ -23,9 +24,8 @@ class TestCharges(TestCase):
             "description": "ABC"
         }
 
-        charge_create_mocked.return_value = {
-            "id": "AA1"
-        }
+        charge_create_mocked.return_value = stripe.Charge(id="AA1")
+
         StripeCustomer.objects.create(
             user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
         customer = StripeCustomer.objects.create(

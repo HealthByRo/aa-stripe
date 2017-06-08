@@ -5,6 +5,7 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 from django.core.validators import MinValueValidator, MaxValueValidator
+from aa_stripe.exceptions import StripeMethodNotAllowed
 
 
 class StripeBasicModel(models.Model):
@@ -24,6 +25,9 @@ class StripeCustomer(StripeBasicModel):
     is_created_at_stripe = models.BooleanField(default=False)
 
     def create_at_stripe(self):
+        if self.is_created_at_stripe:
+            raise StripeMethodNotAllowed()
+
         stripe.api_key = settings.STRIPE_API_KEY
         customer = stripe.Customer.create(
             source=self.stripe_js_response["id"],
@@ -49,8 +53,11 @@ class StripeCharge(StripeBasicModel):
     comment = models.CharField(max_length=255, help_text=_("Comment for internal information"))
 
     def charge(self):
+        if self.is_charged:
+            raise StripeMethodNotAllowed("Already charded.")
+
         stripe.api_key = settings.STRIPE_API_KEY
-        if not self.is_charged and self.customer.is_active:
+        if self.customer.is_active:
             try:
                 stripe_charge = stripe.Charge.create(
                     amount=self.amount,
@@ -63,6 +70,7 @@ class StripeCharge(StripeBasicModel):
                 self.save()
                 raise
 
+            print (type(stripe_charge))
             self.stripe_charge_id = stripe_charge["id"]
             self.stripe_response = stripe_charge
             self.is_charged = True
@@ -138,3 +146,30 @@ class StripeSubscription(StripeBasicModel):
         help_text="https://stripe.com/docs/api/python#create_subscription-application_fee_percent")
     coupon = models.CharField(
         max_length=255, blank=True, help_text="https://stripe.com/docs/api/python#create_subscription-coupon")
+
+    def create_at_stripe(self):
+        if self.is_created_at_stripe:
+            raise StripeMethodNotAllowed()
+
+        stripe.api_key = settings.STRIPE_API_KEY
+        if self.customer.is_active:
+            try:
+                subscription = stripe.Subscription.create(
+                    customer=self.customer.stripe_customer_id,
+                    plan=self.plan.id,
+                    metadata=self.metadata,
+                    tax_percent=self.tax_percent,
+                    application_fee_percent=self.application_fee_percent,
+                    coupon=self.coupon
+                )
+            except stripe.error.StripeError:
+                self.is_created_at_stripe = False
+                self.save()
+                raise
+
+            self.stripe_subscription_id = subscription["id"]
+            self.stripe_response = subscription
+            self.is_created_at_stripe = True
+            self.status = subscription["status"]
+            self.save()
+            return subscription

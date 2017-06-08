@@ -22,7 +22,7 @@ Usage
 
 Creating a token for user
 -------------------------
-Use stripe.js (https://stripe.com/docs/stripe.js) to get single use token (stripe.js->createToken) and send it to API using ``/aa-stripe/tokens`` to create Customer for the user. It runs:
+Use stripe.js (https://stripe.com/docs/stripe.js) to get single use token (stripe.js->createToken) and send it to API using ``/aa-stripe/customers`` to create Customer for the user. It runs:
 
 ::
 

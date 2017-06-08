@@ -31,7 +31,7 @@ class TestSubscriptions(TestCase):
         )
         self.assertFalse(subscription.is_created_at_stripe)
         with requests_mock.Mocker() as m:
-            m.register_uri('POST', 'https://api.stripe.com/v1/customers', [{'text': json.dumps({
+            m.register_uri("POST", "https://api.stripe.com/v1/subscriptions", [{"text": json.dumps({
                 "id": "sub_AnksTMRdnWfq9m",
                 "object": "subscription",
                 "application_fee_percent": None,
@@ -50,16 +50,16 @@ class TestSubscriptions(TestCase):
                         "object": "subscription_item",
                         "created": 1496861935,
                         "plan": {
-                            "id": "silver-plus-615",
+                            "id": self.plan.id,
                             "object": "plan",
-                            "amount": 999,
+                            "amount": 100,
                             "created": 1496857185,
                             "currency": "usd",
                             "interval": "month",
-                            "interval_count": 1,
+                            "interval_count": 3,
                             "livemode": False,
                             "metadata": {},
-                            "name": "Silver Plus",
+                            "name": "example plan",
                             "statement_descriptor": None,
                             "trial_period_days": None
                         },
@@ -80,9 +80,8 @@ class TestSubscriptions(TestCase):
                     "interval": "month",
                     "interval_count": 3,
                     "livemode": False,
-                    "metadata": {
-                    },
-                    "name": "example",
+                    "metadata": {},
+                    "name": "example plan",
                     "statement_descriptor": None,
                     "trial_period_days": None
                 },
@@ -99,5 +98,5 @@ class TestSubscriptions(TestCase):
             self.assertEqual(subscription.stripe_response["id"], "sub_AnksTMRdnWfq9m")
             self.assertEqual(subscription.stripe_subscription_id, "sub_AnksTMRdnWfq9m")
             self.assertEqual(subscription.stripe_response["plan"]["name"], self.plan.name)
-            self.assertEqual(subscription.stripe_response["plan"]["amount"], str(self.plan.amount))
+            self.assertEqual(subscription.stripe_response["plan"]["amount"], self.plan.amount)
             self.assertEqual(subscription.status, subscription.STATUS_ACTIVE)
