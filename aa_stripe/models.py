@@ -114,6 +114,33 @@ class StripeSubscriptionPlan(StripeBasicModel):
                     " the customer won’t be billed for the first time until the trial period ends. If the customer "
                     "cancels before the trial period is over, she’ll never be billed at all."))
 
+    def create_at_stripe(self):
+        if self.is_created_at_stripe:
+            raise StripeMethodNotAllowed()
+
+        stripe.api_key = settings.STRIPE_API_KEY
+        try:
+            plan = stripe.Plan.create(
+                id=self.id,
+                amount=self.amount,
+                currency=self.currency,
+                interval=self.interval,
+                interval_count=self.interval_count,
+                name=self.name,
+                metadata=self.metadata,
+                statement_descriptor=self.statement_descriptor,
+                trial_period_days=self.trial_period_days
+            )
+        except stripe.error.StripeError:
+            self.is_created_at_stripe = False
+            self.save()
+            raise
+
+        self.stripe_response = plan
+        self.is_created_at_stripe = True
+        self.save()
+        return plan
+
 
 class StripeSubscription(StripeBasicModel):
     STATUS_TRIAL = "trialing"
