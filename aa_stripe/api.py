@@ -1,12 +1,12 @@
+import simplejson as json
+import stripe
 from aa_stripe.models import StripeCustomer, StripeWebhook
 from aa_stripe.serializers import StripeCustomerSerializer, StripeWebhookSerializer
-from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import IsAuthenticated, AllowAny
-import stripe
-from rest_framework.response import Response
-from rest_framework import status
 from django.conf import settings
-import simplejson as json
+from rest_framework import status
+from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
 
 class CustomersAPI(CreateAPIView):
