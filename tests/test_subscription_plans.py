@@ -37,7 +37,6 @@ class TestSubscriptionsPlans(TestCase):
                 "statement_descriptor": None,
                 "trial_period_days": None
             })}])
-
             plan.create_at_stripe()
             self.assertTrue(plan.is_created_at_stripe)
             self.assertEqual(plan.stripe_response["id"], plan.id)

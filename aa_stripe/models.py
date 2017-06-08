@@ -6,6 +6,7 @@ from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from aa_stripe.exceptions import StripeMethodNotAllowed
+import simplejson as json
 
 
 class StripeBasicModel(models.Model):
@@ -195,8 +196,17 @@ class StripeSubscription(StripeBasicModel):
                 raise
 
             self.stripe_subscription_id = subscription["id"]
-            self.stripe_response = subscription
+            # for some reason it doesnt work with subscription only
+            self.stripe_response = json.loads(str(subscription))
             self.is_created_at_stripe = True
             self.status = subscription["status"]
             self.save()
             return subscription
+
+
+class StripeWebhook(models.Model):
+    id = models.CharField(primary_key=True, max_length=255)  # id from stripe. This will prevent subsequent calls.
+    created = models.DateField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    is_parsed = models.BooleanField(default=False)
+    raw_data = JSONField()

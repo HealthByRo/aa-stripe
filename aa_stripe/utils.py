@@ -25,9 +25,8 @@ class ReadOnlyBase(object):
         )))
         fields = list(self.extra_fields)
         for field in field_names:
-            if (not field == 'id'):
-                if not hasattr(self, "editable_fields") or (field not in self.editable_fields):
-                    fields.append(field)
+            if not hasattr(self, "editable_fields") or (field not in self.editable_fields):
+                fields.append(field)
         return fields
 
     def has_add_permission(self, request):

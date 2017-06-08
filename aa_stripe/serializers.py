@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import stripe
-from aa_stripe.models import StripeCustomer
+from aa_stripe.models import StripeCustomer, StripeWebhook
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import ModelSerializer
 
@@ -23,3 +23,10 @@ class StripeCustomerSerializer(ModelSerializer):
     class Meta:
         model = StripeCustomer
         fields = ["stripe_js_response"]
+
+
+class StripeWebhookSerializer(ModelSerializer):
+
+    class Meta:
+        model = StripeWebhook
+        fields = ["id", "raw_data"]

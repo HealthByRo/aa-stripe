@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from aa_stripe.models import StripeCharge, StripeCustomer, StripeSubscription, StripeSubscriptionPlan
+from aa_stripe.models import StripeCharge, StripeCustomer, StripeSubscription, StripeSubscriptionPlan, StripeWebhook
 from aa_stripe.utils import ReadOnly
 from django.contrib import admin
 
@@ -20,7 +20,12 @@ class StripeSubscriptionPlanAdmin(ReadOnly):
     list_display = ("id", "is_created_at_stripe", "created", "updated", "amount", "interval", "interval_count")
 
 
+class StripeWebhookAdmin(ReadOnly):
+    list_display = ("id", "created", "updated", "is_parsed")
+
+
 admin.site.register(StripeCustomer, StripeCustomerAdmin)
 admin.site.register(StripeCharge, StripeChargeAdmin)
 admin.site.register(StripeSubscription, StripeSubscriptionAdmin)
 admin.site.register(StripeSubscriptionPlan, StripeSubscriptionPlanAdmin)
+admin.site.register(StripeWebhook, StripeWebhookAdmin)
