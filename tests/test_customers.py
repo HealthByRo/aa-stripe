@@ -1,6 +1,6 @@
 import requests_mock
 import simplejson as json
-from aa_stripe.models import StripeToken
+from aa_stripe.models import StripeCustomer
 from django.contrib.auth import get_user_model
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
@@ -13,11 +13,11 @@ class TestCreatingUsers(APITestCase):
         self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
 
     def test_user_create(self):
-        self.assertEqual(StripeToken.objects.count(), 0)
-        url = reverse("stripe-tokens")
+        self.assertEqual(StripeCustomer.objects.count(), 0)
+        url = reverse("stripe-customers")
         stripe_js_response = {
             "id": "tok_193mTaHSTEMJ0IPXhhZ5vuTX",
-            "object": "token",
+            "object": "customer",
             "client_ip": None,
             "created": 1476277734,
             "livemode": False,
@@ -43,7 +43,7 @@ class TestCreatingUsers(APITestCase):
                 "funding": "credit",
                 "last4": "4242",
                 "name": None,
-                "tokenization_method": None,
+                "customerization_method": None,
                 "metadata": {},
             },
         }
@@ -93,9 +93,10 @@ class TestCreatingUsers(APITestCase):
             self.assertEqual(response.status_code, 201)
 
             self.assertEqual(m.call_count, 1)
-            self.assertEqual(StripeToken.objects.count(), 1)
-            token = StripeToken.objects.first()
-            self.assertTrue(token.is_active)
-            self.assertEqual(token.user, self.user)
-            self.assertEqual(token.stripe_js_response, stripe_js_response)
-            self.assertEqual(token.customer_id, "cus_9Oop0gQ1R1ATMi")
+            self.assertEqual(StripeCustomer.objects.count(), 1)
+            customer = StripeCustomer.objects.first()
+            self.assertTrue(customer.is_active)
+            self.assertEqual(customer.user, self.user)
+            self.assertEqual(customer.stripe_js_response, stripe_js_response)
+            self.assertEqual(customer.stripe_customer_id, "cus_9Oop0gQ1R1ATMi")
+            self.assertEqual(customer.stripe_response["id"], "cus_9Oop0gQ1R1ATMi")

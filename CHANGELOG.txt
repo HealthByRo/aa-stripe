@@ -1,15 +1,30 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [0.1]
+## [0.2]
 ### Added
-- charging via StripeCharge model
-- StripeToken model
-- charge_stripe management command
+- creating subscription plans
+- subscription support
+- webhooks support
+- added stripe_response field to all models to store RAW stripe response data
+### Changes
+- customer_id on StripeToken to stripe_customer_id
+- remaned StripeToken to StripeCustomer
+- remaned all X.token to X.customer
+- changed API url from /aa-stripe/tokens to /aa-stripe/customers
+- moved creating stripe customer (on stripe) into instance method, not serializer.create. This way it can be in example used by cron.
+- moved ``get_latest_active_customer_for_user`` into StripeCustomer as classmethod
 
 ## [0.1.1]
 ### Added
 - related names to user model "stripe_tokens", "stripe_charges"
 - utils.py with get_latest_active_token_for_user
+- API to create StripeToken (Customer) out of stripe.js card authentication response. (uses Django-REST-Framework)
+### Changes
 - renamed StripeToken.content to StripeToken.stripe_js_response
-- added API to create StripeToken (Customer) out of stripe.js card authentication response. (uses Django-REST-Framework)
+
+## [0.1]
+### Added
+- charging via StripeCharge model
+- StripeToken model
+- charge_stripe management command

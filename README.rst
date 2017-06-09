@@ -13,6 +13,7 @@ At the moment the library supports:
 Installation
 ============
 Add ``aa_stripe`` to your app's ``INSTALLED_APPS``, and also set ``STRIPE_API_KEY`` in project settings. After all please migrate the app (``./manage.py migrate aa_stripe``).
+Add ``STRIPE_WEBHOOK_ENDPOINT_SECRET`` into your settings from stripe webhooks configuration to enable webhooks.
 
 Add ``aa_stripe.api_urls`` into your url conf.
 
@@ -22,7 +23,7 @@ Usage
 
 Creating a token for user
 -------------------------
-Use stripe.js (https://stripe.com/docs/stripe.js) to get single use token (stripe.js->createToken) and send it to API using ``/aa-stripe/tokens`` to create Customer for the user. It runs:
+Use stripe.js (https://stripe.com/docs/stripe.js) to get single use token (stripe.js->createToken) and send it to API using ``/aa-stripe/customers`` to create Customer for the user. It runs:
 
 ::
 
@@ -54,6 +55,10 @@ To charge users, create an instance of ``aa_stripe.models.StripeCharge`` model a
 
 There is also a management command called ``charge_stripe`` in case
 you need to process all the remaining charges.
+
+Webhooks support
+----------------
+All webhooks should be sent to ``/aa-stripe/webhooks`` url. Add ``STRIPE_WEBHOOK_ENDPOINT_SECRET`` to your settings to enable webhook verifications. Each received webhook is saved as StripeWebhook object in database. User need to add parsing webhooks depending on the project.
 
 Support
 =======
