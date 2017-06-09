@@ -9,6 +9,10 @@ This project's target is to make the Stripe API easier to use in Django-based ap
 At the moment the library supports:
 
 * charging users
+* TODO: FIll information with usage examples about
+** plans
+** subscriptions
+** webhooks
 
 Installation
 ============
