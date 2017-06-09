@@ -39,11 +39,12 @@ class WebhookAPI(CreateAPIView):
             "raw_data": json.loads(str(event)),
             "id": event["id"],
         }
-        webhook, created = StripeWebhook.objects.get_or_create(id=event["id"])
-        webhook.raw_data = data["raw_data"]
-        if created:
-            # save only if first time
-            webhook.save()
+        try:
+            StripeWebhook.objects.get(pk=event["id"])
+            return Response(status=400, data={"message": "already received"})
+        except StripeWebhook.DoesNotExist:
+            # correct, first time. Create webhook
+            webhook = StripeWebhook.objects.create(id=event["id"], raw_data=data["raw_data"])
 
         serializer = self.serializer_class(webhook)
 
