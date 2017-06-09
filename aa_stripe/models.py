@@ -40,6 +40,12 @@ class StripeCustomer(StripeBasicModel):
         self.save()
         return self
 
+    @classmethod
+    def get_latest_active_customer_for_user(cls, user):
+        """Returns last active stripe customer for user"""
+        customer = cls.objects.filter(user_id=user.id, is_active=True).last()
+        return customer
+
     class Meta:
         ordering = ["id"]
 

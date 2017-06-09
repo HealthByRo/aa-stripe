@@ -2,7 +2,6 @@
 import mock
 import stripe
 from aa_stripe.models import StripeCharge, StripeCustomer
-from aa_stripe.utils import get_latest_active_customer_for_user
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
@@ -30,7 +29,7 @@ class TestCharges(TestCase):
             user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
         customer = StripeCustomer.objects.create(
             user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
-        self.assertTrue(customer, get_latest_active_customer_for_user(self.user))
+        self.assertTrue(customer, StripeCustomer.get_latest_active_customer_for_user(self.user))
 
         charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], customer=customer,
                                              description=data["description"])
