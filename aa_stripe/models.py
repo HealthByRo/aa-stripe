@@ -101,7 +101,7 @@ class StripeSubscriptionPlan(StripeBasicModel):
     source = JSONField(blank=True, help_text=_("Source of the plan, ie: {\"prescription\": 1}"))
     amount = models.IntegerField(help_text=_("In cents. More: https://stripe.com/docs/api#create_plan-amount"))
     currency = models.CharField(
-        max_length=3, help_text=_("3 letter ISO code, default USD, , https://stripe.com/docs/api#create_plan-currency"),
+        max_length=3, help_text=_("3 letter ISO code, default USD, https://stripe.com/docs/api#create_plan-currency"),
         default="USD")
     name = models.CharField(
         max_length=255, help_text=_("Name of the plan, to be displayed on invoices and in the web interface."))
