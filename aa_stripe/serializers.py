@@ -2,11 +2,14 @@
 import stripe
 from aa_stripe.models import StripeCustomer, StripeWebhook
 from rest_framework.exceptions import ValidationError
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer, JSONField
 
 
 class StripeCustomerSerializer(ModelSerializer):
+    stripe_js_response = JSONField()
+
     def create(self, validated_data):
+        instance = None
         if validated_data.get("stripe_js_response"):
             # Create a Customer
             try:

@@ -52,6 +52,10 @@ class TestCreatingUsers(APITestCase):
         response = self.client.post(url, format="json")
         self.assertEqual(response.status_code, 403)  # not logged
 
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(url, format="json")
+        self.assertEqual(response.status_code, 400)
+
         with requests_mock.Mocker() as m:
             m.register_uri('POST', 'https://api.stripe.com/v1/customers', [{'text': json.dumps({
                 "id": "cus_9Oop0gQ1R1ATMi",
