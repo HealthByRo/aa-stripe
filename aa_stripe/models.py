@@ -21,7 +21,7 @@ class StripeBasicModel(models.Model):
 class StripeCustomer(StripeBasicModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_customers')
     stripe_js_response = JSONField()
-    stripe_customer_id = models.CharField(max_length=255)
+    stripe_customer_id = models.CharField(max_length=255, db_index=True)
     is_active = models.BooleanField(default=True)
     is_created_at_stripe = models.BooleanField(default=False)
 
@@ -55,7 +55,7 @@ class StripeCharge(StripeBasicModel):
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField(null=True, help_text=_("in cents"))
     is_charged = models.BooleanField(default=False)
-    stripe_charge_id = models.CharField(max_length=255, blank=True)
+    stripe_charge_id = models.CharField(max_length=255, blank=True, db_index=True)
     description = models.CharField(max_length=255, help_text=_("Description sent to Stripe"))
     comment = models.CharField(max_length=255, help_text=_("Comment for internal information"))
 
@@ -162,7 +162,7 @@ class StripeSubscription(StripeBasicModel):
         (STATUS_CANCELED, STATUS_CANCELED),
         (STATUS_UNPAID, STATUS_UNPAID),
     )
-    stripe_subscription_id = models.CharField(max_length=255, blank=True)
+    stripe_subscription_id = models.CharField(max_length=255, blank=True, db_index=True)
     is_created_at_stripe = models.BooleanField(default=False)
     plan = models.ForeignKey(StripeSubscriptionPlan)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="stripe_subscriptions")
