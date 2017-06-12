@@ -19,7 +19,7 @@ class StripeCustomerSerializer(ModelSerializer):
                     user=user, stripe_js_response=stripe_js_response)
                 instance.create_at_stripe()
             except stripe.StripeError as e:
-                raise ValidationError({"stripe_js_response": e.message})
+                raise ValidationError({"stripe_js_response": e})
 
         return instance
 
