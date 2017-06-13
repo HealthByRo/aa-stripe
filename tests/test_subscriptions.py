@@ -31,7 +31,7 @@ class TestSubscriptions(TestCase):
         )
         self.assertFalse(subscription.is_created_at_stripe)
         with requests_mock.Mocker() as m:
-            m.register_uri("POST", "https://api.stripe.com/v1/subscriptions", [{"text": json.dumps({
+            stripe_subscription_raw = {
                 "id": "sub_AnksTMRdnWfq9m",
                 "object": "subscription",
                 "application_fee_percent": None,
@@ -91,7 +91,10 @@ class TestSubscriptions(TestCase):
                 "tax_percent": None,
                 "trial_end": None,
                 "trial_start": None
-            })}])
+            }
+
+            m.register_uri("POST", "https://api.stripe.com/v1/subscriptions",
+                           [{"text": json.dumps(stripe_subscription_raw)}])
 
             subscription.create_at_stripe()
             self.assertTrue(subscription.is_created_at_stripe)
@@ -100,3 +103,13 @@ class TestSubscriptions(TestCase):
             self.assertEqual(subscription.stripe_response["plan"]["name"], self.plan.name)
             self.assertEqual(subscription.stripe_response["plan"]["amount"], self.plan.amount)
             self.assertEqual(subscription.status, subscription.STATUS_ACTIVE)
+            self.assertEqual(subscription.stripe_response["current_period_start"], 1496861935)
+
+            # update
+            stripe_subscription_raw["status"] = "past_due"
+            stripe_subscription_raw["current_period_start"] = 1496869999
+            m.register_uri("GET", "https://api.stripe.com/v1/subscriptions/sub_AnksTMRdnWfq9m",
+                           [{"text": json.dumps(stripe_subscription_raw)}])
+            subscription.refresh_from_stripe()
+            self.assertEqual(subscription.status, subscription.STATUS_PAST_DUE)
+            self.assertEqual(subscription.stripe_response["current_period_start"], 1496869999)
