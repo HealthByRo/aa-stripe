@@ -1,12 +1,20 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [0.2.2]
+## [0.2.4]
 ### Added
-DB indexes for stripe ids
+- DB indexes for stripe ids
+
+## [0.2.3]
+### Bugfix release
+- dropped application_fee_percent
+
+## [0.2.2]
+### Bugfix release
+- fixes error with coupon when creating subscription
 
 ## [0.2.1]
-Bugfix release
+### Bugfix release
 
 ## [0.2]
 ### Added
