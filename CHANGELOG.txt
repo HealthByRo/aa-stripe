@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.5]
+### Added
+- Function to refresh subscription
+
 ## [0.2.4]
 ### Added
 - DB indexes for stripe ids

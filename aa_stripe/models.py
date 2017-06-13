@@ -202,13 +202,21 @@ class StripeSubscription(StripeBasicModel):
                 self.save()
                 raise
 
-            self.stripe_subscription_id = subscription["id"]
-            # for some reason it doesnt work with subscription only
-            self.stripe_response = json.loads(str(subscription))
-            self.is_created_at_stripe = True
-            self.status = subscription["status"]
-            self.save()
+            self.set_stripe_data(subscription)
             return subscription
+
+    def set_stripe_data(self, subscription):
+        self.stripe_subscription_id = subscription["id"]
+        # for some reason it doesnt work with subscription only
+        self.stripe_response = json.loads(str(subscription))
+        self.is_created_at_stripe = True
+        self.status = subscription["status"]
+        self.save()
+
+    def refresh_from_stripe(self):
+        stripe.api_key = settings.STRIPE_API_KEY
+        subscription = stripe.Subscription.retrieve(self.stripe_subscription_id)
+        self.set_stripe_data(subscription)
 
 
 class StripeWebhook(models.Model):
