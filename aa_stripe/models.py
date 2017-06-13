@@ -186,15 +186,18 @@ class StripeSubscription(StripeBasicModel):
 
         stripe.api_key = settings.STRIPE_API_KEY
         if self.customer.is_active:
+            data = {
+                "customer": self.customer.stripe_customer_id,
+                "plan": self.plan.id,
+                "metadata": self.metadata,
+                "tax_percent": self.tax_percent,
+                "application_fee_percent": self.application_fee_percent,
+            }
+            if self.coupon:
+                data["coupon"] = self.coupon
+
             try:
-                subscription = stripe.Subscription.create(
-                    customer=self.customer.stripe_customer_id,
-                    plan=self.plan.id,
-                    metadata=self.metadata,
-                    tax_percent=self.tax_percent,
-                    application_fee_percent=self.application_fee_percent,
-                    coupon=self.coupon
-                )
+                subscription = stripe.Subscription.create(**data)
             except stripe.error.StripeError:
                 self.is_created_at_stripe = False
                 self.save()
