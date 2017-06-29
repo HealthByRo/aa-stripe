@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
+from time import sleep
+
 import simplejson as json
 import stripe
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
@@ -165,7 +168,7 @@ class StripeSubscription(StripeBasicModel):
     )
     stripe_subscription_id = models.CharField(max_length=255, blank=True, db_index=True)
     is_created_at_stripe = models.BooleanField(default=False)
-    plan = models.ForeignKey(StripeSubscriptionPlan)
+    plan = models.ForeignKey(StripeSubscriptionPlan, on_delete=models.SET_NULL)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="stripe_subscriptions")
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     status = models.CharField(
@@ -180,6 +183,8 @@ class StripeSubscription(StripeBasicModel):
     #     help_text="https://stripe.com/docs/api/python#create_subscription-application_fee_percent")
     coupon = models.CharField(
         max_length=255, blank=True, help_text="https://stripe.com/docs/api/python#create_subscription-coupon")
+    end_date = models.DateField(null=True, blank=True, db_index=True)
+    canceled_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     def create_at_stripe(self):
         if self.is_created_at_stripe:
@@ -218,6 +223,21 @@ class StripeSubscription(StripeBasicModel):
         stripe.api_key = settings.STRIPE_API_KEY
         subscription = stripe.Subscription.retrieve(self.stripe_subscription_id)
         self.set_stripe_data(subscription)
+
+    def _stripe_cancel(self):
+        stripe.Subscription.delete(self.stripe_subscription_id)
+
+    def cancel(self):
+        if self._stripe_cancel():
+            self.canceled_at = timezone.now()
+            self.save()
+
+    @classmethod
+    def end_subscriptions(cls):
+        today = timezone.localtime(timezone.now()).date()
+        for subscription in cls.objects.filter(end_date__lte=today, canceled_at__isnull=True):
+            subscription.cancel()
+            sleep(0.25)  # 4 requests per second tops
 
 
 class StripeWebhook(models.Model):

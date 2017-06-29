@@ -1,8 +1,14 @@
 """Test charging users through the StripeCharge model"""
+from datetime import timedelta
+
+import mock
 import requests_mock
 import simplejson as json
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import TestCase
+from django.utils import timezone
+from freezegun import freeze_time
 
 from aa_stripe.models import StripeCustomer, StripeSubscription, StripeSubscriptionPlan
 
@@ -114,3 +120,29 @@ class TestSubscriptions(TestCase):
             subscription.refresh_from_stripe()
             self.assertEqual(subscription.status, subscription.STATUS_PAST_DUE)
             self.assertEqual(subscription.stripe_response["current_period_start"], 1496869999)
+
+    @freeze_time("2017-06-29 12:00:00+00")
+    def test_subscriptions_end(self):
+        subscription = StripeSubscription.objects.create(
+            customer=self.customer,
+            user=self.user,
+            plan=self.plan,
+            metadata={"name": "test subscription"},
+            end_date=timezone.now() + timedelta(days=5)
+        )
+        self.assertIsNone(subscription.canceled_at)
+
+        with mock.patch("aa_stripe.models.StripeSubscription._stripe_cancel") as mocked_cancel:
+            StripeSubscription.end_subscriptions()
+            call_command("end_subscriptions")
+
+            with freeze_time("2017-07-04 12:00:00+00"):
+                call_command("end_subscriptions")
+                mocked_cancel.assert_called_with()
+
+                subscription.refresh_from_db()
+                self.assertIsNotNone(subscription.canceled_at)
+
+                mocked_cancel.reset_mock()
+                call_command("end_subscriptions")
+                mocked_cancel.assert_not_called()
