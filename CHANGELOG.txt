@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.7]
+### Fixed
+- on_delete
+
+## [0.2.6]
+### Added
+- Canceling subscriptions
+
 ## [0.2.5]
 ### Added
 - Function to refresh subscription
