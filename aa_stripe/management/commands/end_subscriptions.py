@@ -5,7 +5,7 @@ from aa_stripe.models import StripeSubscription
 
 
 class Command(BaseCommand):
-    help = "Charge stripe"
+    help = "Terminate outdated subscriptions"
 
     def handle(self, *args, **options):
         StripeSubscription.end_subscriptions()
