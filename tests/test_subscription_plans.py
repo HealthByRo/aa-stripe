@@ -1,9 +1,10 @@
 """Test charging users through the StripeCharge model"""
 import requests_mock
 import simplejson as json
-from aa_stripe.models import StripeSubscriptionPlan
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+
+from aa_stripe.models import StripeSubscriptionPlan
 
 UserModel = get_user_model()
 

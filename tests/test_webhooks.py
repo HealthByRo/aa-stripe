@@ -1,11 +1,12 @@
 import time
 
 import simplejson as json
-from aa_stripe.models import StripeWebhook
 from django.conf import settings
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 from stripe.webhook import WebhookSignature
+
+from aa_stripe.models import StripeWebhook
 
 
 class TestWebhook(APITestCase):

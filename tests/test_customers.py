@@ -1,9 +1,10 @@
 import requests_mock
 import simplejson as json
-from aa_stripe.models import StripeCustomer
 from django.contrib.auth import get_user_model
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
+
+from aa_stripe.models import StripeCustomer
 
 UserModel = get_user_model()
 

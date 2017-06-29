@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 import stripe
-from aa_stripe.models import StripeCustomer, StripeWebhook
 from rest_framework.exceptions import ValidationError
-from rest_framework.serializers import ModelSerializer, JSONField
+from rest_framework.serializers import JSONField, ModelSerializer
+
+from aa_stripe.models import StripeCustomer, StripeWebhook
 
 
 class StripeCustomerSerializer(ModelSerializer):

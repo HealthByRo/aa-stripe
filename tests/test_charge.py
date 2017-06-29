@@ -1,11 +1,12 @@
 """Test charging users through the StripeCharge model"""
 import mock
 import stripe
-from aa_stripe.models import StripeCharge, StripeCustomer
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 from stripe.error import StripeError
+
+from aa_stripe.models import StripeCharge, StripeCustomer
 
 UserModel = get_user_model()
 

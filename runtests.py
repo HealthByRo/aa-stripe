@@ -22,6 +22,7 @@ def exit_on_failure(ret, message=None):
     if ret:
         sys.exit(ret)
 
+
 def flake8_main(args):
     print("Running flake8 code linting")
     ret = subprocess.call(["flake8"] + args)
@@ -31,7 +32,8 @@ def flake8_main(args):
 
 def isort_main():
     print("Running isort code checking")
-    ret = subprocess.call(["sh", "run_isort", "--check-only"])
+    ret = subprocess.call(["isort", "--recursive", "-p", "aa_stripe", "-sd", "THIRDPARTY", "-m", "0", "-w", "120", "-y",
+                           "-s", "venv", "-s", ".tox", "--check-only"])
 
     if ret:
         print("isort failed: Some modules have incorrectly ordered imports. Fix by running `./run_isortg`")
