@@ -7,13 +7,15 @@ import jsonfield.fields
 from django.conf import settings
 from django.db import migrations, models
 
+USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
+
 
 class Migration(migrations.Migration):
 
     initial = True
 
     dependencies = [
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        migrations.swappable_dependency(USER_MODEL),
     ]
 
     operations = [
@@ -39,7 +41,7 @@ class Migration(migrations.Migration):
                 ('content', jsonfield.fields.JSONField(default=dict)),
                 ('customer_id', models.CharField(max_length=255)),
                 ('is_active', models.BooleanField(default=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=USER_MODEL)),
             ],
             options={
                 'ordering': ['id'],
@@ -48,11 +50,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='stripecharge',
             name='token',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='aa_stripe.StripeToken'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL,
+                                    to='aa_stripe.StripeToken'),
         ),
         migrations.AddField(
             model_name='stripecharge',
             name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=USER_MODEL),
         ),
     ]

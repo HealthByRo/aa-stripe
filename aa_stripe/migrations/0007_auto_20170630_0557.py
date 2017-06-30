@@ -12,8 +12,8 @@ USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('aa_stripe', '0006_subscription_end_cancel'),
         migrations.swappable_dependency(USER_MODEL),
+        ('aa_stripe', '0006_subscription_end_cancel'),
     ]
 
     operations = [

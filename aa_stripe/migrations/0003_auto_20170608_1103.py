@@ -9,10 +9,13 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        migrations.swappable_dependency(USER_MODEL),
         ('aa_stripe', '0002_auto_20170607_0714'),
     ]
 
@@ -28,7 +31,8 @@ class Migration(migrations.Migration):
                 ('stripe_customer_id', models.CharField(max_length=255)),
                 ('is_active', models.BooleanField(default=True)),
                 ('is_created_at_stripe', models.BooleanField(default=False)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='stripe_customers', to=settings.AUTH_USER_MODEL)),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE,
+                                           related_name='stripe_customers', to=USER_MODEL)),
             ],
             options={
                 'ordering': ['id'],
@@ -110,7 +114,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='stripesubscription',
             name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='stripe_subscriptions', to=settings.AUTH_USER_MODEL),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='stripe_subscriptions',
+                                    to=USER_MODEL),
         ),
         migrations.AddField(
             model_name='stripecharge',
