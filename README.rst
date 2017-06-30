@@ -18,8 +18,10 @@ Installation
 ============
 Add ``aa_stripe`` to your app's ``INSTALLED_APPS``, and also set ``STRIPE_API_KEY`` in project settings. After all please migrate the app (``./manage.py migrate aa_stripe``).
 Add ``STRIPE_WEBHOOK_ENDPOINT_SECRET`` into your settings from stripe webhooks configuration to enable webhooks.
+Add ``STRIPE_USER_MODEL`` if it is different than settings.AUTH_USER_MODEL. In example when CC is connected to office not person. ``STRIPE_USER_MODEL`` defaults to AUTH_USER_MODEL.
 
 Add ``aa_stripe.api_urls`` into your url conf.
+
 
 Usage
 =====
