@@ -12,6 +12,8 @@ from jsonfield import JSONField
 
 from aa_stripe.exceptions import StripeMethodNotAllowed
 
+USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
+
 
 class StripeBasicModel(models.Model):
     created = models.DateField(auto_now_add=True)
@@ -23,7 +25,7 @@ class StripeBasicModel(models.Model):
 
 
 class StripeCustomer(StripeBasicModel):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_customers')
+    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name='stripe_customers')
     stripe_js_response = JSONField()
     stripe_customer_id = models.CharField(max_length=255, db_index=True)
     is_active = models.BooleanField(default=True)
@@ -36,7 +38,7 @@ class StripeCustomer(StripeBasicModel):
         stripe.api_key = settings.STRIPE_API_KEY
         customer = stripe.Customer.create(
             source=self.stripe_js_response["id"],
-            description="{user.first_name} {user.last_name} id: {user.id}".format(user=self.user)
+            description="{user} id: {user.id}".format(user=self.user)
         )
         self.stripe_customer_id = customer["id"]
         self.stripe_response = customer
@@ -55,7 +57,7 @@ class StripeCustomer(StripeBasicModel):
 
 
 class StripeCharge(StripeBasicModel):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='stripe_charges')
+    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name='stripe_charges')
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField(null=True, help_text=_("in cents"))
     is_charged = models.BooleanField(default=False)
@@ -169,7 +171,7 @@ class StripeSubscription(StripeBasicModel):
     stripe_subscription_id = models.CharField(max_length=255, blank=True, db_index=True)
     is_created_at_stripe = models.BooleanField(default=False)
     plan = models.ForeignKey(StripeSubscriptionPlan, on_delete=models.CASCADE)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="stripe_subscriptions")
+    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name="stripe_subscriptions")
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     status = models.CharField(
         max_length=255, help_text="https://stripe.com/docs/api/python#subscription_object-status, "
