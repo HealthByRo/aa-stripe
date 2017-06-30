@@ -4,6 +4,8 @@ from time import sleep
 import simplejson as json
 import stripe
 from django.conf import settings
+from django.contrib.contenttypes import fields as generic
+from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -64,6 +66,9 @@ class StripeCharge(StripeBasicModel):
     stripe_charge_id = models.CharField(max_length=255, blank=True, db_index=True)
     description = models.CharField(max_length=255, help_text=_("Description sent to Stripe"))
     comment = models.CharField(max_length=255, help_text=_("Comment for internal information"))
+    content_type = models.ForeignKey(ContentType, null=True)
+    object_id = models.PositiveIntegerField(null=True, db_index=True)
+    source = generic.GenericForeignKey('content_type', 'object_id')
 
     def charge(self):
         if self.is_charged:
