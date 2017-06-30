@@ -13,6 +13,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('aa_stripe', '0006_subscription_end_cancel'),
+        migrations.swappable_dependency(USER_MODEL),
     ]
 
     operations = [
