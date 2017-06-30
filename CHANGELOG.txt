@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.9]
+### Added
+- added GenericForeignKey to StripeCharge as "source" field. Use https://docs.djangoproject.com/en/1.11/ref/contrib/contenttypes/#reverse-generic-relations for reverse lookup.
+
 ## [0.2.8]
 ### Changed
 - changed relation on stripe models from  to settings.STRIPE_USER_MODEL, which defaults to settings.AUTH_USER_MODEL. There are cases that CC is connected to, in example, office, not person.
