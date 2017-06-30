@@ -8,7 +8,6 @@ import jsonfield.fields
 from django.conf import settings
 from django.db import migrations, models
 
-
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 
 
