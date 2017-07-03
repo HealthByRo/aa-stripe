@@ -230,9 +230,11 @@ class StripeSubscription(StripeBasicModel):
         stripe.api_key = settings.STRIPE_API_KEY
         subscription = stripe.Subscription.retrieve(self.stripe_subscription_id)
         self.set_stripe_data(subscription)
+        return subscription
 
     def _stripe_cancel(self):
-        stripe.Subscription.delete(self.stripe_subscription_id)
+        subscription = self.refresh_from_stripe()
+        stripe.Subscription.delete(subscription)
 
     def cancel(self):
         if self._stripe_cancel():

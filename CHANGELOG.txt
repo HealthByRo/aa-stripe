@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.9.2]
+### Bugfix release
+- fixed end_subscriptions
+
 ## [0.2.9.1]
 ### Bugfix release
 - added swappable dependency for user model.
