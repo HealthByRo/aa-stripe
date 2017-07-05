@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.10]
+### Improvemets
+- Changed StripeCharge and StripeCustomer to use latest active token instead the one from relation.
+
 ## [0.2.9.2]
 ### Bugfix release
 - fixed end_subscriptions
