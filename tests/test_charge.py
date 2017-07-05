@@ -25,6 +25,8 @@ class TestCharges(TestCase):
         }
 
         charge_create_mocked.return_value = stripe.Charge(id="AA1")
+        StripeCustomer.objects.create(
+            user=self.user, stripe_customer_id="bum", stripe_js_response="aa")
 
         StripeCustomer.objects.create(
             user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
