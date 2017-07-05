@@ -75,12 +75,13 @@ class StripeCharge(StripeBasicModel):
             raise StripeMethodNotAllowed("Already charded.")
 
         stripe.api_key = settings.STRIPE_API_KEY
-        if self.customer.is_active:
+        customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
+        if customer:
             try:
                 stripe_charge = stripe.Charge.create(
                     amount=self.amount,
                     currency="usd",
-                    customer=self.customer.stripe_customer_id,
+                    customer=customer.stripe_customer_id,
                     description=self.description
                 )
             except stripe.error.StripeError:
@@ -198,9 +199,10 @@ class StripeSubscription(StripeBasicModel):
             raise StripeMethodNotAllowed()
 
         stripe.api_key = settings.STRIPE_API_KEY
-        if self.customer.is_active:
+        customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
+        if customer:
             data = {
-                "customer": self.customer.stripe_customer_id,
+                "customer": customer.stripe_customer_id,
                 "plan": self.plan.id,
                 "metadata": self.metadata,
                 "tax_percent": self.tax_percent,
