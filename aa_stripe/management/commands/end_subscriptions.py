@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import sys
+import traceback
 from time import sleep
 
 from django.core.management.base import BaseCommand
@@ -8,8 +10,7 @@ from aa_stripe.models import StripeSubscription
 try:
     from raven.contrib.django.raven_compat.models import client
 except ImportError:
-    import traceback
-    import sys
+    pass
 
 
 class Command(BaseCommand):

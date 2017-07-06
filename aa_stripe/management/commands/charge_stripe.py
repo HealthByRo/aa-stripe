@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import sys
+import traceback
 from time import sleep
 
 import stripe
@@ -10,8 +12,7 @@ from aa_stripe.models import StripeCharge
 try:
     from raven.contrib.django.raven_compat.models import client
 except ImportError:
-    import traceback
-    import sys
+    pass
 
 
 class Command(BaseCommand):

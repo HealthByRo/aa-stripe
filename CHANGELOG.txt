@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.11.1]
+### Bugfix
+- fixed imports
+
 ## [0.2.11]
 ### Improvemets
 - Changed end_subscriptions script to raise errors at the end.
