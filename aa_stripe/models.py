@@ -66,7 +66,7 @@ class StripeCharge(StripeBasicModel):
     stripe_charge_id = models.CharField(max_length=255, blank=True, db_index=True)
     description = models.CharField(max_length=255, help_text=_("Description sent to Stripe"))
     comment = models.CharField(max_length=255, help_text=_("Comment for internal information"))
-    content_type = models.ForeignKey(ContentType, null=True)
+    content_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField(null=True, db_index=True)
     source = generic.GenericForeignKey('content_type', 'object_id')
 
