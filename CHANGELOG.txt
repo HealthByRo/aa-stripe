@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.11.2]
+### Bugfix and improvements
+- fixed imports
+- more data in subscriptions admin
+
 ## [0.2.11.1]
 ### Bugfix
 - fixed imports

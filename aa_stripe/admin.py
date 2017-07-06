@@ -45,7 +45,9 @@ class StripeChargeAdmin(ReadOnly):
 
 
 class StripeSubscriptionAdmin(ReadOnly):
-    list_display = ("id", "stripe_subscription_id", "user", "is_created_at_stripe", "status", "created", "updated")
+    list_display = (
+        "id", "stripe_subscription_id", "user", "is_created_at_stripe", "status", "created", "updated", "end_date",
+        "canceled_at")
 
 
 class StripeSubscriptionPlanAdmin(ReadOnly):
