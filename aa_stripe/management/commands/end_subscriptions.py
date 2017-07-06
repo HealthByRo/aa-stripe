@@ -35,6 +35,6 @@ class Command(BaseCommand):
                     })
 
         for e in exceptions:
-            print ("Exception happened")
-            print ("Subscription id: {obj.id}".format(obj=e["obj"]))
+            print("Exception happened")
+            print("Subscription id: {obj.id}".format(obj=e["obj"]))
             traceback.print_exception(e["exc_type"], e["exc_value"], e["exc_traceback"], file=sys.stdout)
