@@ -43,12 +43,13 @@ class TestCharges(TestCase):
 
         # test in case of an API error
         charge_create_mocked.side_effect = StripeError()
-        out = StringIO()
-        sys.stdout = out
-        call_command('charge_stripe')
-        charge.refresh_from_db()
-        self.assertFalse(charge.is_charged)
-        self.assertIn('Exception happened', out.getvalue())
+        with self.assertRaises(SystemExit):
+            out = StringIO()
+            sys.stdout = out
+            call_command('charge_stripe')
+            charge.refresh_from_db()
+            self.assertFalse(charge.is_charged)
+            self.assertIn('Exception happened', out.getvalue())
 
         charge_create_mocked.reset_mock()
         charge_create_mocked.side_effect = None

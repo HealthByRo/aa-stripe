@@ -41,3 +41,5 @@ class Command(BaseCommand):
             print("Exception happened")
             print("Charge id: {obj.id}".format(obj=e["obj"]))
             traceback.print_exception(e["exc_type"], e["exc_value"], e["exc_traceback"], file=sys.stdout)
+        if exceptions:
+            sys.exit(1)
