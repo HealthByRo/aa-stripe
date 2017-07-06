@@ -236,7 +236,7 @@ class StripeSubscription(StripeBasicModel):
 
     def _stripe_cancel(self):
         subscription = self.refresh_from_stripe()
-        stripe.Subscription.delete(subscription)
+        return stripe.Subscription.delete(subscription)
 
     def cancel(self):
         if self._stripe_cancel():

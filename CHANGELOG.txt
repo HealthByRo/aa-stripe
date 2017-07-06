@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.11.3]
+### Bugfix
+- fixed canceled_at
+
 ## [0.2.11.2]
 ### Bugfix and improvements
 - fixed imports
