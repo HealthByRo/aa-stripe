@@ -244,9 +244,15 @@ class StripeSubscription(StripeBasicModel):
             self.save()
 
     @classmethod
-    def end_subscriptions(cls):
+    def get_subcriptions_for_cancel(cls):
         today = timezone.localtime(timezone.now()).date()
-        for subscription in cls.objects.filter(end_date__lte=today, canceled_at__isnull=True):
+        return cls.objects.filter(end_date__lte=today, canceled_at__isnull=True)
+
+    @classmethod
+    def end_subscriptions(cls):
+        # do not use in cron - one broken subscription will kill all.
+        # instead please use end_subscriptions.py script.
+        for subscription in cls.get_subcriptions_for_cancel():
             subscription.cancel()
             sleep(0.25)  # 4 requests per second tops
 

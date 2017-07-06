@@ -1,9 +1,12 @@
 """Test charging users through the StripeCharge model"""
+import sys
+
 import mock
 import stripe
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
+from django.utils.six import StringIO
 from stripe.error import StripeError
 
 from aa_stripe.models import StripeCharge, StripeCustomer
@@ -40,10 +43,12 @@ class TestCharges(TestCase):
 
         # test in case of an API error
         charge_create_mocked.side_effect = StripeError()
-        with self.assertRaises(StripeError):
-            call_command("charge_stripe")
-            charge.refresh_from_db()
-            self.assertFalse(charge.is_charged)
+        out = StringIO()
+        sys.stdout = out
+        call_command('charge_stripe')
+        charge.refresh_from_db()
+        self.assertFalse(charge.is_charged)
+        self.assertIn('Exception happened', out.getvalue())
 
         charge_create_mocked.reset_mock()
         charge_create_mocked.side_effect = None

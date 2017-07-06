@@ -1,9 +1,15 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.11]
+### Improvemets
+- Changed end_subscriptions script to raise errors at the end.
+- Changed charge_stripe script to raise errors at the end.
+- Added Sentry support for cron commands. If Sentry is not available errors will be reported to console.
+
 ## [0.2.10]
 ### Improvemets
-- Changed StripeCharge and StripeCustomer to use latest active token instead the one from relation.
+- Changed StripeCharge and StripeCustomer to use latest active token instead the one from relation. Relation might in  edge cases lead to token for invalid customer (expired card).
 
 ## [0.2.9.2]
 ### Bugfix release
