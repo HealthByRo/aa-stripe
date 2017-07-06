@@ -66,7 +66,7 @@ class StripeCharge(StripeBasicModel):
     stripe_charge_id = models.CharField(max_length=255, blank=True, db_index=True)
     description = models.CharField(max_length=255, help_text=_("Description sent to Stripe"))
     comment = models.CharField(max_length=255, help_text=_("Comment for internal information"))
-    content_type = models.ForeignKey(ContentType, null=True)
+    content_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField(null=True, db_index=True)
     source = generic.GenericForeignKey('content_type', 'object_id')
 
@@ -244,9 +244,15 @@ class StripeSubscription(StripeBasicModel):
             self.save()
 
     @classmethod
-    def end_subscriptions(cls):
+    def get_subcriptions_for_cancel(cls):
         today = timezone.localtime(timezone.now()).date()
-        for subscription in cls.objects.filter(end_date__lte=today, canceled_at__isnull=True):
+        return cls.objects.filter(end_date__lte=today, canceled_at__isnull=True)
+
+    @classmethod
+    def end_subscriptions(cls):
+        # do not use in cron - one broken subscription will kill all.
+        # instead please use end_subscriptions.py script.
+        for subscription in cls.get_subcriptions_for_cancel():
             subscription.cancel()
             sleep(0.25)  # 4 requests per second tops
 
