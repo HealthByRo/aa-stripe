@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.11.4]
+### Bugfix
+- fixed ending subscription. In some cases date was not set but status changed.
+
 ## [0.2.11.3]
 ### Bugfix
 - fixed canceled_at
