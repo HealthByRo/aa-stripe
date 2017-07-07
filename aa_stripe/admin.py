@@ -38,24 +38,29 @@ class ReadOnly(ReadOnlyBase, admin.ModelAdmin):
 
 class StripeCustomerAdmin(ReadOnly):
     list_display = ("id", "user", "created", "is_active")
+    ordering = ("-created",)
 
 
 class StripeChargeAdmin(ReadOnly):
     list_display = ("id", "user", "customer", "created", "updated", "is_charged", "amount")
+    ordering = ("-created",)
 
 
 class StripeSubscriptionAdmin(ReadOnly):
     list_display = (
         "id", "stripe_subscription_id", "user", "is_created_at_stripe", "status", "created", "updated", "end_date",
         "canceled_at")
+    ordering = ("-created",)
 
 
 class StripeSubscriptionPlanAdmin(ReadOnly):
     list_display = ("id", "is_created_at_stripe", "created", "updated", "amount", "interval", "interval_count")
+    ordering = ("-created",)
 
 
 class StripeWebhookAdmin(ReadOnly):
     list_display = ("id", "created", "updated", "is_parsed")
+    ordering = ("-created",)
 
 
 admin.site.register(StripeCustomer, StripeCustomerAdmin)
