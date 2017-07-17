@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.13]
+### Bugfix
+- improved canceling subscriptions at stripe.
+
 ## [0.2.12]
 ### Bugfix
 - improved admin - ordering by -created

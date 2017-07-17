@@ -128,11 +128,17 @@ class TestSubscriptions(TestCase):
             user=self.user,
             plan=self.plan,
             metadata={"name": "test subscription"},
-            end_date=timezone.now() + timedelta(days=5)
+            end_date=timezone.now() + timedelta(days=5),
+            status=StripeSubscription.STATUS_ACTIVE,
         )
         self.assertIsNone(subscription.canceled_at)
 
         with mock.patch("aa_stripe.models.StripeSubscription._stripe_cancel") as mocked_cancel:
+            ret = {
+                "status": "canceled"
+            }
+            mocked_cancel.return_value = ret
+
             StripeSubscription.end_subscriptions()
             call_command("end_subscriptions")
 

@@ -236,17 +236,21 @@ class StripeSubscription(StripeBasicModel):
 
     def _stripe_cancel(self):
         subscription = self.refresh_from_stripe()
-        return stripe.Subscription.delete(subscription)
+        ret = stripe.Subscription.delete(subscription)
+        return ret
 
     def cancel(self):
-        if self._stripe_cancel():
+        sub = self._stripe_cancel()
+        if sub["status"] == "canceled":
             self.canceled_at = timezone.now()
+            self.status = self.STATUS_CANCELED
             self.save()
 
     @classmethod
     def get_subcriptions_for_cancel(cls):
         today = timezone.localtime(timezone.now()).date()
-        return cls.objects.filter(end_date__lte=today, canceled_at__isnull=True).exclude(status=cls.STATUS_CANCELED)
+        return cls.objects.filter(
+            end_date__lte=today, status=cls.STATUS_ACTIVE)
 
     @classmethod
     def end_subscriptions(cls):
