@@ -18,7 +18,7 @@ USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 
 
 class StripeBasicModel(models.Model):
-    created = models.DateField(auto_now_add=True)
+    created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     stripe_response = JSONField()
 
@@ -236,12 +236,12 @@ class StripeSubscription(StripeBasicModel):
 
     def _stripe_cancel(self):
         subscription = self.refresh_from_stripe()
-        ret = stripe.Subscription.delete(subscription)
-        return ret
+        if subscription["status"] != "canceled":
+            return stripe.Subscription.delete(subscription)
 
     def cancel(self):
         sub = self._stripe_cancel()
-        if sub["status"] == "canceled":
+        if sub and sub["status"] == "canceled":
             self.canceled_at = timezone.now()
             self.status = self.STATUS_CANCELED
             self.save()
@@ -263,7 +263,7 @@ class StripeSubscription(StripeBasicModel):
 
 class StripeWebhook(models.Model):
     id = models.CharField(primary_key=True, max_length=255)  # id from stripe. This will prevent subsequent calls.
-    created = models.DateField(auto_now_add=True)
+    created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     is_parsed = models.BooleanField(default=False)
     raw_data = JSONField()

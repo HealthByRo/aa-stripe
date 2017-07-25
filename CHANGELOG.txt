@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.14]
+### Bugfix
+- created changed to DateTimeField
+- cancel only active subscription - prevent error.
+
 ## [0.2.13]
 ### Bugfix
 - improved canceling subscriptions at stripe.
