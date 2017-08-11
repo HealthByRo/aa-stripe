@@ -83,7 +83,8 @@ The newly created object is not sent to Stripe just yet.
   subscription_data = subscription.create_at_stripe()
 
 The command above returns whole subscription data send by stripe, including, in example, discounts.
-`<https://stripe.com/docs/api#subscriptions>`
+
+https://stripe.com/docs/api#subscriptions
 
 Utility functions for subscriptions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -115,7 +116,8 @@ As with Subscription, the object has to be sent to stripe.
   plan_data = plan.create_at_stripe()
 
 The command above returns whole plan data send by stripe.
-`<https://stripe.com/docs/api#plans>`
+
+https://stripe.com/docs/api#plans
 
 
 Webhooks support
