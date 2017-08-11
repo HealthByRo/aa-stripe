@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.15]
+### Added
+- Documentation about Subscriptions, SubscriptionPlan
+
 ## [0.2.14]
 ### Bugfix
 - created changed to DateTimeField
