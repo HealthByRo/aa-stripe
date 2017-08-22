@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 
-from aa_stripe.models import (
-    StripeCharge, StripeCoupon, StripeCustomer, StripeSubscription, StripeSubscriptionPlan, StripeWebhook
-)
+from aa_stripe.models import (StripeCharge, StripeCoupon, StripeCustomer, StripeSubscription, StripeSubscriptionPlan,
+                              StripeWebhook)
 
 
 class ReadOnlyBase(object):
