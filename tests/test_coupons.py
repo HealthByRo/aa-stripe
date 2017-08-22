@@ -102,7 +102,7 @@ class TestCoupons(APITestCase):
     def test_admin_form(self):
         # test correct creation
         data = {
-            "coupon_id": "250FF",
+            "coupon_id": "25OFF",
             "amount_off": 1,
             "currency": "USD",
             "duration": StripeCoupon.DURATION_ONCE,
@@ -150,7 +150,7 @@ class TestCoupons(APITestCase):
         }
         with requests_mock.Mocker() as m:
             m.register_uri("POST", "https://api.stripe.com/v1/coupons", text=json.dumps(stripe_response))
-            m.register_uri("GET", "https://api.stripe.com/v1/coupons/250FF", text=json.dumps(stripe_response))
+            m.register_uri("GET", "https://api.stripe.com/v1/coupons/25OFF", text=json.dumps(stripe_response))
             m.register_uri("POST", "https://api.stripe.com/v1/coupons/25OFF", text=json.dumps(stripe_response))
             coupon = StripeCoupon.objects.create(
                 coupon_id=data["coupon_id"], duration=StripeCoupon.DURATION_FOREVER, percent_off=25)
