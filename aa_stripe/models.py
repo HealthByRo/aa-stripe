@@ -133,6 +133,16 @@ class StripeCoupon(StripeBasicModel):
 
     def save(self, *args, **kwargs):
         stripe.api_key = settings.STRIPE_API_KEY
+        if self.is_deleted:
+            try:
+                coupon = stripe.Coupon.retrieve(self.coupon_id)
+                coupon.delete()
+            except stripe.error.InvalidRequestError:
+                # means that the coupon has already been removed from stripe
+                pass
+
+            return super(StripeCoupon, self).save(*args, **kwargs)
+
         if self.pk:
             try:
                 coupon = stripe.Coupon.retrieve(self.coupon_id)
@@ -170,6 +180,11 @@ class StripeCoupon(StripeBasicModel):
         self.is_created_at_stripe = True
         return super(StripeCoupon, self).save(*args, **kwargs)
 
+    def delete(self, *args, **kwargs):
+        self.is_deleted = True
+        self.save()
+        return 0, {self._meta.label: 0}
+
 
 class StripeCharge(StripeBasicModel):
     user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name='stripe_charges')
@@ -185,7 +200,7 @@ class StripeCharge(StripeBasicModel):
 
     def charge(self):
         if self.is_charged:
-            raise StripeMethodNotAllowed("Already charded.")
+            raise StripeMethodNotAllowed("Already charged.")
 
         stripe.api_key = settings.STRIPE_API_KEY
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
