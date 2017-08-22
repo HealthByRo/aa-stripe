@@ -97,4 +97,3 @@ class TestCoupons(APITestCase):
             coupon.save()
             coupon.refresh_from_db()
             self.assertNotEqual(coupon.duration, StripeCoupon.DURATION_ONCE)
-
