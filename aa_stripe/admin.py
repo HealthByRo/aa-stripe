@@ -52,7 +52,8 @@ class StripeCouponAdmin(admin.ModelAdmin):
     form = StripeCouponForm
     list_display = ("id", "coupon_id", "amount_off", "percent_off", "currency", "created", "is_deleted",
                     "is_created_at_stripe")
-    list_filter = ("coupon_id", "amount_off", "percent_off", "currency","created", "is_deleted", "is_created_at_stripe")
+    list_filter = ("coupon_id", "amount_off", "percent_off", "currency", "created", "is_deleted",
+                   "is_created_at_stripe")
     readonly_fields = ("stripe_response", "created", "updated", "is_deleted")
     ordering = ("-created",)
 
