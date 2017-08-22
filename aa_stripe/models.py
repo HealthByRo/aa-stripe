@@ -139,7 +139,7 @@ class StripeCoupon(StripeBasicModel):
             if not self.coupon_id:
                 self.coupon_id = self.stripe_response["id"]
 
-        super(StripeCoupon, self).save(*args, **kwargs)
+        return super(StripeCoupon, self).save(*args, **kwargs)
 
 
 class StripeCharge(StripeBasicModel):
