@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 
+from aa_stripe.forms import StripeCouponForm
 from aa_stripe.models import (StripeCharge, StripeCoupon, StripeCustomer, StripeSubscription, StripeSubscriptionPlan,
                               StripeWebhook)
 
@@ -48,9 +49,17 @@ class StripeChargeAdmin(ReadOnly):
 
 
 class StripeCouponAdmin(admin.ModelAdmin):
-    list_display = ("id", "coupon_id", "amount_off", "percent_off", "currency", "created", "is_deleted")
+    form = StripeCouponForm
+    list_display = ("id", "coupon_id", "amount_off", "percent_off", "currency", "created", "is_deleted",
+                    "is_created_at_stripe")
     readonly_fields = ("stripe_response", "created", "updated", "is_deleted")
     ordering = ("-created",)
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return [field for field in self.form.Meta.fields if field not in ["metadata"]]
+
+        return self.readonly_fields
 
 
 class StripeSubscriptionAdmin(ReadOnly):

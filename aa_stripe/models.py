@@ -69,29 +69,53 @@ class StripeCoupon(StripeBasicModel):
         (DURATION_REPEATING, DURATION_REPEATING)
     )
 
+    CURRENCY_CHOICES = (
+        ("USD", "USD"), ("AED", "AED"), ("AFN", "AFN"), ("ALL", "ALL"), ("AMD", "AMD"), ("ANG", "ANG"), ("AOA", "AOA"),
+        ("ARS", "ARS"), ("AUD", "AUD"), ("AWG", "AWG"), ("AZN", "AZN"), ("BAM", "BAM"), ("BBD", "BBD"), ("BDT", "BDT"),
+        ("BGN", "BGN"), ("BIF", "BIF"), ("BMD", "BMD"), ("BND", "BND"), ("BOB", "BOB"), ("BRL", "BRL"), ("BSD", "BSD"),
+        ("BWP", "BWP"), ("BZD", "BZD"), ("CAD", "CAD"), ("CDF", "CDF"), ("CHF", "CHF"), ("CLP", "CLP"), ("CNY", "CNY"),
+        ("COP", "COP"), ("CRC", "CRC"), ("CVE", "CVE"), ("CZK", "CZK"), ("DJF", "DJF"), ("DKK", "DKK"), ("DOP", "DOP"),
+        ("DZD", "DZD"), ("EGP", "EGP"), ("ETB", "ETB"), ("EUR", "EUR"), ("FJD", "FJD"), ("FKP", "FKP"), ("GBP", "GBP"),
+        ("GEL", "GEL"), ("GIP", "GIP"), ("GMD", "GMD"), ("GNF", "GNF"), ("GTQ", "GTQ"), ("GYD", "GYD"), ("HKD", "HKD"),
+        ("HNL", "HNL"), ("HRK", "HRK"), ("HTG", "HTG"), ("HUF", "HUF"), ("IDR", "IDR"), ("ILS", "ILS"), ("INR", "INR"),
+        ("ISK", "ISK"), ("JMD", "JMD"), ("JPY", "JPY"), ("KES", "KES"), ("KGS", "KGS"), ("KHR", "KHR"), ("KMF", "KMF"),
+        ("KRW", "KRW"), ("KYD", "KYD"), ("KZT", "KZT"), ("LAK", "LAK"), ("LBP", "LBP"), ("LKR", "LKR"), ("LRD", "LRD"),
+        ("LSL", "LSL"), ("MAD", "MAD"), ("MDL", "MDL"), ("MGA", "MGA"), ("MKD", "MKD"), ("MMK", "MMK"), ("MNT", "MNT"),
+        ("MOP", "MOP"), ("MRO", "MRO"), ("MUR", "MUR"), ("MVR", "MVR"), ("MWK", "MWK"), ("MXN", "MXN"), ("MYR", "MYR"),
+        ("MZN", "MZN"), ("NAD", "NAD"), ("NGN", "NGN"), ("NIO", "NIO"), ("NOK", "NOK"), ("NPR", "NPR"), ("NZD", "NZD"),
+        ("PAB", "PAB"), ("PEN", "PEN"), ("PGK", "PGK"), ("PHP", "PHP"), ("PKR", "PKR"), ("PLN", "PLN"), ("PYG", "PYG"),
+        ("QAR", "QAR"), ("RON", "RON"), ("RSD", "RSD"), ("RUB", "RUB"), ("RWF", "RWF"), ("SAR", "SAR"), ("SBD", "SBD"),
+        ("SCR", "SCR"), ("SEK", "SEK"), ("SGD", "SGD"), ("SHP", "SHP"), ("SLL", "SLL"), ("SOS", "SOS"), ("SRD", "SRD"),
+        ("STD", "STD"), ("SVC", "SVC"), ("SZL", "SZL"), ("THB", "THB"), ("TJS", "TJS"), ("TOP", "TOP"), ("TRY", "TRY"),
+        ("TTD", "TTD"), ("TWD", "TWD"), ("TZS", "TZS"), ("UAH", "UAH"), ("UGX", "UGX"), ("UYU", "UYU"), ("UZS", "UZS"),
+        ("VND", "VND"), ("VUV", "VUV"), ("WST", "WST"), ("XAF", "XAF"), ("XCD", "XCD"), ("XOF", "XOF"), ("XPF", "XPF"),
+        ("YER", "YER"), ("ZAR", "ZAR"), ("ZMW", "ZMW")
+    )
+
     coupon_id = models.CharField(max_length=255, help_text=_("Identifier for the coupon"))
     amount_off = models.PositiveIntegerField(
-        blank=True, null=True, help_text=_("Amount (in the currency specified) that will be taken off the subtotal of"
+        blank=True, null=True, help_text=_("Amount (in the currency specified) that will be taken off the subtotal of "
                                            "any invoices for this customer."))
     currency = models.CharField(
-        max_length=3, default="usd", help_text=_("If amount_off has been set, the three-letter ISO code for the"
-                                                 "currency of the amount to take off."))
+        max_length=3, default="USD", choices=CURRENCY_CHOICES,
+        help_text=_("If amount_off has been set, the three-letter ISO code for the currency of the amount to take "
+                    "off."))
     duration = models.CharField(
         max_length=255, choices=DURATION_CHOICES,
         help_text=_("Describes how long a customer who applies this coupon will get the discount."))
     duration_in_months = models.PositiveIntegerField(
-        blank=True, null=True, help_text=_("If duration is repeating, the number of months the coupon applies."
+        blank=True, null=True, help_text=_("If duration is repeating, the number of months the coupon applies. "
                                            "Null if coupon duration is forever or once."))
     livemode = models.BooleanField(
         default=False, help_text=_("Flag indicating whether the object exists in live mode or test mode."))
     max_redemptions = models.PositiveIntegerField(
         blank=True, null=True,
         help_text=_("Maximum number of times this coupon can be redeemed, in total, before it is no longer valid."))
-    metadata = JSONField(help_text=_("Set of key/value pairs that you can attach to an object. It can be useful for"
+    metadata = JSONField(help_text=_("Set of key/value pairs that you can attach to an object. It can be useful for "
                                      "storing additional information about the object in a structured format."))
     percent_off = models.PositiveIntegerField(
         blank=True, null=True,
-        help_text=_("Percent that will be taken off the subtotal of any invoicesfor this customer for the duration of"
+        help_text=_("Percent that will be taken off the subtotal of any invoicesfor this customer for the duration of "
                     "the coupon. For example, a coupon with percent_off of 50 will make a $100 invoice $50 instead."))
     redeem_by = models.DateTimeField(
         blank=True, null=True, help_text=_("Date after which the coupon can no longer be redeemed."))
@@ -102,6 +126,10 @@ class StripeCoupon(StripeBasicModel):
         help_text=_("Taking account of the above properties, whether this coupon can still be applied to a customer."))
     created = models.DateTimeField()
     is_deleted = models.BooleanField(default=False)
+    is_created_at_stripe = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.coupon_id
 
     def save(self, *args, **kwargs):
         stripe.api_key = settings.STRIPE_API_KEY
@@ -112,10 +140,9 @@ class StripeCoupon(StripeBasicModel):
                 coupon.save()
 
                 # update all fields in the local object in case someone tried to change them
-                self.coupon_id = coupon.id
                 readonly_fields = [
                     "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
-                    "percent_off", "redeem_by", "times_redeemed", "valid"
+                    "percent_off", "redeem_by", "times_redeemed", "valid",
                 ]
                 for field in readonly_fields:
                     setattr(self, field, getattr(coupon, field))
@@ -125,7 +152,7 @@ class StripeCoupon(StripeBasicModel):
             self.stripe_response = stripe.Coupon.create(
                 id=self.coupon_id,
                 duration=self.duration,
-                amout_off=self.amount_off,
+                amount_off=self.amount_off,
                 currency=self.currency,
                 duration_in_months=self.duration_in_months,
                 max_redemptions=self.max_redemptions,
@@ -139,6 +166,8 @@ class StripeCoupon(StripeBasicModel):
             if not self.coupon_id:
                 self.coupon_id = self.stripe_response["id"]
 
+        # for future
+        self.is_created_at_stripe = True
         return super(StripeCoupon, self).save(*args, **kwargs)
 
 
