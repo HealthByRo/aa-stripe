@@ -129,7 +129,7 @@ class StripeCoupon(StripeBasicModel):
     is_created_at_stripe = models.BooleanField(default=False)
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(StripeCoupon, self).__init__(*args, **kwargs)
         self._previous_is_deleted = self.is_deleted
 
     def __str__(self):
