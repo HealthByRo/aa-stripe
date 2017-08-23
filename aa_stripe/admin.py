@@ -52,6 +52,8 @@ class StripeCouponAdmin(admin.ModelAdmin):
     form = StripeCouponForm
     list_display = ("id", "coupon_id", "amount_off", "percent_off", "currency", "created", "is_deleted",
                     "is_created_at_stripe")
+    list_filter = ("coupon_id", "amount_off", "percent_off", "currency", "created", "is_deleted",
+                   "is_created_at_stripe")
     readonly_fields = ("stripe_response", "created", "updated", "is_deleted")
     ordering = ("-created",)
 
@@ -60,6 +62,10 @@ class StripeCouponAdmin(admin.ModelAdmin):
             return [field for field in self.form.Meta.fields if field not in ["metadata"]]
 
         return self.readonly_fields
+
+    def has_delete_permission(self, request, obj=None):
+        # allow deleting single object, but disable bulk delete (bulk delete does not call models' .delete() method)
+        return bool(obj)
 
 
 class StripeSubscriptionAdmin(ReadOnly):
