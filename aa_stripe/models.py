@@ -132,9 +132,9 @@ class StripeCoupon(StripeBasicModel):
         return self.coupon_id
 
     def save(self, force_retrieve=False, *args, **kwargs):
-        """Save StripeCoupon
-        Use the force_retrieve parameter to create a new StripeCoupon object form an existing coupon created at
-        Stripe API.
+        """
+        Use the force_retrieve parameter to create a new StripeCoupon object from an existing coupon created at Stripe
+        API or update the local object with data fetched from Stripe.
         """
         stripe.api_key = settings.STRIPE_API_KEY
         if self.is_deleted:
@@ -405,7 +405,7 @@ class StripeWebhook(models.Model):
     is_parsed = models.BooleanField(default=False)
     raw_data = JSONField()
 
-    def _parse_coupon_notifications(self, action):
+    def _parse_coupon_notification(self, action):
         coupon_id = self.raw_data["data"]["object"]["id"]
         if action == "created":
             StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
@@ -423,7 +423,7 @@ class StripeWebhook(models.Model):
         if "." in event_type:
             event_model, event_action = event_type.rsplit(".", 1)
             if event_model == "coupon":
-                self._parse_coupon_notifications(event_action)
+                self._parse_coupon_notification(event_action)
 
         self.is_parsed = True
         if save:
