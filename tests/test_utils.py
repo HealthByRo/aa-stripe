@@ -11,7 +11,7 @@ from aa_stripe.models import StripeCoupon
 
 
 class BaseTestCase(APITestCase):
-    def _create_coupon(self, coupon_id, amount_off=None, duration=StripeCoupon.DURATION_FOREVER):
+    def _create_coupon(self, coupon_id, amount_off=None, duration=StripeCoupon.DURATION_FOREVER, metadata=None):
         with requests_mock.Mocker() as m:
             # create a simple coupon which will be used for tests
             stripe_response = {
@@ -24,7 +24,7 @@ class BaseTestCase(APITestCase):
                 "duration_in_months": None,
                 "livemode": False,
                 "max_redemptions": None,
-                "metadata": {},
+                "metadata": metadata or {},
                 "percent_off": 25,
                 "redeem_by": None,
                 "times_redeemed": 0,
