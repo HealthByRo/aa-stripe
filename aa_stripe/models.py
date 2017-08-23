@@ -128,12 +128,16 @@ class StripeCoupon(StripeBasicModel):
     is_deleted = models.BooleanField(default=False)
     is_created_at_stripe = models.BooleanField(default=False)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._previous_is_deleted = self.is_deleted
+
     def __str__(self):
         return self.coupon_id
 
     def save(self, *args, **kwargs):
         stripe.api_key = settings.STRIPE_API_KEY
-        if self.is_deleted:
+        if self._previous_is_deleted != self.is_deleted and self.is_deleted:
             try:
                 coupon = stripe.Coupon.retrieve(self.coupon_id)
                 coupon.delete()
