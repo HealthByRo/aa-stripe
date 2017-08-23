@@ -111,7 +111,7 @@ class TestWebhook(BaseTestCase):
         webhook = StripeWebhook.objects.first()
         self.assertEqual(webhook.id, payload["id"])
         self.assertEqual(webhook.raw_data, payload)
-        self.assertFalse(webhook.is_parsed)
+        self.assertTrue(webhook.is_parsed)
 
     def test_coupon_delete(self):
         coupon = self._create_coupon("nicecoupon", amount_off=10000, duration=StripeCoupon.DURATION_ONCE)
