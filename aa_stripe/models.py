@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 from time import sleep
 
 import simplejson as json
@@ -12,7 +13,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
-from aa_stripe.exceptions import StripeMethodNotAllowed
+from aa_stripe.exceptions import StripeMethodNotAllowed, StripeWebhookAlreadyParsed
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 
@@ -58,6 +59,145 @@ class StripeCustomer(StripeBasicModel):
         ordering = ["id"]
 
 
+class StripeCoupon(StripeBasicModel):
+    DURATION_FOREVER = "forever"
+    DURATION_ONCE = "once"
+    DURATION_REPEATING = "repeating"
+    DURATION_CHOICES = (
+        (DURATION_FOREVER, DURATION_FOREVER),
+        (DURATION_ONCE, DURATION_ONCE),
+        (DURATION_REPEATING, DURATION_REPEATING)
+    )
+
+    CURRENCY_CHOICES = (
+        ("USD", "USD"), ("AED", "AED"), ("AFN", "AFN"), ("ALL", "ALL"), ("AMD", "AMD"), ("ANG", "ANG"), ("AOA", "AOA"),
+        ("ARS", "ARS"), ("AUD", "AUD"), ("AWG", "AWG"), ("AZN", "AZN"), ("BAM", "BAM"), ("BBD", "BBD"), ("BDT", "BDT"),
+        ("BGN", "BGN"), ("BIF", "BIF"), ("BMD", "BMD"), ("BND", "BND"), ("BOB", "BOB"), ("BRL", "BRL"), ("BSD", "BSD"),
+        ("BWP", "BWP"), ("BZD", "BZD"), ("CAD", "CAD"), ("CDF", "CDF"), ("CHF", "CHF"), ("CLP", "CLP"), ("CNY", "CNY"),
+        ("COP", "COP"), ("CRC", "CRC"), ("CVE", "CVE"), ("CZK", "CZK"), ("DJF", "DJF"), ("DKK", "DKK"), ("DOP", "DOP"),
+        ("DZD", "DZD"), ("EGP", "EGP"), ("ETB", "ETB"), ("EUR", "EUR"), ("FJD", "FJD"), ("FKP", "FKP"), ("GBP", "GBP"),
+        ("GEL", "GEL"), ("GIP", "GIP"), ("GMD", "GMD"), ("GNF", "GNF"), ("GTQ", "GTQ"), ("GYD", "GYD"), ("HKD", "HKD"),
+        ("HNL", "HNL"), ("HRK", "HRK"), ("HTG", "HTG"), ("HUF", "HUF"), ("IDR", "IDR"), ("ILS", "ILS"), ("INR", "INR"),
+        ("ISK", "ISK"), ("JMD", "JMD"), ("JPY", "JPY"), ("KES", "KES"), ("KGS", "KGS"), ("KHR", "KHR"), ("KMF", "KMF"),
+        ("KRW", "KRW"), ("KYD", "KYD"), ("KZT", "KZT"), ("LAK", "LAK"), ("LBP", "LBP"), ("LKR", "LKR"), ("LRD", "LRD"),
+        ("LSL", "LSL"), ("MAD", "MAD"), ("MDL", "MDL"), ("MGA", "MGA"), ("MKD", "MKD"), ("MMK", "MMK"), ("MNT", "MNT"),
+        ("MOP", "MOP"), ("MRO", "MRO"), ("MUR", "MUR"), ("MVR", "MVR"), ("MWK", "MWK"), ("MXN", "MXN"), ("MYR", "MYR"),
+        ("MZN", "MZN"), ("NAD", "NAD"), ("NGN", "NGN"), ("NIO", "NIO"), ("NOK", "NOK"), ("NPR", "NPR"), ("NZD", "NZD"),
+        ("PAB", "PAB"), ("PEN", "PEN"), ("PGK", "PGK"), ("PHP", "PHP"), ("PKR", "PKR"), ("PLN", "PLN"), ("PYG", "PYG"),
+        ("QAR", "QAR"), ("RON", "RON"), ("RSD", "RSD"), ("RUB", "RUB"), ("RWF", "RWF"), ("SAR", "SAR"), ("SBD", "SBD"),
+        ("SCR", "SCR"), ("SEK", "SEK"), ("SGD", "SGD"), ("SHP", "SHP"), ("SLL", "SLL"), ("SOS", "SOS"), ("SRD", "SRD"),
+        ("STD", "STD"), ("SVC", "SVC"), ("SZL", "SZL"), ("THB", "THB"), ("TJS", "TJS"), ("TOP", "TOP"), ("TRY", "TRY"),
+        ("TTD", "TTD"), ("TWD", "TWD"), ("TZS", "TZS"), ("UAH", "UAH"), ("UGX", "UGX"), ("UYU", "UYU"), ("UZS", "UZS"),
+        ("VND", "VND"), ("VUV", "VUV"), ("WST", "WST"), ("XAF", "XAF"), ("XCD", "XCD"), ("XOF", "XOF"), ("XPF", "XPF"),
+        ("YER", "YER"), ("ZAR", "ZAR"), ("ZMW", "ZMW")
+    )
+
+    coupon_id = models.CharField(max_length=255, help_text=_("Identifier for the coupon"))
+    amount_off = models.PositiveIntegerField(
+        blank=True, null=True, help_text=_("Amount (in the currency specified) that will be taken off the subtotal of "
+                                           "any invoices for this customer."))
+    currency = models.CharField(
+        max_length=3, default="USD", choices=CURRENCY_CHOICES,
+        help_text=_("If amount_off has been set, the three-letter ISO code for the currency of the amount to take "
+                    "off."))
+    duration = models.CharField(
+        max_length=255, choices=DURATION_CHOICES,
+        help_text=_("Describes how long a customer who applies this coupon will get the discount."))
+    duration_in_months = models.PositiveIntegerField(
+        blank=True, null=True, help_text=_("If duration is repeating, the number of months the coupon applies. "
+                                           "Null if coupon duration is forever or once."))
+    livemode = models.BooleanField(
+        default=False, help_text=_("Flag indicating whether the object exists in live mode or test mode."))
+    max_redemptions = models.PositiveIntegerField(
+        blank=True, null=True,
+        help_text=_("Maximum number of times this coupon can be redeemed, in total, before it is no longer valid."))
+    metadata = JSONField(help_text=_("Set of key/value pairs that you can attach to an object. It can be useful for "
+                                     "storing additional information about the object in a structured format."))
+    percent_off = models.PositiveIntegerField(
+        blank=True, null=True,
+        help_text=_("Percent that will be taken off the subtotal of any invoicesfor this customer for the duration of "
+                    "the coupon. For example, a coupon with percent_off of 50 will make a $100 invoice $50 instead."))
+    redeem_by = models.DateTimeField(
+        blank=True, null=True, help_text=_("Date after which the coupon can no longer be redeemed."))
+    times_redeemed = models.PositiveIntegerField(
+        default=0, help_text=_("Number of times this coupon has been applied to a customer."))
+    valid = models.BooleanField(
+        default=False,
+        help_text=_("Taking account of the above properties, whether this coupon can still be applied to a customer."))
+    created = models.DateTimeField()
+    is_deleted = models.BooleanField(default=False)
+    is_created_at_stripe = models.BooleanField(default=False)
+
+    def __init__(self, *args, **kwargs):
+        super(StripeCoupon, self).__init__(*args, **kwargs)
+        self._previous_is_deleted = self.is_deleted
+
+    def __str__(self):
+        return self.coupon_id
+
+    def save(self, force_retrieve=False, *args, **kwargs):
+        """
+        Use the force_retrieve parameter to create a new StripeCoupon object from an existing coupon created at Stripe
+        API or update the local object with data fetched from Stripe.
+        """
+        stripe.api_key = settings.STRIPE_API_KEY
+        if self._previous_is_deleted != self.is_deleted and self.is_deleted:
+            try:
+                coupon = stripe.Coupon.retrieve(self.coupon_id)
+                coupon.delete()
+            except stripe.error.InvalidRequestError:
+                # means that the coupon has already been removed from stripe
+                pass
+
+            return super(StripeCoupon, self).save(*args, **kwargs)
+
+        if self.pk or force_retrieve:
+            try:
+                coupon = stripe.Coupon.retrieve(self.coupon_id)
+                if not force_retrieve:
+                    coupon.metadata = self.metadata
+                    coupon.save()
+
+                # update all fields in the local object in case someone tried to change them
+                self.stripe_response = coupon
+                fields_to_update = [
+                    "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
+                    "percent_off", "redeem_by", "times_redeemed", "valid"
+                ]
+                if force_retrieve:
+                    fields_to_update.append("metadata")
+
+                for field in fields_to_update:
+                    setattr(self, field, getattr(coupon, field))
+            except stripe.error.InvalidRequestError:
+                self.is_deleted = True
+        else:
+            self.stripe_response = stripe.Coupon.create(
+                id=self.coupon_id,
+                duration=self.duration,
+                amount_off=self.amount_off,
+                currency=self.currency,
+                duration_in_months=self.duration_in_months,
+                max_redemptions=self.max_redemptions,
+                metadata=self.metadata,
+                percent_off=self.percent_off,
+                redeem_by=self.redeem_by
+            )
+            # stripe will generate coupon_id if none was specified in the request
+            if not self.coupon_id:
+                self.coupon_id = self.stripe_response["id"]
+
+        self.created = timezone.make_aware(datetime.fromtimestamp(self.stripe_response["created"]))
+        # for future
+        self.is_created_at_stripe = True
+        return super(StripeCoupon, self).save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        self.is_deleted = True
+        self.save()
+        return 0, {self._meta.label: 0}
+
+
 class StripeCharge(StripeBasicModel):
     user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name='stripe_charges')
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
@@ -72,7 +212,7 @@ class StripeCharge(StripeBasicModel):
 
     def charge(self):
         if self.is_charged:
-            raise StripeMethodNotAllowed("Already charded.")
+            raise StripeMethodNotAllowed("Already charged.")
 
         stripe.api_key = settings.STRIPE_API_KEY
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
@@ -189,8 +329,9 @@ class StripeSubscription(StripeBasicModel):
     # application_fee_percent = models.DecimalField(
     #     default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], decimal_places=2, max_digits=3,
     #     help_text="https://stripe.com/docs/api/python#create_subscription-application_fee_percent")
-    coupon = models.CharField(
-        max_length=255, blank=True, help_text="https://stripe.com/docs/api/python#create_subscription-coupon")
+    coupon = models.ForeignKey(
+        StripeCoupon, blank=True, null=True, on_delete=models.SET_NULL,
+        help_text="https://stripe.com/docs/api/python#create_subscription-coupon")
     end_date = models.DateField(null=True, blank=True, db_index=True)
     canceled_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
@@ -208,7 +349,7 @@ class StripeSubscription(StripeBasicModel):
                 "tax_percent": self.tax_percent,
             }
             if self.coupon:
-                data["coupon"] = self.coupon
+                data["coupon"] = self.coupon.coupon_id
 
             try:
                 subscription = stripe.Subscription.create(**data)
@@ -267,3 +408,33 @@ class StripeWebhook(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_parsed = models.BooleanField(default=False)
     raw_data = JSONField()
+
+    def _parse_coupon_notification(self, action):
+        coupon_id = self.raw_data["data"]["object"]["id"]
+        if action == "created":
+            StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
+        elif action == "updated":
+            StripeCoupon.objects.filter(coupon_id=coupon_id, is_deleted=False).update(
+                metadata=self.raw_data["data"]["object"]["metadata"])
+        elif action == "deleted":
+            StripeCoupon.objects.filter(coupon_id=coupon_id).update(is_deleted=True)
+
+    def parse(self, save=False):
+        if self.is_parsed:
+            raise StripeWebhookAlreadyParsed
+
+        event_type = self.raw_data.get("type")
+        if "." in event_type:
+            event_model, event_action = event_type.rsplit(".", 1)
+            if event_model == "coupon":
+                self._parse_coupon_notification(event_action)
+
+        self.is_parsed = True
+        if save:
+            self.save()
+
+    def save(self, *args, **kwargs):
+        if not self.is_parsed:
+            self.parse()
+
+        return super(StripeWebhook, self).save(*args, **kwargs)

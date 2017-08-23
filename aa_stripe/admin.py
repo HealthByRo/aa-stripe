@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 
-from aa_stripe.models import StripeCharge, StripeCustomer, StripeSubscription, StripeSubscriptionPlan, StripeWebhook
+from aa_stripe.forms import StripeCouponForm
+from aa_stripe.models import (StripeCharge, StripeCoupon, StripeCustomer, StripeSubscription, StripeSubscriptionPlan,
+                              StripeWebhook)
 
 
 class ReadOnlyBase(object):
@@ -46,6 +48,26 @@ class StripeChargeAdmin(ReadOnly):
     ordering = ("-created",)
 
 
+class StripeCouponAdmin(admin.ModelAdmin):
+    form = StripeCouponForm
+    list_display = ("id", "coupon_id", "amount_off", "percent_off", "currency", "created", "is_deleted",
+                    "is_created_at_stripe")
+    list_filter = ("coupon_id", "amount_off", "percent_off", "currency", "created", "is_deleted",
+                   "is_created_at_stripe")
+    readonly_fields = ("stripe_response", "created", "updated", "is_deleted")
+    ordering = ("-created",)
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return [field for field in self.form.Meta.fields if field not in ["metadata"]]
+
+        return self.readonly_fields
+
+    def has_delete_permission(self, request, obj=None):
+        # allow deleting single object, but disable bulk delete (bulk delete does not call models' .delete() method)
+        return bool(obj)
+
+
 class StripeSubscriptionAdmin(ReadOnly):
     list_display = (
         "id", "stripe_subscription_id", "user", "is_created_at_stripe", "status", "created", "updated", "end_date",
@@ -65,6 +87,7 @@ class StripeWebhookAdmin(ReadOnly):
 
 admin.site.register(StripeCustomer, StripeCustomerAdmin)
 admin.site.register(StripeCharge, StripeChargeAdmin)
+admin.site.register(StripeCoupon, StripeCouponAdmin)
 admin.site.register(StripeSubscription, StripeSubscriptionAdmin)
 admin.site.register(StripeSubscriptionPlan, StripeSubscriptionPlanAdmin)
 admin.site.register(StripeWebhook, StripeWebhookAdmin)
