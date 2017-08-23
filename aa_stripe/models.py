@@ -15,7 +15,6 @@ from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
 from aa_stripe.exceptions import StripeMethodNotAllowed
-from aa_stripe.signals import stripe_webhook_post_save
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 
@@ -398,6 +397,24 @@ class StripeWebhook(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_parsed = models.BooleanField(default=False)
     raw_data = JSONField()
+
+
+def stripe_webhook_post_save(sender, instance, created, **kwargs):
+    if not created:
+        return
+
+    event_type = instance.raw_data.get("type")
+    if "." not in event_type:
+        return
+
+    event_model, event_action = event_type.split(".")
+    if event_model == "coupon":
+        if event_action == "deleted":
+            coupon_id = instance.raw_data["data"]["object"]["id"]
+            StripeCoupon.objects.filter(coupon_id=coupon_id).update(is_deleted=True)
+
+        instance.is_parsed = True
+        instance.save()
 
 
 post_save.connect(stripe_webhook_post_save, sender=StripeWebhook)
