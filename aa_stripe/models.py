@@ -9,11 +9,13 @@ from django.contrib.contenttypes import fields as generic
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models.signals import post_save
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
 from aa_stripe.exceptions import StripeMethodNotAllowed
+from aa_stripe.signals import stripe_webhook_post_save
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 
@@ -396,3 +398,6 @@ class StripeWebhook(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_parsed = models.BooleanField(default=False)
     raw_data = JSONField()
+
+
+post_save.connect(stripe_webhook_post_save, sender=StripeWebhook)
