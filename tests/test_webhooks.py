@@ -116,7 +116,6 @@ class TestWebhook(BaseTestCase):
     def test_coupon_delete(self):
         coupon = self._create_coupon("nicecoupon", amount_off=10000, duration=StripeCoupon.DURATION_ONCE)
         self.assertFalse(coupon.is_deleted)
-        self.assertEqual(StripeWebhook.objects.count(), 0)
         payload = json.loads("""{
           "id": "evt_1Atthtasdsaf6pRwkdLOSKls",
           "object": "event",
