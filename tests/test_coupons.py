@@ -3,12 +3,17 @@ from datetime import datetime
 
 import requests_mock
 import simplejson as json
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from freezegun import freeze_time
+from rest_framework.reverse import reverse
 from tests.test_utils import BaseTestCase
 
 from aa_stripe.forms import StripeCouponForm
 from aa_stripe.models import StripeCoupon
+
+
+UserModel = get_user_model()
 
 
 class TestCoupons(BaseTestCase):
@@ -179,3 +184,32 @@ class TestCoupons(BaseTestCase):
             coupon.is_deleted = True
             coupon.save()
             self.assertTrue(StripeCouponForm(data=data).is_valid())
+
+    def test_details_api(self):
+        # test accessing without authentication
+        url = reverse("stripe-coupon-details", kwargs={"coupon_id": "FAKE"})
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, 403)
+
+        user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
+        self.client.force_authenticate(user=user)
+        # test accessing coupon that does not exist
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, 404)
+
+        # test regular
+        coupon = self._create_coupon("COUPON")
+        url = reverse("stripe-coupon-details", kwargs={"coupon_id": coupon.coupon_id})
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data.keys(), {
+            "coupon_id", "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
+            "metadata", "percent_off", "redeem_by", "times_redeemed", "valid", "is_created_at_stripe", "created",
+            "updated", "is_deleted"
+        })
+
+        # test accessing coupon that has already been deleted
+        # update does not call object's .save(), so we do not need to mock Stripe API
+        StripeCoupon.objects.filter(pk=coupon.pk).update(is_deleted=True)
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, 404)
