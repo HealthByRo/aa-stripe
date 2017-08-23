@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
-from aa_stripe.exceptions import StripeMethodNotAllowed
+from aa_stripe.exceptions import StripeMethodNotAllowed, StripeWebhookAlreadyParsed
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 
@@ -398,15 +398,16 @@ class StripeWebhook(models.Model):
     raw_data = JSONField()
 
     def parse(self, save=False):
-        event_type = self.raw_data.get("type")
-        if "." not in event_type:
-            return
+        if self.is_parsed:
+            raise StripeWebhookAlreadyParsed
 
-        event_model, event_action = event_type.split(".")
-        if event_model == "coupon":
-            if event_action == "deleted":
-                coupon_id = self.raw_data["data"]["object"]["id"]
-                StripeCoupon.objects.filter(coupon_id=coupon_id).update(is_deleted=True)
+        event_type = self.raw_data.get("type")
+        if "." in event_type:
+            event_model, event_action = event_type.rsplit(".", 1)
+            if event_model == "coupon":
+                if event_action == "deleted":
+                    coupon_id = self.raw_data["data"]["object"]["id"]
+                    StripeCoupon.objects.filter(coupon_id=coupon_id).update(is_deleted=True)
 
         self.is_parsed = True
         if save:

@@ -2,6 +2,7 @@ import simplejson as json
 from rest_framework.reverse import reverse
 from tests.test_utils import BaseTestCase
 
+from aa_stripe.exceptions import StripeWebhookAlreadyParsed
 from aa_stripe.models import StripeCoupon, StripeWebhook
 
 
@@ -165,3 +166,9 @@ class TestWebhook(BaseTestCase):
         coupon.refresh_from_db()
         self.assertEqual(response.status_code, 201)
         self.assertTrue(coupon.is_deleted)
+
+        # make sure trying to parse already parsed webhook is impossible
+        webhook = StripeWebhook.objects.first()
+        self.assertTrue(webhook.is_parsed)
+        with self.assertRaises(StripeWebhookAlreadyParsed):
+            webhook.parse()
