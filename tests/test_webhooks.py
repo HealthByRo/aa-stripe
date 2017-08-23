@@ -1,3 +1,4 @@
+import requests_mock
 import simplejson as json
 from rest_framework.reverse import reverse
 from tests.test_utils import BaseTestCase
@@ -113,6 +114,124 @@ class TestWebhook(BaseTestCase):
         self.assertEqual(webhook.id, payload["id"])
         self.assertEqual(webhook.raw_data, payload)
         self.assertTrue(webhook.is_parsed)
+
+    def test_coupon_create(self):
+        self.assertEqual(StripeCoupon.objects.count(), 0)
+        payload = json.loads("""{
+          "id": "evt_1AtuXzLoWm2f6pRwC5YntNLU",
+          "object": "event",
+          "api_version": "2017-06-05",
+          "created": 1503478151,
+          "data": {
+            "object": {
+              "id": "nicecoupon",
+              "object": "coupon",
+              "amount_off": 1000,
+              "created": 1503478151,
+              "currency": "usd",
+              "duration": "once",
+              "duration_in_months": null,
+              "livemode": false,
+              "max_redemptions": null,
+              "metadata": {
+              },
+              "percent_off": null,
+              "redeem_by": null,
+              "times_redeemed": 0,
+              "valid": true
+            }
+          },
+          "livemode": false,
+          "pending_webhooks": 1,
+          "request": {
+            "id": "req_RzV8JI9bg7fPiR",
+            "idempotency_key": null
+          },
+          "type": "coupon.created"
+        }""")
+        stripe_response = json.loads("""{
+          "id": "nicecoupon",
+          "object": "coupon",
+          "amount_off": 1000,
+          "created": 1503478151,
+          "currency": "usd",
+          "duration": "once",
+          "duration_in_months": null,
+          "livemode": false,
+          "max_redemptions": null,
+          "metadata": {
+          },
+          "percent_off": null,
+          "redeem_by": null,
+          "times_redeemed": 0,
+          "valid": true
+        }""")
+        with requests_mock.Mocker() as m:
+            m.register_uri("GET", "https://api.stripe.com/v1/coupons/nicecoupon", text=json.dumps(stripe_response))
+            url = reverse("stripe-webhooks")
+            self.client.credentials(**self._get_signature_headers(payload))
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(StripeCoupon.objects.count(), 1)
+            coupon = StripeCoupon.objects.first()
+            # the rest of the data is retrieved from Stripe API, which is stubbed above
+            # so there is no need to compare it
+            self.assertEqual(coupon.coupon_id, "nicecoupon")
+
+    def test_coupon_update(self):
+        coupon = self._create_coupon("nicecoupon", amount_off=10000, duration=StripeCoupon.DURATION_ONCE,
+                                     metadata={"nie": "tak", "lol1": "rotfl"})
+        payload = json.loads("""{
+          "id": "evt_1AtuTOLoWm2f6pRw6dYfQzWh",
+          "object": "event",
+          "api_version": "2017-06-05",
+          "created": 1503477866,
+          "data": {
+            "object": {
+              "id": "nicecoupon",
+              "object": "coupon",
+              "amount_off": 10000,
+              "created": 1503412710,
+              "currency": "usd",
+              "duration": "forever",
+              "duration_in_months": null,
+              "livemode": false,
+              "max_redemptions": null,
+              "metadata": {
+                "lol1": "rotfl2",
+                "lol2": "yeah"
+              },
+              "percent_off": null,
+              "redeem_by": null,
+              "times_redeemed": 0,
+              "valid": true
+            },
+            "previous_attributes": {
+              "metadata": {
+                "nie": "tak",
+                "lol1": "rotfl",
+                "lol2": null
+              }
+            }
+          },
+          "livemode": false,
+          "pending_webhooks": 1,
+          "request": {
+            "id": "req_putcEg4hE9bkUb",
+            "idempotency_key": null
+          },
+          "type": "coupon.updated"
+        }""")
+
+        url = reverse("stripe-webhooks")
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(url, data=payload, format="json")
+        coupon.refresh_from_db()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(coupon.metadata, {
+            "lol1": "rotfl2",
+            "lol2": "yeah"
+        })
 
     def test_coupon_delete(self):
         coupon = self._create_coupon("nicecoupon", amount_off=10000, duration=StripeCoupon.DURATION_ONCE)

@@ -131,7 +131,11 @@ class StripeCoupon(StripeBasicModel):
     def __str__(self):
         return self.coupon_id
 
-    def save(self, *args, **kwargs):
+    def save(self, force_retrieve=False, *args, **kwargs):
+        """
+        Use the force_retrieve parameter to create a new StripeCoupon object from an existing coupon created at Stripe
+        API or update the local object with data fetched from Stripe.
+        """
         stripe.api_key = settings.STRIPE_API_KEY
         if self.is_deleted:
             try:
@@ -143,18 +147,23 @@ class StripeCoupon(StripeBasicModel):
 
             return super(StripeCoupon, self).save(*args, **kwargs)
 
-        if self.pk:
+        if self.pk or force_retrieve:
             try:
                 coupon = stripe.Coupon.retrieve(self.coupon_id)
-                coupon.metadata = self.metadata
-                coupon.save()
+                if not force_retrieve:
+                    coupon.metadata = self.metadata
+                    coupon.save()
 
                 # update all fields in the local object in case someone tried to change them
-                readonly_fields = [
+                self.stripe_response = coupon
+                fields_to_update = [
                     "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
-                    "percent_off", "redeem_by", "times_redeemed", "valid",
+                    "percent_off", "redeem_by", "times_redeemed", "valid"
                 ]
-                for field in readonly_fields:
+                if force_retrieve:
+                    fields_to_update.append("metadata")
+
+                for field in fields_to_update:
                     setattr(self, field, getattr(coupon, field))
             except stripe.error.InvalidRequestError:
                 self.is_deleted = True
@@ -170,12 +179,11 @@ class StripeCoupon(StripeBasicModel):
                 percent_off=self.percent_off,
                 redeem_by=self.redeem_by
             )
-            self.created = timezone.make_aware(datetime.fromtimestamp(self.stripe_response["created"]))
-
             # stripe will generate coupon_id if none was specified in the request
             if not self.coupon_id:
                 self.coupon_id = self.stripe_response["id"]
 
+        self.created = timezone.make_aware(datetime.fromtimestamp(self.stripe_response["created"]))
         # for future
         self.is_created_at_stripe = True
         return super(StripeCoupon, self).save(*args, **kwargs)
@@ -397,6 +405,16 @@ class StripeWebhook(models.Model):
     is_parsed = models.BooleanField(default=False)
     raw_data = JSONField()
 
+    def _parse_coupon_notification(self, action):
+        coupon_id = self.raw_data["data"]["object"]["id"]
+        if action == "created":
+            StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
+        elif action == "updated":
+            StripeCoupon.objects.filter(coupon_id=coupon_id, is_deleted=False).update(
+                metadata=self.raw_data["data"]["object"]["metadata"])
+        elif action == "deleted":
+            StripeCoupon.objects.filter(coupon_id=coupon_id).update(is_deleted=True)
+
     def parse(self, save=False):
         if self.is_parsed:
             raise StripeWebhookAlreadyParsed
@@ -405,9 +423,7 @@ class StripeWebhook(models.Model):
         if "." in event_type:
             event_model, event_action = event_type.rsplit(".", 1)
             if event_model == "coupon":
-                if event_action == "deleted":
-                    coupon_id = self.raw_data["data"]["object"]["id"]
-                    StripeCoupon.objects.filter(coupon_id=coupon_id).update(is_deleted=True)
+                self._parse_coupon_notification(event_action)
 
         self.is_parsed = True
         if save:
