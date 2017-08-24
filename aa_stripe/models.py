@@ -4,6 +4,7 @@ from time import sleep
 
 import simplejson as json
 import stripe
+from django import dispatch
 from django.conf import settings
 from django.contrib.contenttypes import fields as generic
 from django.contrib.contenttypes.models import ContentType
@@ -16,6 +17,9 @@ from jsonfield import JSONField
 from aa_stripe.exceptions import StripeMethodNotAllowed, StripeWebhookAlreadyParsed
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
+
+# signals
+webhook_pre_parse = dispatch.Signal(providing_args=["instance", "event_type", "event_model", "event_action"])
 
 
 class StripeBasicModel(models.Model):
@@ -424,8 +428,17 @@ class StripeWebhook(models.Model):
             raise StripeWebhookAlreadyParsed
 
         event_type = self.raw_data.get("type")
-        if "." in event_type:
+        try:
             event_model, event_action = event_type.rsplit(".", 1)
+        except ValueError:
+            event_model, event_action = None, None
+
+        webhook_pre_parse.send(
+            sender=self.__class__, instance=self, event_type=event_type, event_model=event_model,
+            event_action=event_action)
+
+        # parse
+        if event_model:
             if event_model == "coupon":
                 self._parse_coupon_notification(event_action)
 
