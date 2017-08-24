@@ -2,12 +2,19 @@ import simplejson as json
 import stripe
 from django.conf import settings
 from rest_framework import status
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from aa_stripe.models import StripeCustomer, StripeWebhook
-from aa_stripe.serializers import StripeCustomerSerializer, StripeWebhookSerializer
+from aa_stripe.models import StripeCoupon, StripeCustomer, StripeWebhook
+from aa_stripe.serializers import StripeCouponSerializer, StripeCustomerSerializer, StripeWebhookSerializer
+
+
+class CouponDetailsAPI(RetrieveAPIView):
+    queryset = StripeCoupon.objects.filter(is_deleted=False)
+    serializer_class = StripeCouponSerializer
+    permission_classes = (IsAuthenticated,)
+    lookup_field = "coupon_id"
 
 
 class CustomersAPI(CreateAPIView):
