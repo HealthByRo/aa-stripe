@@ -1,3 +1,4 @@
+import mock
 import requests_mock
 import simplejson as json
 from rest_framework.reverse import reverse
@@ -271,10 +272,15 @@ class TestWebhook(BaseTestCase):
 
         url = reverse("stripe-webhooks")
         self.client.credentials(**self._get_signature_headers(payload))
-        response = self.client.post(url, data=payload, format="json")
-        coupon.refresh_from_db()
-        self.assertEqual(response.status_code, 201)
-        self.assertTrue(coupon.is_deleted)
+        with mock.patch("aa_stripe.models.webhook_pre_parse.send") as mocked_signal:
+            response = self.client.post(url, data=payload, format="json")
+            coupon.refresh_from_db()
+            self.assertEqual(response.status_code, 201)
+            self.assertTrue(coupon.is_deleted)
+            webhook = StripeWebhook.objects.first()
+            self.assertTrue(webhook.is_parsed)
+            mocked_signal.assert_called_with(event_action="deleted", event_model="coupon", event_type="coupon.deleted",
+                                             instance=webhook, sender=StripeWebhook)
 
         # test deleting event that has already been deleted - should not raise any errors
         # it will just make sure is_deleted is set for this coupon
@@ -287,7 +293,28 @@ class TestWebhook(BaseTestCase):
         self.assertTrue(coupon.is_deleted)
 
         # make sure trying to parse already parsed webhook is impossible
-        webhook = StripeWebhook.objects.first()
         self.assertTrue(webhook.is_parsed)
         with self.assertRaises(StripeWebhookAlreadyParsed):
             webhook.parse()
+
+        # test receiving ping event (the only event without "." inside the event name)
+        StripeWebhook.objects.all().delete()
+        payload = json.loads("""{
+          "id": "evt_1Atthtasdsaf6pRwkdLOhKls",
+          "object": "event",
+          "api_version": "2017-06-05",
+          "created": 1503474921,
+          "livemode": false,
+          "pending_webhooks": 1,
+          "request": {
+            "id": "req_9UO71nsJyzhQfi",
+            "idempotency_key": null
+          },
+          "type": "ping"
+        }""")
+        self.client.credentials(**self._get_signature_headers(payload))
+        with mock.patch("aa_stripe.models.webhook_pre_parse.send") as mocked_signal:
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            mocked_signal.assert_called_with(event_action=None, event_model=None, event_type="ping",
+                                             instance=StripeWebhook.objects.first(), sender=StripeWebhook)
