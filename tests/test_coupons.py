@@ -201,7 +201,7 @@ class TestCoupons(BaseTestCase):
         url = reverse("stripe-coupon-details", kwargs={"coupon_id": coupon.coupon_id})
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data.keys(), {
+        self.assertEqual(set(response.data.keys()), {
             "coupon_id", "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
             "metadata", "percent_off", "redeem_by", "times_redeemed", "valid", "is_created_at_stripe", "created",
             "updated", "is_deleted"

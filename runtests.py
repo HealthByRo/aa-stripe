@@ -36,7 +36,7 @@ def isort_main():
                            "-s", "venv", "-s", ".tox", "--check-only"])
 
     if ret:
-        print("isort failed: Some modules have incorrectly ordered imports. Fix by running `./run_isortg`")
+        print("isort failed: Some modules have incorrectly ordered imports. Fix by running `./run_isort`")
     else:
         print("isort passed")
 
