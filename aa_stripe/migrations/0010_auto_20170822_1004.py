@@ -16,7 +16,7 @@ def migrate_subcription(apps, schema_editor):
     StripeCoupon = apps.get_model("aa_stripe", "StripeCoupon")
     stripe.api_key = settings.STRIPE_API_KEY
 
-    for subscription in StripeSubscription.objects.all():
+    for subscription in StripeSubscription.objects.exclude(coupon_code=""):
         if StripeCoupon.objects.filter(coupon_id=subscription.coupon_code, is_deleted=False).exists():
             # do not allow duplicates
             continue
