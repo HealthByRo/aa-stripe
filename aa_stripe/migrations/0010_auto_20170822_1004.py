@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
                 ('stripe_response', jsonfield.fields.JSONField(default=dict)),
                 ('coupon_id', models.CharField(help_text='Identifier for the coupon', max_length=255)),
                 ('amount_off', models.PositiveIntegerField(blank=True, help_text='Amount (in the currency specified) that will be taken off the subtotal ofany invoices for this customer.', null=True)),
-                ('currency', models.CharField(default='usd', help_text='If amount_off has been set, the three-letter ISO code for thecurrency of the amount to take off.', max_length=3)),
+                ('currency', models.CharField(default='usd', blank=True, null=True, help_text='If amount_off has been set, the three-letter ISO code for thecurrency of the amount to take off.', max_length=3)),
                 ('duration', models.CharField(choices=[('forever', 'forever'), ('once', 'once'), ('repeating', 'repeating')], help_text='Describes how long a customer who applies this coupon will get the discount.', max_length=255)),
                 ('duration_in_months', models.PositiveIntegerField(blank=True, help_text='If duration is repeating, the number of months the coupon applies.Null if coupon duration is forever or once.', null=True)),
                 ('livemode', models.BooleanField(default=False, help_text='Flag indicating whether the object exists in live mode or test mode.')),

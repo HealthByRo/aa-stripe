@@ -4,6 +4,7 @@ from datetime import datetime
 import requests_mock
 import simplejson as json
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.utils import timezone
 from freezegun import freeze_time
 from rest_framework.reverse import reverse
@@ -126,7 +127,7 @@ class TestCoupons(BaseTestCase):
         data = {
             "coupon_id": "25OFF",
             "amount_off": 1,
-            "currency": "USD",
+            "currency": "usd",
             "duration": StripeCoupon.DURATION_ONCE,
             "metadata": {},
             "times_redeemed": 0,
@@ -212,3 +213,55 @@ class TestCoupons(BaseTestCase):
         StripeCoupon.objects.filter(pk=coupon.pk).update(is_deleted=True)
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 404)
+
+    def test_refresh_coupons_command(self):
+        # check number
+        coupons = {
+            "1A": self._create_coupon("1A", amount_off=100),
+            "2A": self._create_coupon("2A"),
+            "3A": self._create_coupon("3A")
+        }
+        self.assertEqual(StripeCoupon.objects.count(), 3)
+        # fake deleted coupon, this coupon should be recreated in the database
+        StripeCoupon.objects.filter(pk=coupons["3A"].pk).update(is_deleted=True)
+
+        coupon_1a_new_response = coupons["1A"].stripe_response.copy()
+        coupon_1a_new_response["metadata"] = {"new": "data"}
+        # fake limit
+        stripe_response_part1 = {
+            "object": "list",
+            "url": "/v1/coupons",
+            "has_more": True,
+            "data": [
+                coupon_1a_new_response,  # 1A will be updated, # 2A will be deleted
+                coupons["3A"].stripe_response,  # 3A will be recreated
+            ]
+        }
+        new_coupon_stripe_response = coupons["1A"].stripe_response.copy()
+        new_coupon_stripe_response["id"] = "1B"
+        stripe_response_part2 = stripe_response_part1.copy()
+        stripe_response_part2.update({
+            "has_more": False,
+            "data": [new_coupon_stripe_response]
+        })
+        with requests_mock.Mocker() as m:
+            m.register_uri("GET", "https://api.stripe.com/v1/coupons", text=json.dumps(stripe_response_part1))
+            m.register_uri("GET", "https://api.stripe.com/v1/coupons?starting_after=3A",
+                           text=json.dumps(stripe_response_part2))
+            # 3A will be recreated
+            m.register_uri("GET", "https://api.stripe.com/v1/coupons/3A",
+                           text=json.dumps(coupons["3A"].stripe_response))
+            # 1B will be created
+            m.register_uri("GET", "https://api.stripe.com/v1/coupons/1B",
+                           text=json.dumps(coupons["3A"].stripe_response))
+
+            call_command("refresh_coupons")
+            self.assertEqual(StripeCoupon.objects.count(), 5)  # 3 + 2 were created
+            for coupon in coupons.values():
+                coupon.refresh_from_db()
+
+            self.assertEqual(coupons["1A"].metadata, coupon_1a_new_response["metadata"])
+            self.assertTrue(coupons["2A"].is_deleted)
+            new_3a_coupon = StripeCoupon.objects.get(coupon_id="3A", is_deleted=False)
+            self.assertNotEqual(new_3a_coupon.pk, coupons["3A"].pk)
+            self.assertTrue(StripeCoupon.objects.filter(coupon_id="1B", is_deleted=False).exists)
