@@ -12,7 +12,6 @@ from tests.test_utils import BaseTestCase
 from aa_stripe.forms import StripeCouponForm
 from aa_stripe.models import StripeCoupon
 
-
 UserModel = get_user_model()
 
 
