@@ -42,5 +42,3 @@ class Command(BaseCommand):
                 break
             else:
                 last_event = event_list["data"][-1]
-
-        print("Pending webhooks: {} (the threshold is {})".format(len(pending_events), pending_events_threshold))
