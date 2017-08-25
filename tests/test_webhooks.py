@@ -1,14 +1,40 @@
+import time
+from datetime import datetime
+from uuid import uuid4
+
 import mock
 import requests_mock
 import simplejson as json
+from django.core import mail
+from django.core.management import call_command
+from django.test import override_settings
 from rest_framework.reverse import reverse
 from tests.test_utils import BaseTestCase
 
 from aa_stripe.exceptions import StripeWebhookAlreadyParsed
+from aa_stripe.management.commands.check_pending_webhooks import StripePendingWebooksLimitExceeded
 from aa_stripe.models import StripeCoupon, StripeWebhook
 
 
 class TestWebhook(BaseTestCase):
+    def _create_ping_webhook(self):
+        payload = json.loads("""{
+          "id": "",
+          "object": "event",
+          "api_version": "2017-06-05",
+          "created": 1503474921,
+          "livemode": false,
+          "pending_webhooks": 0,
+          "request": {
+            "id": "",
+            "idempotency_key": null
+          },
+          "type": "ping"
+        }""")
+        payload["id"] = "evt_{}".format(uuid4())
+        payload["request"]["id"] = "req_{}".format(uuid4())
+        payload["created"] = int(time.mktime(datetime.now().timetuple()))
+        return StripeWebhook.objects.create(id=payload["id"], raw_data=payload)
 
     def test_subscription_creation(self):
         self.assertEqual(StripeWebhook.objects.count(), 0)
@@ -318,3 +344,48 @@ class TestWebhook(BaseTestCase):
             self.assertEqual(response.status_code, 201)
             mocked_signal.assert_called_with(event_action=None, event_model=None, event_type="ping",
                                              instance=StripeWebhook.objects.first(), sender=StripeWebhook)
+
+    @override_settings(PENDING_EVENTS_THRESHOLD=1, ADMINS=["admin@example.com"])
+    def test_check_pending_webhooks_command(self):
+        self._create_ping_webhook()
+        last_webhook = self._create_ping_webhook()
+
+        # create response with fake limits
+        base_stripe_response = json.loads("""{
+          "object": "list",
+          "url": "/v1/events",
+          "has_more": true,
+          "data": []
+        }""")
+        event1_data = last_webhook.raw_data.copy()
+        event1_data["id"] = "evt_1"
+        stripe_response_part1 = base_stripe_response.copy()
+        stripe_response_part1["data"] = [event1_data]
+
+        event2_data = event1_data.copy()
+        event2_data["id"] = "evt_2"
+        stripe_response_part2 = base_stripe_response.copy()
+        stripe_response_part2["data"] = [event2_data]
+        stripe_response_part2["has_more"] = False
+
+        with requests_mock.Mocker() as m:
+            m.register_uri(
+                "GET", "https://api.stripe.com/v1/events?starting_after={}&limit=100".format(last_webhook.id),
+                text=json.dumps(stripe_response_part1))
+            m.register_uri(
+                "GET", "https://api.stripe.com/v1/events?starting_after={}&limit=100".format(event1_data["id"]),
+                text=json.dumps(stripe_response_part2))
+
+            with self.assertRaises(StripePendingWebooksLimitExceeded):
+                call_command("check_pending_webhooks")
+                self.assertEqual(len(mail.outbox), 1)
+                message = mail.outbox[0]
+                self.assertEqual(message.to, "admin@example.com")
+                self.assertIn(event1_data["id"], message)
+                self.assertIn(event2_data["id"], message)
+                self.assertNotIn(last_webhook["id"], message)
+
+            mail.outbox = []
+            with override_settings(PENDING_EVENTS_THRESHOLD=20):
+                call_command("check_pending_webhooks")
+                self.assertEqual(len(mail.outbox), 0)
