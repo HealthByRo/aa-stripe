@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
 from time import sleep
 
 import simplejson as json
+import six
 import stripe
 from django import dispatch
 from django.conf import settings
@@ -15,6 +15,7 @@ from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
 from aa_stripe.exceptions import StripeMethodNotAllowed, StripeWebhookAlreadyParsed
+from aa_stripe.utils import timestamp_to_timezone_aware_date
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 
@@ -64,6 +65,12 @@ class StripeCustomer(StripeBasicModel):
 
 
 class StripeCoupon(StripeBasicModel):
+    # fields that are fetched from Stripe API
+    STRIPE_FIELDS = {
+        "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
+        "percent_off", "redeem_by", "times_redeemed", "valid", "metadata", "created"
+    }
+
     DURATION_FOREVER = "forever"
     DURATION_ONCE = "once"
     DURATION_REPEATING = "repeating"
@@ -73,27 +80,28 @@ class StripeCoupon(StripeBasicModel):
         (DURATION_REPEATING, DURATION_REPEATING)
     )
 
+    # choices must be lowercase, because that is how Stripe API returns currency
     CURRENCY_CHOICES = (
-        ("USD", "USD"), ("AED", "AED"), ("AFN", "AFN"), ("ALL", "ALL"), ("AMD", "AMD"), ("ANG", "ANG"), ("AOA", "AOA"),
-        ("ARS", "ARS"), ("AUD", "AUD"), ("AWG", "AWG"), ("AZN", "AZN"), ("BAM", "BAM"), ("BBD", "BBD"), ("BDT", "BDT"),
-        ("BGN", "BGN"), ("BIF", "BIF"), ("BMD", "BMD"), ("BND", "BND"), ("BOB", "BOB"), ("BRL", "BRL"), ("BSD", "BSD"),
-        ("BWP", "BWP"), ("BZD", "BZD"), ("CAD", "CAD"), ("CDF", "CDF"), ("CHF", "CHF"), ("CLP", "CLP"), ("CNY", "CNY"),
-        ("COP", "COP"), ("CRC", "CRC"), ("CVE", "CVE"), ("CZK", "CZK"), ("DJF", "DJF"), ("DKK", "DKK"), ("DOP", "DOP"),
-        ("DZD", "DZD"), ("EGP", "EGP"), ("ETB", "ETB"), ("EUR", "EUR"), ("FJD", "FJD"), ("FKP", "FKP"), ("GBP", "GBP"),
-        ("GEL", "GEL"), ("GIP", "GIP"), ("GMD", "GMD"), ("GNF", "GNF"), ("GTQ", "GTQ"), ("GYD", "GYD"), ("HKD", "HKD"),
-        ("HNL", "HNL"), ("HRK", "HRK"), ("HTG", "HTG"), ("HUF", "HUF"), ("IDR", "IDR"), ("ILS", "ILS"), ("INR", "INR"),
-        ("ISK", "ISK"), ("JMD", "JMD"), ("JPY", "JPY"), ("KES", "KES"), ("KGS", "KGS"), ("KHR", "KHR"), ("KMF", "KMF"),
-        ("KRW", "KRW"), ("KYD", "KYD"), ("KZT", "KZT"), ("LAK", "LAK"), ("LBP", "LBP"), ("LKR", "LKR"), ("LRD", "LRD"),
-        ("LSL", "LSL"), ("MAD", "MAD"), ("MDL", "MDL"), ("MGA", "MGA"), ("MKD", "MKD"), ("MMK", "MMK"), ("MNT", "MNT"),
-        ("MOP", "MOP"), ("MRO", "MRO"), ("MUR", "MUR"), ("MVR", "MVR"), ("MWK", "MWK"), ("MXN", "MXN"), ("MYR", "MYR"),
-        ("MZN", "MZN"), ("NAD", "NAD"), ("NGN", "NGN"), ("NIO", "NIO"), ("NOK", "NOK"), ("NPR", "NPR"), ("NZD", "NZD"),
-        ("PAB", "PAB"), ("PEN", "PEN"), ("PGK", "PGK"), ("PHP", "PHP"), ("PKR", "PKR"), ("PLN", "PLN"), ("PYG", "PYG"),
-        ("QAR", "QAR"), ("RON", "RON"), ("RSD", "RSD"), ("RUB", "RUB"), ("RWF", "RWF"), ("SAR", "SAR"), ("SBD", "SBD"),
-        ("SCR", "SCR"), ("SEK", "SEK"), ("SGD", "SGD"), ("SHP", "SHP"), ("SLL", "SLL"), ("SOS", "SOS"), ("SRD", "SRD"),
-        ("STD", "STD"), ("SVC", "SVC"), ("SZL", "SZL"), ("THB", "THB"), ("TJS", "TJS"), ("TOP", "TOP"), ("TRY", "TRY"),
-        ("TTD", "TTD"), ("TWD", "TWD"), ("TZS", "TZS"), ("UAH", "UAH"), ("UGX", "UGX"), ("UYU", "UYU"), ("UZS", "UZS"),
-        ("VND", "VND"), ("VUV", "VUV"), ("WST", "WST"), ("XAF", "XAF"), ("XCD", "XCD"), ("XOF", "XOF"), ("XPF", "XPF"),
-        ("YER", "YER"), ("ZAR", "ZAR"), ("ZMW", "ZMW")
+        ('usd', 'USD'), ('aed', 'AED'), ('afn', 'AFN'), ('all', 'ALL'), ('amd', 'AMD'), ('ang', 'ANG'), ('aoa', 'AOA'),
+        ('ars', 'ARS'), ('aud', 'AUD'), ('awg', 'AWG'), ('azn', 'AZN'), ('bam', 'BAM'), ('bbd', 'BBD'), ('bdt', 'BDT'),
+        ('bgn', 'BGN'), ('bif', 'BIF'), ('bmd', 'BMD'), ('bnd', 'BND'), ('bob', 'BOB'), ('brl', 'BRL'), ('bsd', 'BSD'),
+        ('bwp', 'BWP'), ('bzd', 'BZD'), ('cad', 'CAD'), ('cdf', 'CDF'), ('chf', 'CHF'), ('clp', 'CLP'), ('cny', 'CNY'),
+        ('cop', 'COP'), ('crc', 'CRC'), ('cve', 'CVE'), ('czk', 'CZK'), ('djf', 'DJF'), ('dkk', 'DKK'), ('dop', 'DOP'),
+        ('dzd', 'DZD'), ('egp', 'EGP'), ('etb', 'ETB'), ('eur', 'EUR'), ('fjd', 'FJD'), ('fkp', 'FKP'), ('gbp', 'GBP'),
+        ('gel', 'GEL'), ('gip', 'GIP'), ('gmd', 'GMD'), ('gnf', 'GNF'), ('gtq', 'GTQ'), ('gyd', 'GYD'), ('hkd', 'HKD'),
+        ('hnl', 'HNL'), ('hrk', 'HRK'), ('htg', 'HTG'), ('huf', 'HUF'), ('idr', 'IDR'), ('ils', 'ILS'), ('inr', 'INR'),
+        ('isk', 'ISK'), ('jmd', 'JMD'), ('jpy', 'JPY'), ('kes', 'KES'), ('kgs', 'KGS'), ('khr', 'KHR'), ('kmf', 'KMF'),
+        ('krw', 'KRW'), ('kyd', 'KYD'), ('kzt', 'KZT'), ('lak', 'LAK'), ('lbp', 'LBP'), ('lkr', 'LKR'), ('lrd', 'LRD'),
+        ('lsl', 'LSL'), ('mad', 'MAD'), ('mdl', 'MDL'), ('mga', 'MGA'), ('mkd', 'MKD'), ('mmk', 'MMK'), ('mnt', 'MNT'),
+        ('mop', 'MOP'), ('mro', 'MRO'), ('mur', 'MUR'), ('mvr', 'MVR'), ('mwk', 'MWK'), ('mxn', 'MXN'), ('myr', 'MYR'),
+        ('mzn', 'MZN'), ('nad', 'NAD'), ('ngn', 'NGN'), ('nio', 'NIO'), ('nok', 'NOK'), ('npr', 'NPR'), ('nzd', 'NZD'),
+        ('pab', 'PAB'), ('pen', 'PEN'), ('pgk', 'PGK'), ('php', 'PHP'), ('pkr', 'PKR'), ('pln', 'PLN'), ('pyg', 'PYG'),
+        ('qar', 'QAR'), ('ron', 'RON'), ('rsd', 'RSD'), ('rub', 'RUB'), ('rwf', 'RWF'), ('sar', 'SAR'), ('sbd', 'SBD'),
+        ('scr', 'SCR'), ('sek', 'SEK'), ('sgd', 'SGD'), ('shp', 'SHP'), ('sll', 'SLL'), ('sos', 'SOS'), ('srd', 'SRD'),
+        ('std', 'STD'), ('svc', 'SVC'), ('szl', 'SZL'), ('thb', 'THB'), ('tjs', 'TJS'), ('top', 'TOP'), ('try', 'TRY'),
+        ('ttd', 'TTD'), ('twd', 'TWD'), ('tzs', 'TZS'), ('uah', 'UAH'), ('ugx', 'UGX'), ('uyu', 'UYU'), ('uzs', 'UZS'),
+        ('vnd', 'VND'), ('vuv', 'VUV'), ('wst', 'WST'), ('xaf', 'XAF'), ('xcd', 'XCD'), ('xof', 'XOF'), ('xpf', 'XPF'),
+        ('yer', 'YER'), ('zar', 'ZAR'), ('zmw', 'ZMW')
     )
 
     coupon_id = models.CharField(max_length=255, help_text=_("Identifier for the coupon"))
@@ -101,7 +109,7 @@ class StripeCoupon(StripeBasicModel):
         blank=True, null=True, help_text=_("Amount (in the currency specified) that will be taken off the subtotal of "
                                            "any invoices for this customer."))
     currency = models.CharField(
-        max_length=3, default="USD", choices=CURRENCY_CHOICES,
+        max_length=3, default="USD", choices=CURRENCY_CHOICES, blank=True, null=True,
         help_text=_("If amount_off has been set, the three-letter ISO code for the currency of the amount to take "
                     "off."))
     duration = models.CharField(
@@ -139,6 +147,22 @@ class StripeCoupon(StripeBasicModel):
     def __str__(self):
         return self.coupon_id
 
+    def update_from_stripe_data(self, stripe_coupon, exclude_fields=None):
+        """
+        Update StripeCoupon object with data from stripe.Coupon without calling stripe.Coupon.retrieve.
+        Returns the number of rows altered.
+        """
+        fields_to_update = self.STRIPE_FIELDS - set(exclude_fields or [])
+        update_data = {key: stripe_coupon[key] for key in fields_to_update}
+        if "created" in update_data:
+            update_data["created"] = timestamp_to_timezone_aware_date(update_data["created"])
+
+        # also make sure the object is up to date (without the need to call database)
+        for key, value in six.iteritems(update_data):
+            setattr(self, key, value)
+
+        return StripeCoupon.objects.filter(pk=self.pk).update(**update_data)
+
     def save(self, force_retrieve=False, *args, **kwargs):
         """
         Use the force_retrieve parameter to create a new StripeCoupon object from an existing coupon created at Stripe
@@ -163,16 +187,8 @@ class StripeCoupon(StripeBasicModel):
                     coupon.save()
 
                 # update all fields in the local object in case someone tried to change them
+                self.update_from_stripe_data(coupon, exclude_fields=["metadata"] if not force_retrieve else [])
                 self.stripe_response = coupon
-                fields_to_update = [
-                    "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
-                    "percent_off", "redeem_by", "times_redeemed", "valid"
-                ]
-                if force_retrieve:
-                    fields_to_update.append("metadata")
-
-                for field in fields_to_update:
-                    setattr(self, field, getattr(coupon, field))
             except stripe.error.InvalidRequestError:
                 self.is_deleted = True
         else:
@@ -191,7 +207,7 @@ class StripeCoupon(StripeBasicModel):
             if not self.coupon_id:
                 self.coupon_id = self.stripe_response["id"]
 
-        self.created = timezone.make_aware(datetime.fromtimestamp(self.stripe_response["created"]))
+        self.created = timestamp_to_timezone_aware_date(self.stripe_response["created"])
         # for future
         self.is_created_at_stripe = True
         return super(StripeCoupon, self).save(*args, **kwargs)
