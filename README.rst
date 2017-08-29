@@ -124,6 +124,10 @@ Webhooks support
 All webhooks should be sent to ``/aa-stripe/webhooks`` url. Add ``STRIPE_WEBHOOK_ENDPOINT_SECRET`` to your settings to enable webhook verifications. Each received webhook is saved as StripeWebhook object in database. User need to add parsing webhooks depending on the project.
 Be advised. There might be times that Webhooks will not arrive because of some error or arrive in incorrect order. When parsing webhook it is also good to download the refered object to verify it's state.
 
+Stripe has the weird tendency to stop sending webhooks, and they have not fixed it yet on their side. To make sure all events have arrived into your system, the ``check_pending_webhooks`` management command should be run chronically.
+In case there is more pending webhooks than specified in the ``PENDING_EVENTS_THRESHOLD`` variable in settings (default: ``20``), an email to project admins will be sent with ids of the pending events, and also the command will fail raising an exception,
+so if you have some kind of error tracking service configured on your servers (for example: `Sentry <https://sentry.io>`_), you will be notified.
+
 Support
 =======
 * Django 1.11
