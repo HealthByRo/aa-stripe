@@ -109,7 +109,7 @@ class StripeCoupon(StripeBasicModel):
         blank=True, null=True, help_text=_("Amount (in the currency specified) that will be taken off the subtotal of "
                                            "any invoices for this customer."))
     currency = models.CharField(
-        max_length=3, default="USD", choices=CURRENCY_CHOICES, blank=True, null=True,
+        max_length=3, default="usd", choices=CURRENCY_CHOICES, blank=True, null=True,
         help_text=_("If amount_off has been set, the three-letter ISO code for the currency of the amount to take "
                     "off."))
     duration = models.CharField(
