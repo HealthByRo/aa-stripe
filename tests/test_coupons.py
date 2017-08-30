@@ -145,6 +145,11 @@ class TestCoupons(BaseTestCase):
         self.assertFalse(StripeCouponForm(data=data).is_valid())
         del data["percent_off"]
 
+        # test passing amount_off without currency
+        del data["currency"]
+        self.assertFalse(StripeCouponForm(data=data).is_valid())
+        data["currency"] = "usd"
+
         # test passing duration repeating with empty duration_in_months
         data["duration"] = StripeCoupon.DURATION_REPEATING
         self.assertFalse(StripeCouponForm(data=data).is_valid())
