@@ -45,4 +45,4 @@ class Command(BaseCommand):
         counts["deleted"] = StripeCoupon.objects.filter(is_deleted=False).exclude(
             pk__in=active_coupons_ids).update(is_deleted=True)
         if options.get("verbosity") > 1:
-            print("Coupons created: {created}, updated: {updated}, deleted {deleted}".format(**counts))
+            print("Coupons created: {created}, updated: {updated}, deleted: {deleted}".format(**counts))
