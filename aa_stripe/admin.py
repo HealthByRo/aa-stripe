@@ -63,10 +63,6 @@ class StripeCouponAdmin(admin.ModelAdmin):
 
         return self.readonly_fields
 
-    def has_delete_permission(self, request, obj=None):
-        # allow deleting single object, but disable bulk delete (bulk delete does not call models' .delete() method)
-        return bool(obj)
-
 
 class StripeSubscriptionAdmin(ReadOnly):
     list_display = (
