@@ -121,7 +121,7 @@ https://stripe.com/docs/api#plans
 
 Coupons Support
 ---------------
-Stripe coupons can be created both in the Stripe Dashboard and using the ``aa_stripe.models.StripeCoupon`` model, and also if webhooks are properly configured in your app, you will be able to see in your app all changes related to coupons made in the Stripe Dashboard.
+Stripe coupons can be created both in the Stripe Dashboard and using the ``aa_stripe.models.StripeCoupon`` model, and also if webhooks are properly configured in your app, you will be able to see all changes related to coupons made in the Stripe Dashboard.
 This works both ways, if a coupon was created, edited or deleted on the application side, the list of coupons in Stripe will be updated respectively.
 ::
 
