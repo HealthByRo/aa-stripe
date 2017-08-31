@@ -15,11 +15,22 @@ At the moment the library supports:
 
 Installation
 ============
-Add ``aa_stripe`` to your app's ``INSTALLED_APPS``, and also set ``STRIPE_API_KEY`` in project settings. After all please migrate the app (``./manage.py migrate aa_stripe``).
-Add ``STRIPE_WEBHOOK_ENDPOINT_SECRET`` into your settings from stripe webhooks configuration to enable webhooks.
-Add ``STRIPE_USER_MODEL`` if it is different than settings.AUTH_USER_MODEL. In example when CC is connected to office not person. ``STRIPE_USER_MODEL`` defaults to AUTH_USER_MODEL.
+Add ``aa_stripe`` to your app's ``INSTALLED_APPS``, and also set ``STRIPE_SETTINGS`` in project settings.
 
-Add ``aa_stripe.api_urls`` into your url conf.
+Sample ``STRIPE_SETTINGS``:
+
+::
+
+    STRIPE_SETTINGS = {
+        "API_KEY": "api_key",
+        "WEBHOOK_ENDPOINT_SECRET": "somesecret",
+        "USER_MODEL": "myapp.Account"
+    }
+
+Add ``WEBHOOK_ENDPOINT_SECRET`` into your settings from stripe webhooks configuration to enable webhooks.
+Add ``USER_MODEL`` if it is different than settings.AUTH_USER_MODEL. In example when CC is connected to office not person. ``USER_MODEL`` defaults to AUTH_USER_MODEL.
+
+Add ``aa_stripe.api_urls`` into your url conf, and after all please migrate the app (``./manage.py migrate aa_stripe``).
 
 
 Usage
@@ -121,12 +132,12 @@ https://stripe.com/docs/api#plans
 
 Webhooks support
 ----------------
-All webhooks should be sent to ``/aa-stripe/webhooks`` url. Add ``STRIPE_WEBHOOK_ENDPOINT_SECRET`` to your settings to enable webhook verifications. Each received webhook is saved as StripeWebhook object in database. User need to add parsing webhooks depending on the project.
+All webhooks should be sent to ``/aa-stripe/webhooks`` url. Add ``WEBHOOK_ENDPOINT_SECRET`` to your stripe settings to enable webhook verifications. Each received webhook is saved as StripeWebhook object in database. User need to add parsing webhooks depending on the project.
 Be advised. There might be times that Webhooks will not arrive because of some error or arrive in incorrect order. When parsing webhook it is also good to download the refered object to verify it's state.
 
 Stripe has the weird tendency to stop sending webhooks, and they have not fixed it yet on their side. To make sure all events have arrived into your system, the ``check_pending_webhooks`` management command should be run chronically.
-In case there is more pending webhooks than specified in the ``PENDING_EVENTS_THRESHOLD`` variable in settings (default: ``20``), an email to project admins will be sent with ids of the pending events, and also the command will fail raising an exception,
-so if you have some kind of error tracking service configured on your servers (for example: `Sentry <https://sentry.io>`_), you will be notified.
+In case there is more pending webhooks than specified in the ``PENDING_EVENTS_THRESHOLD`` variable in your stripe settings (default: ``20``), an email to project admins will be sent with ids of the pending events, and also the command will fail raising an exception,
+so if you have some kind of error tracking service configured on your servers (for example: `Sentry <https://sentry.io>`_), you will be notified. Also if ``ENV_PREFIX`` is specified in your settings file (not the ``STRIPE_SETTINGS`` configuration), it will be included in the email to admins to indicate on which server the fail occurred.
 
 Support
 =======

@@ -24,6 +24,9 @@ def pytest_configure():
         ROOT_URLCONF="aa_stripe.api_urls",
         TESTING=True,
 
-        STRIPE_API_KEY="apikey",
-        STRIPE_WEBHOOK_ENDPOINT_SECRET="fake",
+        ENV_PREFIX="test-env",
+        STRIPE_SETTINGS={
+            "API_KEY": "apikey",
+            "WEBHOOK_ENDPOINT_SECRET": "fake"
+        }
     )

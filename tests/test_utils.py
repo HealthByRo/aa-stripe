@@ -3,11 +3,11 @@ from datetime import datetime
 
 import requests_mock
 import simplejson as json
-from django.conf import settings
 from rest_framework.test import APITestCase
 from stripe.webhook import WebhookSignature
 
 from aa_stripe.models import StripeCoupon
+from aa_stripe.settings import stripe_settings
 
 
 class BaseTestCase(APITestCase):
@@ -43,7 +43,7 @@ class BaseTestCase(APITestCase):
         raw_payload = json.dumps(payload).replace(": ", ":")
         raw_payload = raw_payload.replace(", ", ",")
         signed_payload = "{timestamp:d}.{raw_payload}".format(timestamp=timestamp, raw_payload=raw_payload)
-        signature = WebhookSignature._compute_signature(signed_payload, settings.STRIPE_WEBHOOK_ENDPOINT_SECRET)
+        signature = WebhookSignature._compute_signature(signed_payload, stripe_settings.WEBHOOK_ENDPOINT_SECRET)
         return {
             "HTTP_STRIPE_SIGNATURE": ("t={timestamp:d},v1={signature}"
                                       ",v0=not_important".format(timestamp=timestamp, signature=signature))

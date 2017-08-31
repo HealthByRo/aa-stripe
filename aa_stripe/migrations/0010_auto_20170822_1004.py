@@ -5,16 +5,16 @@ from __future__ import unicode_literals
 import django.db.models.deletion
 import jsonfield.fields
 import stripe
-from django.conf import settings
 from django.db import migrations, models
 
+from aa_stripe.settings import stripe_settings
 from aa_stripe.utils import timestamp_to_timezone_aware_date
 
 
 def migrate_subcription(apps, schema_editor):
     StripeSubscription = apps.get_model("aa_stripe", "StripeSubscription")
     StripeCoupon = apps.get_model("aa_stripe", "StripeCoupon")
-    stripe.api_key = settings.STRIPE_API_KEY
+    stripe.api_key = stripe_settings.API_KEY
 
     for subscription in StripeSubscription.objects.exclude(coupon_code=""):
         if StripeCoupon.objects.filter(coupon_id=subscription.coupon_code, is_deleted=False).exists():
