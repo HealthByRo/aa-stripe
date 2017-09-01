@@ -188,7 +188,7 @@ class TestCoupons(BaseTestCase):
 
     def test_details_api(self):
         # test accessing without authentication
-        url = reverse("stripe-coupon-details", kwargs={"coupon_id": "FAKE"})
+        url = reverse("stripe-coupon-details", kwargs={"coupon_id": "FAKE-COUPON"})
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 403)
 
