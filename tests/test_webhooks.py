@@ -206,7 +206,7 @@ class TestWebhook(BaseTestCase):
             self.assertEqual(coupon.coupon_id, "nicecoupon")
 
     def test_coupon_update(self):
-        coupon = self._create_coupon("nicecoupon", amount_off=10000, duration=StripeCoupon.DURATION_ONCE,
+        coupon = self._create_coupon("nicecoupon", amount_off=100, duration=StripeCoupon.DURATION_ONCE,
                                      metadata={"nie": "tak", "lol1": "rotfl"})
         payload = json.loads("""{
           "id": "evt_1AtuTOLoWm2f6pRw6dYfQzWh",
@@ -261,7 +261,7 @@ class TestWebhook(BaseTestCase):
         })
 
     def test_coupon_delete(self):
-        coupon = self._create_coupon("nicecoupon", amount_off=10000, duration=StripeCoupon.DURATION_ONCE)
+        coupon = self._create_coupon("nicecoupon", amount_off=100, duration=StripeCoupon.DURATION_ONCE)
         self.assertFalse(coupon.is_deleted)
         payload = json.loads("""{
           "id": "evt_1Atthtasdsaf6pRwkdLOSKls",

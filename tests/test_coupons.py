@@ -1,5 +1,6 @@
 import time
 from datetime import datetime
+from decimal import Decimal
 
 import requests_mock
 import simplejson as json
@@ -102,7 +103,7 @@ class TestCoupons(BaseTestCase):
         stripe_response = {
             "id": "CPON",
             "object": "coupon",
-            "amount_off": 1,
+            "amount_off": 100,
             "created": int(time.mktime(datetime.now().timetuple())),
             "currency": "usd",
             "duration": StripeCoupon.DURATION_FOREVER,
@@ -187,7 +188,7 @@ class TestCoupons(BaseTestCase):
 
     def test_details_api(self):
         # test accessing without authentication
-        url = reverse("stripe-coupon-details", kwargs={"coupon_id": "FAKE"})
+        url = reverse("stripe-coupon-details", kwargs={"coupon_id": "FAKE-COUPON"})
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 403)
 
@@ -229,7 +230,7 @@ class TestCoupons(BaseTestCase):
         coupon_1a_new_response["metadata"] = {"new": "data"}
         coupon_4a_new_response = coupons["4A"].stripe_response.copy()
         coupon_4a_new_response["created"] += 1
-        coupon_4a_new_response["amount_off"] = 99
+        coupon_4a_new_response["amount_off"] = 9999
         # fake limit
         stripe_response_part1 = {
             "object": "list",
@@ -272,5 +273,5 @@ class TestCoupons(BaseTestCase):
             self.assertTrue(coupons["4A"].is_deleted)
             new_4a_coupon = StripeCoupon.objects.get(coupon_id="4A", is_deleted=False)
             self.assertNotEqual(new_4a_coupon.pk, coupons["4A"].pk)
-            self.assertEqual(new_4a_coupon.amount_off, coupon_4a_new_response["amount_off"])
+            self.assertEqual(new_4a_coupon.amount_off, Decimal(coupon_4a_new_response["amount_off"]) / 100)
             self.assertTrue(StripeCoupon.objects.filter(coupon_id="1B", is_deleted=False).exists)

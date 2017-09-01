@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from decimal import Decimal
 from time import sleep
 
 import simplejson as json
@@ -105,9 +106,10 @@ class StripeCoupon(StripeBasicModel):
     )
 
     coupon_id = models.CharField(max_length=255, help_text=_("Identifier for the coupon"))
-    amount_off = models.PositiveIntegerField(
-        blank=True, null=True, help_text=_("Amount (in the currency specified) that will be taken off the subtotal of "
-                                           "any invoices for this customer."))
+    amount_off = models.DecimalField(
+        blank=True, null=True, decimal_places=2, max_digits=10,
+        help_text=_("Amount (in the currency specified) that will be taken off the subtotal of any invoices for this"
+                    "customer."))
     currency = models.CharField(
         max_length=3, default="usd", choices=CURRENCY_CHOICES,
         help_text=_("If amount_off has been set, the three-letter ISO code for the currency of the amount to take "
@@ -154,8 +156,11 @@ class StripeCoupon(StripeBasicModel):
         """
         fields_to_update = self.STRIPE_FIELDS - set(exclude_fields or [])
         update_data = {key: stripe_coupon[key] for key in fields_to_update}
-        if "created" in update_data:
+        if update_data.get("created"):
             update_data["created"] = timestamp_to_timezone_aware_date(update_data["created"])
+
+        if update_data.get("amount_off"):
+            update_data["amount_off"] = Decimal(update_data["amount_off"]) / 100
 
         # also make sure the object is up to date (without the need to call database)
         for key, value in six.iteritems(update_data):
@@ -195,7 +200,7 @@ class StripeCoupon(StripeBasicModel):
             self.stripe_response = stripe.Coupon.create(
                 id=self.coupon_id,
                 duration=self.duration,
-                amount_off=self.amount_off,
+                amount_off=int(self.amount_off * 100) if self.amount_off else None,
                 currency=self.currency,
                 duration_in_months=self.duration_in_months,
                 max_redemptions=self.max_redemptions,
