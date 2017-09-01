@@ -128,11 +128,14 @@ class TestCoupons(BaseTestCase):
             coupon2 = self._create_coupon(coupon_id="CPON2")
             coupon3 = self._create_coupon(coupon_id="CPON3")
             coupons_qs = StripeCoupon.objects.filter(pk__in=[coupon2.pk, coupon3.pk])
+            self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 2)
             self.assertEqual(coupons_qs.count(), 2)
             delete_result = coupons_qs.delete()
             self.assertEqual(mocked_delete.call_count, 2)
             self.assertEqual(delete_result, (0, {"aa_stripe.StripeCoupon": 0}))
             self.assertEqual(coupons_qs.count(), 2)
+            self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 0)
+            self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 0)
 
     def test_admin_form(self):
         # test correct creation
