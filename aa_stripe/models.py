@@ -153,7 +153,7 @@ class StripeCoupon(StripeBasicModel):
         """
         Update StripeCoupon object with data from stripe.Coupon without calling stripe.Coupon.retrieve.
         To only update the object, set the commit param to False.
-        Returns the number of rows altered, or None if commit is False.
+        Returns the number of rows altered or None if commit is False.
         """
         fields_to_update = self.STRIPE_FIELDS - set(exclude_fields or [])
         update_data = {key: stripe_coupon[key] for key in fields_to_update}
@@ -445,7 +445,7 @@ class StripeWebhook(models.Model):
             try:
                 StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
             except stripe.error.InvalidRequestError:
-                # do not fail in case the coupon has already been removed from Stripe, before we received the webhook
+                # do not fail in case the coupon has already been removed from Stripe before we received the webhook
                 pass
         elif action == "updated":
             StripeCoupon.objects.filter(coupon_id=coupon_id, is_deleted=False).update(
