@@ -29,8 +29,10 @@ class Command(BaseCommand):
                         is_deleted=False)
                     counts["updated"] += coupon.update_from_stripe_data(stripe_coupon)
                 except StripeCoupon.DoesNotExist:
+                    # already have the data - we do not need to call Stripe API again
                     coupon = StripeCoupon(coupon_id=stripe_coupon.id)
-                    coupon.save(force_retrieve=True)
+                    coupon.update_from_stripe_data(stripe_coupon, commit=False)
+                    super(StripeCoupon, coupon).save()
                     counts["created"] += 1
 
                 # indicate which coupons should have is_deleted=False

@@ -149,10 +149,11 @@ class StripeCoupon(StripeBasicModel):
     def __str__(self):
         return self.coupon_id
 
-    def update_from_stripe_data(self, stripe_coupon, exclude_fields=None):
+    def update_from_stripe_data(self, stripe_coupon, exclude_fields=None, commit=True):
         """
         Update StripeCoupon object with data from stripe.Coupon without calling stripe.Coupon.retrieve.
-        Returns the number of rows altered.
+        To only update the object, set the commit param to False.
+        Returns the number of rows altered, or None if commit is False.
         """
         fields_to_update = self.STRIPE_FIELDS - set(exclude_fields or [])
         update_data = {key: stripe_coupon[key] for key in fields_to_update}
@@ -166,7 +167,8 @@ class StripeCoupon(StripeBasicModel):
         for key, value in six.iteritems(update_data):
             setattr(self, key, value)
 
-        return StripeCoupon.objects.filter(pk=self.pk).update(**update_data)
+        if commit:
+            return StripeCoupon.objects.filter(pk=self.pk).update(**update_data)
 
     def save(self, force_retrieve=False, *args, **kwargs):
         """
@@ -195,6 +197,9 @@ class StripeCoupon(StripeBasicModel):
                 self.update_from_stripe_data(coupon, exclude_fields=["metadata"] if not force_retrieve else [])
                 self.stripe_response = coupon
             except stripe.error.InvalidRequestError:
+                if force_retrieve:
+                    raise
+
                 self.is_deleted = True
         else:
             self.stripe_response = stripe.Coupon.create(
@@ -437,7 +442,11 @@ class StripeWebhook(models.Model):
     def _parse_coupon_notification(self, action):
         coupon_id = self.raw_data["data"]["object"]["id"]
         if action == "created":
-            StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
+            try:
+                StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
+            except stripe.error.InvalidRequestError:
+                # do not fail in case the coupon has already been removed from Stripe, before we received the webhook
+                pass
         elif action == "updated":
             StripeCoupon.objects.filter(coupon_id=coupon_id, is_deleted=False).update(
                 metadata=self.raw_data["data"]["object"]["metadata"])
