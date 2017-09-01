@@ -5,14 +5,6 @@ from aa_stripe.models import StripeCoupon
 
 
 class StripeCouponForm(forms.ModelForm):
-    def clean_currency(self):
-        amount_off = self.cleaned_data.get("amount_off")
-        currency = self.cleaned_data.get("currency")
-        if amount_off and not currency:
-            raise forms.ValidationError(_("Currency is required when amount_off is set"))
-
-        return currency
-
     def clean_coupon_id(self):
         coupon_id = self.cleaned_data.get("coupon_id")
         if coupon_id:
