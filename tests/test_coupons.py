@@ -1,7 +1,6 @@
 import time
 from datetime import datetime
 
-import mock
 import requests_mock
 import simplejson as json
 from django.contrib.auth import get_user_model
@@ -99,7 +98,7 @@ class TestCoupons(BaseTestCase):
 
     def test_delete(self):
         coupon = self._create_coupon(coupon_id="CPON", amount_off=1, duration=StripeCoupon.DURATION_FOREVER)
-        self.assertFalse(coupon.is_deleted)
+        self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 0)
         stripe_response = {
             "id": "CPON",
             "object": "coupon",
@@ -117,24 +116,20 @@ class TestCoupons(BaseTestCase):
             "valid": True
         }
         with requests_mock.Mocker() as m:
-            for method in ["GET", "DELETE"]:
-                m.register_uri(method, "https://api.stripe.com/v1/coupons/CPON", text=json.dumps(stripe_response))
+            for coupon_name in ["CPON", "CPON2", "CPON3"]:
+                for method in ["GET", "DELETE"]:
+                    m.register_uri(method, "https://api.stripe.com/v1/coupons/{}".format(coupon_name),
+                                   text=json.dumps(stripe_response))
             coupon.delete()
-            coupon.refresh_from_db()
-            self.assertTrue(coupon.is_deleted)
+            self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 1)
 
-        with mock.patch("aa_stripe.models.StripeCoupon.delete") as mocked_delete:
             # also test the overriden queryset's delete
             coupon2 = self._create_coupon(coupon_id="CPON2")
             coupon3 = self._create_coupon(coupon_id="CPON3")
-            coupons_qs = StripeCoupon.objects.filter(pk__in=[coupon2.pk, coupon3.pk])
             self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 2)
-            self.assertEqual(coupons_qs.count(), 2)
-            delete_result = coupons_qs.delete()
-            self.assertEqual(mocked_delete.call_count, 2)
+            delete_result = StripeCoupon.objects.filter(pk__in=[coupon2.pk, coupon3.pk]).delete()
             self.assertEqual(delete_result, (0, {"aa_stripe.StripeCoupon": 0}))
-            self.assertEqual(coupons_qs.count(), 2)
-            self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 0)
+            self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 3)
             self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 0)
 
     def test_admin_form(self):
