@@ -18,6 +18,7 @@ def pytest_configure():
             "django.contrib.auth",
             "django.contrib.contenttypes",
             "django.contrib.admin",
+            "django.contrib.sites",
             "rest_framework",
             "aa_stripe"
         ),
@@ -25,8 +26,6 @@ def pytest_configure():
         TESTING=True,
 
         ENV_PREFIX="test-env",
-        STRIPE_SETTINGS={
-            "API_KEY": "apikey",
-            "WEBHOOK_ENDPOINT_SECRET": "fake"
-        }
+        STRIPE_SETTINGS_API_KEY="apikey",
+        STRIPE_SETTINGS_WEBHOOK_ENDPOINT_SECRET="fake"
     )

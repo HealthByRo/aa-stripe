@@ -5,6 +5,7 @@ from uuid import uuid4
 import mock
 import requests_mock
 import simplejson as json
+from django.contrib.sites.models import Site
 from django.core import mail
 from django.core.management import call_command
 from django.test import override_settings
@@ -348,8 +349,9 @@ class TestWebhook(BaseTestCase):
 
     @override_settings(ADMINS=["admin@example.com"])
     def test_check_pending_webhooks_command(self):
-        stripe_settings.PENDING_EVENTS_THRESHOLD = 1
+        stripe_settings.PENDING_WEBHOOKS_THRESHOLD = 1
 
+        # create site
         self._create_ping_webhook()
         webhook = self._create_ping_webhook()
 
@@ -362,7 +364,6 @@ class TestWebhook(BaseTestCase):
         }""")
         event1_data = webhook.raw_data.copy()
         event1_data["id"] = "evt_1"
-        event1_data["pending_webhooks"] = 1
         stripe_response_part1 = base_stripe_response.copy()
         stripe_response_part1["data"] = [event1_data]
 
@@ -388,9 +389,14 @@ class TestWebhook(BaseTestCase):
                 self.assertIn(event1_data["id"], message)
                 self.assertIn(event2_data["id"], message)
                 self.assertIn("Server environment: test-env", message)
+                self.assertIn("example.com", message)
                 self.assertNotIn(webhook["id"], message)
 
             mail.outbox = []
-            stripe_settings.PENDING_EVENTS_THRESHOLD = 20
+            stripe_settings.PENDING_WEBHOOKS_THRESHOLD = 20
             call_command("check_pending_webhooks")
             self.assertEqual(len(mail.outbox), 0)
+
+            # make sure the --site parameter works - pass not existing site id - should fail
+            with self.assertRaises(Site.DoesNotExist):
+                call_command("check_pending_webhooks", site=-1)
