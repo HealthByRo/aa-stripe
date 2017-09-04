@@ -67,10 +67,12 @@ class StripeCustomer(StripeBasicModel):
 class StripeCouponQuerySet(models.query.QuerySet):
     def delete(self):
         # StripeCoupon.delete must be executed (along with post_save)
+        deleted_counter = 0
         for obj in self:
             obj.delete()
+            deleted_counter = deleted_counter + 1
 
-        return 0, {self.model._meta.label: 0}
+        return deleted_counter, {self.model._meta.label: deleted_counter}
 
 
 class StripeCouponManager(models.Manager):

@@ -128,7 +128,7 @@ class TestCoupons(BaseTestCase):
             coupon3 = self._create_coupon(coupon_id="CPON3")
             self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 2)
             delete_result = StripeCoupon.objects.filter(pk__in=[coupon2.pk, coupon3.pk]).delete()
-            self.assertEqual(delete_result, (0, {"aa_stripe.StripeCoupon": 0}))
+            self.assertEqual(delete_result, (2, {"aa_stripe.StripeCoupon": 2}))
             self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 3)
             self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 0)
 
