@@ -65,6 +65,22 @@ class StripeCustomer(StripeBasicModel):
         ordering = ["id"]
 
 
+class StripeCouponQuerySet(models.query.QuerySet):
+    def delete(self):
+        # StripeCoupon.delete must be executed (along with post_save)
+        deleted_counter = 0
+        for obj in self:
+            obj.delete()
+            deleted_counter = deleted_counter + 1
+
+        return deleted_counter, {self.model._meta.label: deleted_counter}
+
+
+class StripeCouponManager(models.Manager):
+    def get_queryset(self):
+        return StripeCouponQuerySet(self.model, using=self._db)
+
+
 class StripeCoupon(StripeBasicModel):
     # fields that are fetched from Stripe API
     STRIPE_FIELDS = {
@@ -141,6 +157,8 @@ class StripeCoupon(StripeBasicModel):
     created = models.DateTimeField()
     is_deleted = models.BooleanField(default=False)
     is_created_at_stripe = models.BooleanField(default=False)
+
+    objects = StripeCouponManager()
 
     def __init__(self, *args, **kwargs):
         super(StripeCoupon, self).__init__(*args, **kwargs)
