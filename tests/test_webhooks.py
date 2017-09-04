@@ -205,6 +205,21 @@ class TestWebhook(BaseTestCase):
             # so there is no need to compare it
             self.assertEqual(coupon.coupon_id, "nicecoupon")
 
+            # test coupon.created while the coupon has already been deleted from Stripe before the webhook arrived
+            m.register_uri("GET", "https://api.stripe.com/v1/coupons/doesnotexist", status_code=404, text=json.dumps({
+                "error": {
+                    "type": "invalid_request_error"
+                }
+            }))
+            payload["id"] = "evt_another"
+            payload["request"]["id"] = ["req_blahblah"]
+            payload["data"]["object"]["id"] = "doesnotexist"
+            self.client.credentials(**self._get_signature_headers(payload))
+            self.assertEqual(StripeCoupon.objects.filter(coupon_id="doesnotexist").count(), 0)
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(StripeCoupon.objects.filter(coupon_id="doesnotexist").count(), 0)
+
     def test_coupon_update(self):
         coupon = self._create_coupon("nicecoupon", amount_off=100, duration=StripeCoupon.DURATION_ONCE,
                                      metadata={"nie": "tak", "lol1": "rotfl"})
@@ -323,6 +338,7 @@ class TestWebhook(BaseTestCase):
         with self.assertRaises(StripeWebhookAlreadyParsed):
             webhook.parse()
 
+    def test_ping(self):
         # test receiving ping event (the only event without "." inside the event name)
         StripeWebhook.objects.all().delete()
         payload = json.loads("""{
@@ -340,7 +356,7 @@ class TestWebhook(BaseTestCase):
         }""")
         self.client.credentials(**self._get_signature_headers(payload))
         with mock.patch("aa_stripe.models.webhook_pre_parse.send") as mocked_signal:
-            response = self.client.post(url, data=payload, format="json")
+            response = self.client.post(reverse("stripe-webhooks"), data=payload, format="json")
             self.assertEqual(response.status_code, 201)
             mocked_signal.assert_called_with(event_action=None, event_model=None, event_type="ping",
                                              instance=StripeWebhook.objects.first(), sender=StripeWebhook)
