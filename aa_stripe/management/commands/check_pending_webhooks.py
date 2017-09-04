@@ -43,6 +43,12 @@ class Command(BaseCommand):
         pending_webhooks = []
         last_event = StripeWebhook.objects.last()
         last_event_id = last_event.id if last_event else None
+        try:
+            if last_event:
+                stripe.Event.retrieve(last_event_id)
+        except stripe.error.InvalidRequestError:
+            last_event_id = None
+
         while True:
             event_list = stripe.Event.list(ending_before=last_event_id, limit=100)  # 100 is the maximum
             pending_webhooks += event_list["data"]

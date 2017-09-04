@@ -373,10 +373,19 @@ class TestWebhook(BaseTestCase):
         stripe_response_part2["data"] = [event2_data]
         stripe_response_part2["has_more"] = False
 
+        last_webhook = StripeWebhook.objects.last()
         with requests_mock.Mocker() as m:
             m.register_uri(
-                "GET", "https://api.stripe.com/v1/events?ending_before={}&limit=100".format(
-                    StripeWebhook.objects.last().id), text=json.dumps(stripe_response_part1))
+                "GET", "https://api.stripe.com/v1/events/{}".format(last_webhook.id), [
+                    {"text": json.dumps(last_webhook.raw_data)},
+                    {"text": json.dumps(last_webhook.raw_data)},
+                    {"text": json.dumps({"error": {"type": "invalid_request_error"}}), "status_code": 404}
+                ]
+            )
+            m.register_uri(
+                "GET", "https://api.stripe.com/v1/events?ending_before={}&limit=100".format(last_webhook.id),
+                text=json.dumps(stripe_response_part1)
+            )
             m.register_uri(
                 "GET", "https://api.stripe.com/v1/events?ending_before={}&limit=100".format(event1_data["id"]),
                 text=json.dumps(stripe_response_part2))
@@ -396,6 +405,12 @@ class TestWebhook(BaseTestCase):
             stripe_settings.PENDING_WEBHOOKS_THRESHOLD = 20
             call_command("check_pending_webhooks")
             self.assertEqual(len(mail.outbox), 0)
+
+            # in case the last event in the database does not longer exist at Stripe
+            # the url below must be called (events are removed after 30 days)
+            m.register_uri("GET", "https://api.stripe.com/v1/events?&limit=100",
+                           text=json.dumps(stripe_response_part2))
+            call_command("check_pending_webhooks")
 
             # make sure the --site parameter works - pass not existing site id - should fail
             with self.assertRaises(Site.DoesNotExist):
