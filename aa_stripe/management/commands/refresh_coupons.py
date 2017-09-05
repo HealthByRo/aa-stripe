@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import stripe
-from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from aa_stripe.models import StripeCoupon
+from aa_stripe.settings import stripe_settings
 from aa_stripe.utils import timestamp_to_timezone_aware_date
 
 
@@ -11,7 +11,7 @@ class Command(BaseCommand):
     help = "Update the coupon list from Stripe API"
 
     def handle(self, *args, **options):
-        stripe.api_key = settings.STRIPE_API_KEY
+        stripe.api_key = stripe_settings.API_KEY
 
         counts = {
             "created": 0,

@@ -16,6 +16,7 @@ from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
 from aa_stripe.exceptions import StripeMethodNotAllowed, StripeWebhookAlreadyParsed
+from aa_stripe.settings import stripe_settings
 from aa_stripe.utils import timestamp_to_timezone_aware_date
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
@@ -44,7 +45,7 @@ class StripeCustomer(StripeBasicModel):
         if self.is_created_at_stripe:
             raise StripeMethodNotAllowed()
 
-        stripe.api_key = settings.STRIPE_API_KEY
+        stripe.api_key = stripe_settings.API_KEY
         customer = stripe.Customer.create(
             source=self.stripe_js_response["id"],
             description="{user} id: {user.id}".format(user=self.user)
@@ -170,6 +171,7 @@ class StripeCoupon(StripeBasicModel):
     def update_from_stripe_data(self, stripe_coupon, exclude_fields=None, commit=True):
         """
         Update StripeCoupon object with data from stripe.Coupon without calling stripe.Coupon.retrieve.
+
         To only update the object, set the commit param to False.
         Returns the number of rows altered or None if commit is False.
         """
@@ -191,9 +193,10 @@ class StripeCoupon(StripeBasicModel):
     def save(self, force_retrieve=False, *args, **kwargs):
         """
         Use the force_retrieve parameter to create a new StripeCoupon object from an existing coupon created at Stripe
+
         API or update the local object with data fetched from Stripe.
         """
-        stripe.api_key = settings.STRIPE_API_KEY
+        stripe.api_key = stripe_settings.API_KEY
         if self._previous_is_deleted != self.is_deleted and self.is_deleted:
             try:
                 coupon = stripe.Coupon.retrieve(self.coupon_id)
@@ -262,7 +265,7 @@ class StripeCharge(StripeBasicModel):
         if self.is_charged:
             raise StripeMethodNotAllowed("Already charged.")
 
-        stripe.api_key = settings.STRIPE_API_KEY
+        stripe.api_key = stripe_settings.API_KEY
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         if customer:
             try:
@@ -324,7 +327,7 @@ class StripeSubscriptionPlan(StripeBasicModel):
         if self.is_created_at_stripe:
             raise StripeMethodNotAllowed()
 
-        stripe.api_key = settings.STRIPE_API_KEY
+        stripe.api_key = stripe_settings.API_KEY
         try:
             plan = stripe.Plan.create(
                 id=self.id,
@@ -387,7 +390,7 @@ class StripeSubscription(StripeBasicModel):
         if self.is_created_at_stripe:
             raise StripeMethodNotAllowed()
 
-        stripe.api_key = settings.STRIPE_API_KEY
+        stripe.api_key = stripe_settings.API_KEY
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         if customer:
             data = {
@@ -418,7 +421,7 @@ class StripeSubscription(StripeBasicModel):
         self.save()
 
     def refresh_from_stripe(self):
-        stripe.api_key = settings.STRIPE_API_KEY
+        stripe.api_key = stripe_settings.API_KEY
         subscription = stripe.Subscription.retrieve(self.stripe_subscription_id)
         self.set_stripe_data(subscription)
         return subscription
@@ -499,3 +502,6 @@ class StripeWebhook(models.Model):
             self.parse()
 
         return super(StripeWebhook, self).save(*args, **kwargs)
+
+    class Meta:
+        ordering = ["-created"]

@@ -154,8 +154,10 @@ All webhooks should be sent to ``/aa-stripe/webhooks`` url. Add ``STRIPE_WEBHOOK
 Be advised. There might be times that Webhooks will not arrive because of some error or arrive in incorrect order. When parsing webhook it is also good to download the refered object to verify it's state.
 
 Stripe has the weird tendency to stop sending webhooks, and they have not fixed it yet on their side. To make sure all events have arrived into your system, the ``check_pending_webhooks`` management command should be run chronically.
-In case there is more pending webhooks than specified in the ``PENDING_EVENTS_THRESHOLD`` variable in settings (default: ``20``), an email to project admins will be sent with ids of the pending events, and also the command will fail raising an exception,
-so if you have some kind of error tracking service configured on your servers (for example: `Sentry <https://sentry.io>`_), you will be notified.
+In case there is more pending webhooks than specified in the ``STRIPE_PENDING_WEBHOOKS_THRESHOLD`` variable in your settings (default: ``20``), an email to project admins will be sent with ids of the pending events, and also the command will fail raising an exception,
+so if you have some kind of error tracking service configured on your servers (for example: `Sentry <https://sentry.io>`_), you will be notified. Also if ``ENV_PREFIX`` is specified in your settings file, it will be included in the email to admins to indicate on which server the fail occurred.
+
+By default the site used in the ``check_pending_webhooks`` command is the first ``django.contrib.sites.models.Site`` object from the database, but in case you need to use some other site, please use the ``--site`` parameter to pass your site's id.
 
 Parsing webhooks
 ^^^^^^^^^^^^^^^^
