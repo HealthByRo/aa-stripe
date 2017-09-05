@@ -41,7 +41,7 @@ class Command(BaseCommand):
         site_id = options.get("site")
         site = Site.objects.get(pk=site_id) if site_id else Site.objects.all()[0]
         pending_webhooks = []
-        last_event = StripeWebhook.objects.last()
+        last_event = StripeWebhook.objects.first()
         last_event_id = last_event.id if last_event else None
         try:
             if last_event:

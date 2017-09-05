@@ -151,6 +151,7 @@ class StripeCoupon(StripeBasicModel):
     def update_from_stripe_data(self, stripe_coupon, exclude_fields=None):
         """
         Update StripeCoupon object with data from stripe.Coupon without calling stripe.Coupon.retrieve.
+
         Returns the number of rows altered.
         """
         fields_to_update = self.STRIPE_FIELDS - set(exclude_fields or [])
@@ -167,6 +168,7 @@ class StripeCoupon(StripeBasicModel):
     def save(self, force_retrieve=False, *args, **kwargs):
         """
         Use the force_retrieve parameter to create a new StripeCoupon object from an existing coupon created at Stripe
+
         API or update the local object with data fetched from Stripe.
         """
         stripe.api_key = stripe_settings.API_KEY
@@ -468,3 +470,6 @@ class StripeWebhook(models.Model):
             self.parse()
 
         return super(StripeWebhook, self).save(*args, **kwargs)
+
+    class Meta:
+        ordering = ["-created"]
