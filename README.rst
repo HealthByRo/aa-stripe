@@ -119,6 +119,35 @@ The command above returns whole plan data send by stripe.
 https://stripe.com/docs/api#plans
 
 
+Coupons Support
+---------------
+Stripe coupons can be created both in the Stripe Dashboard and using the ``aa_stripe.models.StripeCoupon`` model, and also if webhooks are properly configured in your app, you will be able to see all changes related to coupons made in the Stripe Dashboard.
+This works both ways, if a coupon was created, edited or deleted on the application side, the list of coupons in Stripe will be updated respectively.
+::
+
+    from aa_stripe.models import StripeCoupon
+
+    coupon = StripeCoupon.objects.create(
+        coupon_id="SALE10",
+        duration=StripeCoupon.DURATION_FOREVER,
+        currency="usd",
+        amount_off=10,  # in dollars
+    )
+    # coupon was created at Stripe
+    coupon.delete()
+    # coupon was deleted from Stripe, but the StripeCoupon object is kept
+    print(coupon.is_deleted)  # True
+
+**Important:** When updating coupon data, do not use the ``StripeCoupon.objects.update()`` method, because it does not call the ``StripeCoupon.save()`` method, and therefore the coupon will not be updated at Stripe.
+
+The refresh_coupons management command
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To make sure your app is always up to date with Stripe, the ``refresh_coupons`` management command should be run chronically.
+It allows to periodically verify if all coupons are correctly stored in your app and no new coupons were created or deleted at Stripe.
+
+For more information about coupons, see: https://stripe.com/docs/api#coupons
+
+
 Webhooks support
 ----------------
 All webhooks should be sent to ``/aa-stripe/webhooks`` url. Add ``STRIPE_WEBHOOK_ENDPOINT_SECRET`` to your settings to enable webhook verifications. Each received webhook is saved as StripeWebhook object in database. User need to add parsing webhooks depending on the project.
@@ -129,6 +158,33 @@ In case there is more pending webhooks than specified in the ``STRIPE_PENDING_WE
 so if you have some kind of error tracking service configured on your servers (for example: `Sentry <https://sentry.io>`_), you will be notified. Also if ``ENV_PREFIX`` is specified in your settings file, it will be included in the email to admins to indicate on which server the fail occurred.
 
 By default the site used in the ``check_pending_webhooks`` command is the first ``django.contrib.sites.models.Site`` object from the database, but in case you need to use some other site, please use the ``--site`` parameter to pass your site's id.
+
+Parsing webhooks
+^^^^^^^^^^^^^^^^
+To parse webhooks, you can connect to the ``aa_stripe.models.webhook_pre_parse`` signal, which is sent each time a
+``StripeWebhook`` object is parsed.
+
+Sample usage:
+
+::
+
+    from aa_stripe.models import StripeWebhook, webhook_pre_parse
+
+    def stripewebhook_pre_parse(sender, instance, event_type, event_model, event_action, **kwargs):
+        if not instance.is_parsed:
+            # parse
+
+    webhook_pre_parse.connect(stripewebhook_pre_parse, sender=StripeWebhook)
+
+Arguments:
+
+* sender - the ``StripeWebhook`` class
+* instance - the ``StripeWebhook`` event object
+* event_type - Stripe event type (for example: ``coupon.created``, ``invoice.payment_failed``, ``ping``, etc., see: https://stripe.com/docs/api#event_types)
+* event_model - the model which created the event (for example: ``coupon``, ``invoice``, ``charge.dispute``, etc.)
+* event_action - the action done on the ``event_model`` (for example: ``created``, ``updated``, ``payment_failed``, etc.)
+
+Both ``event_model`` and ``event_action`` equal to ``None`` if ``event_type`` is a ``ping`` event.
 
 Support
 =======

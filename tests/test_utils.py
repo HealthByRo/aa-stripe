@@ -17,7 +17,7 @@ class BaseTestCase(APITestCase):
             stripe_response = {
                 "id": coupon_id,
                 "object": "coupon",
-                "amount_off": amount_off,
+                "amount_off": int(amount_off * 100) if amount_off else None,
                 "created": int(time.mktime(datetime.now().timetuple())),
                 "currency": "usd",
                 "duration": duration,

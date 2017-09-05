@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from decimal import Decimal
 from time import sleep
 
 import simplejson as json
@@ -65,6 +66,22 @@ class StripeCustomer(StripeBasicModel):
         ordering = ["id"]
 
 
+class StripeCouponQuerySet(models.query.QuerySet):
+    def delete(self):
+        # StripeCoupon.delete must be executed (along with post_save)
+        deleted_counter = 0
+        for obj in self:
+            obj.delete()
+            deleted_counter = deleted_counter + 1
+
+        return deleted_counter, {self.model._meta.label: deleted_counter}
+
+
+class StripeCouponManager(models.Manager):
+    def get_queryset(self):
+        return StripeCouponQuerySet(self.model, using=self._db)
+
+
 class StripeCoupon(StripeBasicModel):
     # fields that are fetched from Stripe API
     STRIPE_FIELDS = {
@@ -106,11 +123,12 @@ class StripeCoupon(StripeBasicModel):
     )
 
     coupon_id = models.CharField(max_length=255, help_text=_("Identifier for the coupon"))
-    amount_off = models.PositiveIntegerField(
-        blank=True, null=True, help_text=_("Amount (in the currency specified) that will be taken off the subtotal of "
-                                           "any invoices for this customer."))
+    amount_off = models.DecimalField(
+        blank=True, null=True, decimal_places=2, max_digits=10,
+        help_text=_("Amount (in the currency specified) that will be taken off the subtotal of any invoices for this"
+                    "customer."))
     currency = models.CharField(
-        max_length=3, default="USD", choices=CURRENCY_CHOICES, blank=True, null=True,
+        max_length=3, choices=CURRENCY_CHOICES, blank=True, null=True,
         help_text=_("If amount_off has been set, the three-letter ISO code for the currency of the amount to take "
                     "off."))
     duration = models.CharField(
@@ -141,6 +159,8 @@ class StripeCoupon(StripeBasicModel):
     is_deleted = models.BooleanField(default=False)
     is_created_at_stripe = models.BooleanField(default=False)
 
+    objects = StripeCouponManager()
+
     def __init__(self, *args, **kwargs):
         super(StripeCoupon, self).__init__(*args, **kwargs)
         self._previous_is_deleted = self.is_deleted
@@ -148,22 +168,27 @@ class StripeCoupon(StripeBasicModel):
     def __str__(self):
         return self.coupon_id
 
-    def update_from_stripe_data(self, stripe_coupon, exclude_fields=None):
+    def update_from_stripe_data(self, stripe_coupon, exclude_fields=None, commit=True):
         """
         Update StripeCoupon object with data from stripe.Coupon without calling stripe.Coupon.retrieve.
 
-        Returns the number of rows altered.
+        To only update the object, set the commit param to False.
+        Returns the number of rows altered or None if commit is False.
         """
         fields_to_update = self.STRIPE_FIELDS - set(exclude_fields or [])
         update_data = {key: stripe_coupon[key] for key in fields_to_update}
-        if "created" in update_data:
+        if update_data.get("created"):
             update_data["created"] = timestamp_to_timezone_aware_date(update_data["created"])
+
+        if update_data.get("amount_off"):
+            update_data["amount_off"] = Decimal(update_data["amount_off"]) / 100
 
         # also make sure the object is up to date (without the need to call database)
         for key, value in six.iteritems(update_data):
             setattr(self, key, value)
 
-        return StripeCoupon.objects.filter(pk=self.pk).update(**update_data)
+        if commit:
+            return StripeCoupon.objects.filter(pk=self.pk).update(**update_data)
 
     def save(self, force_retrieve=False, *args, **kwargs):
         """
@@ -193,12 +218,15 @@ class StripeCoupon(StripeBasicModel):
                 self.update_from_stripe_data(coupon, exclude_fields=["metadata"] if not force_retrieve else [])
                 self.stripe_response = coupon
             except stripe.error.InvalidRequestError:
+                if force_retrieve:
+                    raise
+
                 self.is_deleted = True
         else:
             self.stripe_response = stripe.Coupon.create(
                 id=self.coupon_id,
                 duration=self.duration,
-                amount_off=self.amount_off,
+                amount_off=int(self.amount_off * 100) if self.amount_off else None,
                 currency=self.currency,
                 duration_in_months=self.duration_in_months,
                 max_redemptions=self.max_redemptions,
@@ -435,7 +463,11 @@ class StripeWebhook(models.Model):
     def _parse_coupon_notification(self, action):
         coupon_id = self.raw_data["data"]["object"]["id"]
         if action == "created":
-            StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
+            try:
+                StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
+            except stripe.error.InvalidRequestError:
+                # do not fail in case the coupon has already been removed from Stripe before we received the webhook
+                pass
         elif action == "updated":
             StripeCoupon.objects.filter(coupon_id=coupon_id, is_deleted=False).update(
                 metadata=self.raw_data["data"]["object"]["metadata"])

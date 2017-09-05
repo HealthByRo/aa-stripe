@@ -1,5 +1,6 @@
 import time
 from datetime import datetime
+from decimal import Decimal
 
 import requests_mock
 import simplejson as json
@@ -98,11 +99,11 @@ class TestCoupons(BaseTestCase):
 
     def test_delete(self):
         coupon = self._create_coupon(coupon_id="CPON", amount_off=1, duration=StripeCoupon.DURATION_FOREVER)
-        self.assertFalse(coupon.is_deleted)
+        self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 0)
         stripe_response = {
             "id": "CPON",
             "object": "coupon",
-            "amount_off": 1,
+            "amount_off": 100,
             "created": int(time.mktime(datetime.now().timetuple())),
             "currency": "usd",
             "duration": StripeCoupon.DURATION_FOREVER,
@@ -116,11 +117,21 @@ class TestCoupons(BaseTestCase):
             "valid": True
         }
         with requests_mock.Mocker() as m:
-            for method in ["GET", "DELETE"]:
-                m.register_uri(method, "https://api.stripe.com/v1/coupons/CPON", text=json.dumps(stripe_response))
+            for coupon_name in ["CPON", "CPON2", "CPON3"]:
+                for method in ["GET", "DELETE"]:
+                    m.register_uri(method, "https://api.stripe.com/v1/coupons/{}".format(coupon_name),
+                                   text=json.dumps(stripe_response))
             coupon.delete()
-            coupon.refresh_from_db()
-            self.assertTrue(coupon.is_deleted)
+            self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 1)
+
+            # also test the overriden queryset's delete
+            coupon2 = self._create_coupon(coupon_id="CPON2")
+            coupon3 = self._create_coupon(coupon_id="CPON3")
+            self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 2)
+            delete_result = StripeCoupon.objects.filter(pk__in=[coupon2.pk, coupon3.pk]).delete()
+            self.assertEqual(delete_result, (2, {"aa_stripe.StripeCoupon": 2}))
+            self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 3)
+            self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 0)
 
     def test_admin_form(self):
         # test correct creation
@@ -144,6 +155,11 @@ class TestCoupons(BaseTestCase):
         data["percent_off"] = 10
         self.assertFalse(StripeCouponForm(data=data).is_valid())
         del data["percent_off"]
+
+        # test passing amount_off without currency
+        del data["currency"]
+        self.assertFalse(StripeCouponForm(data=data).is_valid())
+        data["currency"] = "usd"
 
         # test passing duration repeating with empty duration_in_months
         data["duration"] = StripeCoupon.DURATION_REPEATING
@@ -187,7 +203,7 @@ class TestCoupons(BaseTestCase):
 
     def test_details_api(self):
         # test accessing without authentication
-        url = reverse("stripe-coupon-details", kwargs={"coupon_id": "FAKE"})
+        url = reverse("stripe-coupon-details", kwargs={"coupon_id": "FAKE-COUPON"})
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 403)
 
@@ -229,7 +245,7 @@ class TestCoupons(BaseTestCase):
         coupon_1a_new_response["metadata"] = {"new": "data"}
         coupon_4a_new_response = coupons["4A"].stripe_response.copy()
         coupon_4a_new_response["created"] += 1
-        coupon_4a_new_response["amount_off"] = 99
+        coupon_4a_new_response["amount_off"] = 9999
         # fake limit
         stripe_response_part1 = {
             "object": "list",
@@ -272,5 +288,5 @@ class TestCoupons(BaseTestCase):
             self.assertTrue(coupons["4A"].is_deleted)
             new_4a_coupon = StripeCoupon.objects.get(coupon_id="4A", is_deleted=False)
             self.assertNotEqual(new_4a_coupon.pk, coupons["4A"].pk)
-            self.assertEqual(new_4a_coupon.amount_off, coupon_4a_new_response["amount_off"])
+            self.assertEqual(new_4a_coupon.amount_off, Decimal(coupon_4a_new_response["amount_off"]) / 100)
             self.assertTrue(StripeCoupon.objects.filter(coupon_id="1B", is_deleted=False).exists)
