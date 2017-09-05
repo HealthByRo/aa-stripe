@@ -373,7 +373,7 @@ class TestWebhook(BaseTestCase):
         stripe_response_part2["data"] = [event2_data]
         stripe_response_part2["has_more"] = False
 
-        last_webhook = StripeWebhook.objects.last()
+        last_webhook = StripeWebhook.objects.first()
         with requests_mock.Mocker() as m:
             m.register_uri(
                 "GET", "https://api.stripe.com/v1/events/{}".format(last_webhook.id), [
