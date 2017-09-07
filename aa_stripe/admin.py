@@ -54,7 +54,7 @@ class StripeCouponAdmin(admin.ModelAdmin):
                     "is_created_at_stripe")
     list_filter = ("coupon_id", "amount_off", "percent_off", "currency", "created", "is_deleted",
                    "is_created_at_stripe")
-    readonly_fields = ("stripe_response", "created", "updated", "is_deleted", "parse_error")
+    readonly_fields = ("stripe_response", "created", "updated", "is_deleted")
     ordering = ("-created",)
 
     def get_readonly_fields(self, request, obj=None):
