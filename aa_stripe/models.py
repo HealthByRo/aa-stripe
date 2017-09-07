@@ -201,7 +201,9 @@ class StripeCoupon(StripeBasicModel):
         if self._previous_is_deleted != self.is_deleted and self.is_deleted:
             try:
                 stripe_coupon = stripe.Coupon.retrieve(self.coupon_id)
-                stripe_coupon.delete()
+                # make sure to delete correct coupon
+                if self.created == timestamp_to_timezone_aware_date(stripe_coupon["created"]):
+                    stripe_coupon.delete()
             except stripe.error.InvalidRequestError:
                 # means that the coupon has already been removed from stripe
                 pass

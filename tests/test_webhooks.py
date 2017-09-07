@@ -371,7 +371,7 @@ class TestWebhook(BaseTestCase):
           "type": "coupon.deleted"
         }""")
         payload["data"]["object"]["created"] = coupon.stripe_response["created"]
-        m.register_uri("GET", "https://api.stripe.com/v1/coupons/nicecoupon", text=json.dumps({
+        m.register_uri("GET", "https://api.stripe.com/v1/coupons/nicecoupon", status_code=404, text=json.dumps({
             "error": {
                 "type": "invalid_request_error"
             }
