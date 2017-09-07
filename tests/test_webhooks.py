@@ -219,7 +219,8 @@ class TestWebhook(BaseTestCase):
             self.client.credentials(**self._get_signature_headers(payload))
             self.assertEqual(StripeCoupon.objects.filter(coupon_id="doesnotexist").count(), 0)
             response = self.client.post(url, data=payload, format="json")
-            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["coupon_id"], "Coupon with this coupon_id does not exists at Stripe API")
             self.assertEqual(StripeCoupon.objects.filter(coupon_id="doesnotexist").count(), 0)
 
             # test receiving coupon.created to a coupon that already exists in our database
@@ -230,7 +231,8 @@ class TestWebhook(BaseTestCase):
             self.assertEqual(coupon_qs.count(), 1)
             self.client.credentials(**self._get_signature_headers(payload))
             response = self.client.post(url, data=payload, format="json")
-            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["coupon_id"], "Coupon with this coupon_id already exists")
             self.assertEqual(coupon_qs.count(), 1)
 
         # test receiving coupon.created to a coupon that already exists in our
@@ -261,7 +263,8 @@ class TestWebhook(BaseTestCase):
             self.assertEqual(coupon_qs.count(), 2)
             self.client.credentials(**self._get_signature_headers(payload))
             response = self.client.post(url, data=payload, format="json")
-            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["coupon_id"], "Coupon with this coupon_id already exists")
             self.assertEqual(coupon_qs.count(), 2)
 
     def test_coupon_update(self):

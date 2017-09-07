@@ -1,10 +1,12 @@
 import simplejson as json
 import stripe
+from django.utils.translation import ugettext_lazy as _
 from rest_framework import status
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from aa_stripe.exceptions import StripeCouponAlreadyExists
 from aa_stripe.models import StripeCoupon, StripeCustomer, StripeWebhook
 from aa_stripe.serializers import StripeCouponSerializer, StripeCustomerSerializer, StripeWebhookSerializer
 from aa_stripe.settings import stripe_settings
@@ -52,7 +54,13 @@ class WebhookAPI(CreateAPIView):
             return Response(status=400, data={"message": "already received"})
         except StripeWebhook.DoesNotExist:
             # correct, first time. Create webhook
-            webhook = StripeWebhook.objects.create(id=event["id"], raw_data=data["raw_data"])
+            try:
+                webhook = StripeWebhook.objects.create(id=event["id"], raw_data=data["raw_data"])
+            except stripe.error.InvalidRequestError:
+                # API must return 2xx to let Stripe know that the webhook has been parsed
+                return Response({"coupon_id": _("Coupon with this coupon_id does not exists at Stripe API")})
+            except StripeCouponAlreadyExists:
+                return Response({"coupon_id": _("Coupon with this coupon_id already exists")})
 
         serializer = self.serializer_class(webhook)
 
