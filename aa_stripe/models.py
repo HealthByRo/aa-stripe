@@ -200,8 +200,8 @@ class StripeCoupon(StripeBasicModel):
         stripe.api_key = stripe_settings.API_KEY
         if self._previous_is_deleted != self.is_deleted and self.is_deleted:
             try:
-                coupon = stripe.Coupon.retrieve(self.coupon_id)
-                coupon.delete()
+                stripe_coupon = stripe.Coupon.retrieve(self.coupon_id)
+                stripe_coupon.delete()
             except stripe.error.InvalidRequestError:
                 # means that the coupon has already been removed from stripe
                 pass
@@ -210,21 +210,24 @@ class StripeCoupon(StripeBasicModel):
 
         if self.pk or force_retrieve:
             try:
-                coupon = stripe.Coupon.retrieve(self.coupon_id)
+                stripe_coupon = stripe.Coupon.retrieve(self.coupon_id)
                 if not force_retrieve:
-                    coupon.metadata = self.metadata
-                    coupon.save()
+                    stripe_coupon.metadata = self.metadata
+                    stripe_coupon.save()
 
                 if force_retrieve:
                     # make sure we are not creating a duplicate
                     coupon_qs = StripeCoupon.objects.filter(coupon_id=self.coupon_id)
-                    if coupon_qs.filter(created=timestamp_to_timezone_aware_date(coupon["created"])).exists():
+                    if coupon_qs.filter(created=timestamp_to_timezone_aware_date(stripe_coupon["created"])).exists():
                         raise StripeCouponAlreadyExists
 
-                    coupon_qs.update(is_deleted=True)  # all old coupons should be deleted
+                    # all old coupons should be deleted
+                    for coupon in coupon_qs:
+                        coupon.is_deleted = True
+                        super(StripeCoupon, coupon).save()  # use super save() to call pre/post save signals
                 # update all fields in the local object in case someone tried to change them
-                self.update_from_stripe_data(coupon, exclude_fields=["metadata"] if not force_retrieve else [])
-                self.stripe_response = coupon
+                self.update_from_stripe_data(stripe_coupon, exclude_fields=["metadata"] if not force_retrieve else [])
+                self.stripe_response = stripe_coupon
             except stripe.error.InvalidRequestError:
                 if force_retrieve:
                     raise
