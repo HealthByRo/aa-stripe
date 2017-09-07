@@ -195,9 +195,9 @@ class TestWebhook(BaseTestCase):
           "times_redeemed": 0,
           "valid": true
         }""")
+        url = reverse("stripe-webhooks")
         with requests_mock.Mocker() as m:
             m.register_uri("GET", "https://api.stripe.com/v1/coupons/nicecoupon", text=json.dumps(stripe_response))
-            url = reverse("stripe-webhooks")
             self.client.credentials(**self._get_signature_headers(payload))
             response = self.client.post(url, data=payload, format="json")
             self.assertEqual(response.status_code, 201)
@@ -221,6 +221,52 @@ class TestWebhook(BaseTestCase):
             response = self.client.post(url, data=payload, format="json")
             self.assertEqual(response.status_code, 201)
             self.assertEqual(StripeCoupon.objects.filter(coupon_id="doesnotexist").count(), 0)
+
+            # test receiving coupon.created to a coupon that already exists in our database
+            coupon_qs = StripeCoupon.objects.filter(coupon_id="nicecoupon")
+            payload["id"] = "evt_1"
+            payload["request"]["id"] = "req_1"
+            payload["data"]["object"]["id"] = "nicecoupon"
+            self.assertEqual(coupon_qs.count(), 1)
+            self.client.credentials(**self._get_signature_headers(payload))
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(StripeWebhook.objects.get(id=response.data["id"]).parse_error,
+                             "Coupon with this coupon_id and creation date already exists")
+            self.assertEqual(coupon_qs.count(), 1)
+
+        # test receiving coupon.created to a coupon that already exists in our
+        # database but creation timestamps are different
+        stripe_response["created"] += 1
+        payload["id"] = "evt_2"
+        payload["request"]["id"] = "req_2"
+        payload["data"]["object"]["created"] = stripe_response["created"]
+        with requests_mock.Mocker() as m:
+            m.register_uri("GET", "https://api.stripe.com/v1/coupons/nicecoupon", text=json.dumps(stripe_response))
+            self.assertEqual(coupon_qs.filter(is_deleted=False).count(), 1)
+            self.assertEqual(coupon_qs.filter(is_deleted=True).count(), 0)
+            self.client.credentials(**self._get_signature_headers(payload))
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(coupon_qs.count(), 2)
+            self.assertEqual(coupon_qs.filter(is_deleted=False).count(), 1)
+            self.assertEqual(coupon_qs.filter(is_deleted=True).count(), 1)
+
+        # test receiving coupon.created with a coupon in webhook data that does not exist in our database
+        # but when the webhook is being saved, it receives other coupon (same name, but different creation timestamp)
+        # it's to make sure we are saving proper coupon, because the webhook for the new coupon will arrive later
+        payload["id"] = "evt_3"
+        payload["request"]["id"] = "req_3"
+        payload["data"]["object"]["created"] = stripe_response["created"] + 1
+        with requests_mock.Mocker() as m:
+            m.register_uri("GET", "https://api.stripe.com/v1/coupons/nicecoupon", text=json.dumps(stripe_response))
+            self.assertEqual(coupon_qs.count(), 2)
+            self.client.credentials(**self._get_signature_headers(payload))
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(StripeWebhook.objects.get(id=response.data["id"]).parse_error,
+                             "Coupon with this coupon_id and creation date already exists")
+            self.assertEqual(coupon_qs.count(), 2)
 
     def test_coupon_update(self):
         coupon = self._create_coupon("nicecoupon", amount_off=100, duration=StripeCoupon.DURATION_ONCE,
@@ -266,6 +312,7 @@ class TestWebhook(BaseTestCase):
           },
           "type": "coupon.updated"
         }""")
+        payload["data"]["object"]["created"] = coupon.stripe_response["created"]
 
         url = reverse("stripe-webhooks")
         self.client.credentials(**self._get_signature_headers(payload))
@@ -277,7 +324,18 @@ class TestWebhook(BaseTestCase):
             "lol2": "yeah"
         })
 
-    def test_coupon_delete(self):
+        # test updating non existing coupon - nothing else than saving the webhook should happen
+        payload["id"] = "evt_1"
+        payload["request"]["id"] = "req_1"
+        payload["data"]["object"]["id"] = "doesnotexist"
+        self.assertFalse(StripeCoupon.objects.filter(coupon_id="doesnotexist").exists())
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(url, data=payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(StripeCoupon.objects.filter(coupon_id="doesnotexist").exists())
+
+    @requests_mock.Mocker()
+    def test_coupon_delete(self, m):
         coupon = self._create_coupon("nicecoupon", amount_off=100, duration=StripeCoupon.DURATION_ONCE)
         self.assertFalse(coupon.is_deleted)
         payload = json.loads("""{
@@ -312,6 +370,12 @@ class TestWebhook(BaseTestCase):
           },
           "type": "coupon.deleted"
         }""")
+        payload["data"]["object"]["created"] = coupon.stripe_response["created"]
+        m.register_uri("GET", "https://api.stripe.com/v1/coupons/nicecoupon", status_code=404, text=json.dumps({
+            "error": {
+                "type": "invalid_request_error"
+            }
+        }))
 
         url = reverse("stripe-webhooks")
         self.client.credentials(**self._get_signature_headers(payload))
