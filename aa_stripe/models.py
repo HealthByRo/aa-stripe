@@ -14,8 +14,9 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
+from rest_framework.exceptions import ValidationError
 
-from aa_stripe.exceptions import StripeMethodNotAllowed, StripeWebhookAlreadyParsed
+from aa_stripe.exceptions import StripeCouponAlreadyExists, StripeMethodNotAllowed, StripeWebhookAlreadyParsed
 from aa_stripe.settings import stripe_settings
 from aa_stripe.utils import timestamp_to_timezone_aware_date
 
@@ -214,6 +215,13 @@ class StripeCoupon(StripeBasicModel):
                     coupon.metadata = self.metadata
                     coupon.save()
 
+                if force_retrieve:
+                    # make sure we are not creating a duplicate
+                    coupon_qs = StripeCoupon.objects.filter(coupon_id=self.coupon_id)
+                    if coupon_qs.filter(created=timestamp_to_timezone_aware_date(coupon["created"])).exists():
+                        raise StripeCouponAlreadyExists
+
+                    coupon_qs.update(is_deleted=True)  # all old coupons should be deleted
                 # update all fields in the local object in case someone tried to change them
                 self.update_from_stripe_data(coupon, exclude_fields=["metadata"] if not force_retrieve else [])
                 self.stripe_response = coupon
@@ -462,17 +470,28 @@ class StripeWebhook(models.Model):
 
     def _parse_coupon_notification(self, action):
         coupon_id = self.raw_data["data"]["object"]["id"]
+        created = timestamp_to_timezone_aware_date(self.raw_data["data"]["object"]["created"])
         if action == "created":
             try:
+                if StripeCoupon.objects.filter(coupon_id=coupon_id, created=created).exists():
+                    raise StripeCouponAlreadyExists
+
                 StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
             except stripe.error.InvalidRequestError:
-                # do not fail in case the coupon has already been removed from Stripe before we received the webhook
-                pass
+                raise ValidationError({
+                    "data": {
+                        "object": {"id": _("Coupon with this coupon_id does not exists at Stripe API")}
+                    }})
+            except StripeCouponAlreadyExists:
+                raise ValidationError({
+                    "data": {
+                        "object": {"id": _("Coupon with this coupon_id already exists")}
+                    }})
         elif action == "updated":
-            StripeCoupon.objects.filter(coupon_id=coupon_id, is_deleted=False).update(
+            StripeCoupon.objects.filter(coupon_id=coupon_id, created=created, is_deleted=False).update(
                 metadata=self.raw_data["data"]["object"]["metadata"])
         elif action == "deleted":
-            StripeCoupon.objects.filter(coupon_id=coupon_id).update(is_deleted=True)
+            StripeCoupon.objects.filter(coupon_id=coupon_id, created=created).update(is_deleted=True)
 
     def parse(self, save=False):
         if self.is_parsed:
