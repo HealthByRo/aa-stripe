@@ -11,7 +11,7 @@ from django.contrib.contenttypes import fields as generic
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.utils import timezone
+from django.utils import dateformat, timezone
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
@@ -184,8 +184,9 @@ class StripeCoupon(StripeBasicModel):
         """
         fields_to_update = self.STRIPE_FIELDS - set(exclude_fields or [])
         update_data = {key: stripe_coupon[key] for key in fields_to_update}
-        if update_data.get("created"):
-            update_data["created"] = timestamp_to_timezone_aware_date(update_data["created"])
+        for field in ["created", "redeem_by"]:
+            if update_data.get(field):
+                update_data[field] = timestamp_to_timezone_aware_date(update_data[field])
 
         if update_data.get("amount_off"):
             update_data["amount_off"] = Decimal(update_data["amount_off"]) / 100
@@ -251,7 +252,7 @@ class StripeCoupon(StripeBasicModel):
                 max_redemptions=self.max_redemptions,
                 metadata=self.metadata,
                 percent_off=self.percent_off,
-                redeem_by=self.redeem_by
+                redeem_by=int(dateformat.format(self.redeem_by, "U")) if self.redeem_by else None
             )
             # stripe will generate coupon_id if none was specified in the request
             if not self.coupon_id:
