@@ -49,6 +49,6 @@ class Command(BaseCommand):
             coupon.is_deleted = True
             super(StripeCoupon, coupon).save()  # make sure pre/post save signals are triggered without calling API
         counts["deleted"] += coupons_to_delete.count()
-        
+
         if options.get("verbosity") > 1:
             print("Coupons created: {created}, updated: {updated}, deleted: {deleted}".format(**counts))
