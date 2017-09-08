@@ -57,6 +57,9 @@ class StripeCouponAdmin(admin.ModelAdmin):
     readonly_fields = ("stripe_response", "created", "updated", "is_deleted")
     ordering = ("-created",)
 
+    def get_queryset(self, request):
+        return StripeCoupon.objects.all_with_deleted()
+
     def get_readonly_fields(self, request, obj=None):
         if obj:
             return [field for field in self.form.Meta.fields if field not in ["metadata"]]

@@ -79,8 +79,14 @@ class StripeCouponQuerySet(models.query.QuerySet):
 
 
 class StripeCouponManager(models.Manager):
-    def get_queryset(self):
+    def all_with_deleted(self):
         return StripeCouponQuerySet(self.model, using=self._db)
+
+    def deleted(self):
+        return self.all_with_deleted().filter(is_deleted=True)
+
+    def get_queryset(self):
+        return self.all_with_deleted().filter(is_deleted=False)
 
 
 class StripeCoupon(StripeBasicModel):
@@ -480,7 +486,7 @@ class StripeWebhook(models.Model):
         created = timestamp_to_timezone_aware_date(self.raw_data["data"]["object"]["created"])
         if action == "created":
             try:
-                StripeCoupon.objects.get(coupon_id=coupon_id, created=created)
+                StripeCoupon.objects.all_with_deleted().get(coupon_id=coupon_id, created=created)
             except StripeCoupon.DoesNotExist:
                 try:
                     StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
@@ -492,13 +498,13 @@ class StripeWebhook(models.Model):
                 raise StripeWebhookParseError(StripeCouponAlreadyExists.details)
         elif action == "updated":
             try:
-                coupon = StripeCoupon.objects.get(coupon_id=coupon_id, created=created, is_deleted=False)
+                coupon = StripeCoupon.objects.get(coupon_id=coupon_id, created=created)
                 coupon.metadata = self.raw_data["data"]["object"]["metadata"]
                 super(StripeCoupon, coupon).save()  # use the super method not to call Stripe API
             except StripeCoupon.DoesNotExist:
                 pass  # do not update if does not exist
         elif action == "deleted":
-            StripeCoupon.objects.filter(coupon_id=coupon_id, created=created, is_deleted=False).delete()
+            StripeCoupon.objects.filter(coupon_id=coupon_id, created=created).delete()
 
     def parse(self, save=False):
         if self.is_parsed:

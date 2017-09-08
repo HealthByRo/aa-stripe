@@ -4,6 +4,7 @@ from decimal import Decimal
 
 import requests_mock
 import simplejson as json
+import six
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.utils import dateformat, timezone
@@ -90,8 +91,7 @@ class TestCoupons(BaseTestCase):
             }))
             coupon.metadata = {"yes": "no"}
             coupon.save()
-            coupon.refresh_from_db()
-            self.assertTrue(coupon.is_deleted)
+            self.assertTrue(StripeCoupon.objects.deleted().filter(pk=coupon.pk).exists())
 
             # try changing other Stripe data than coupon's metadata
             m.register_uri("GET", "https://api.stripe.com/v1/coupons/25OFF", text=json.dumps(stripe_response))
@@ -105,7 +105,7 @@ class TestCoupons(BaseTestCase):
 
     def test_delete(self):
         coupon = self._create_coupon(coupon_id="CPON", amount_off=1, duration=StripeCoupon.DURATION_FOREVER)
-        self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 0)
+        self.assertEqual(StripeCoupon.objects.deleted().count(), 0)
         stripe_response = {
             "id": "CPON",
             "object": "coupon",
@@ -128,7 +128,7 @@ class TestCoupons(BaseTestCase):
                     m.register_uri(method, "https://api.stripe.com/v1/coupons/{}".format(coupon_name),
                                    text=json.dumps(stripe_response))
             coupon.delete()
-            self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 1)
+            self.assertEqual(StripeCoupon.objects.deleted().count(), 1)
 
             # also test the overriden queryset's delete
             coupon2 = self._create_coupon(coupon_id="CPON2")
@@ -136,7 +136,7 @@ class TestCoupons(BaseTestCase):
             self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 2)
             delete_result = StripeCoupon.objects.filter(pk__in=[coupon2.pk, coupon3.pk]).delete()
             self.assertEqual(delete_result, (2, {"aa_stripe.StripeCoupon": 2}))
-            self.assertEqual(StripeCoupon.objects.filter(is_deleted=True).count(), 3)
+            self.assertEqual(StripeCoupon.objects.deleted().count(), 3)
             self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 0)
 
     def test_admin_form(self):
@@ -283,9 +283,9 @@ class TestCoupons(BaseTestCase):
             m.register_uri("GET", "https://api.stripe.com/v1/coupons/1B", text=json.dumps(new_coupon_stripe_response))
 
             call_command("refresh_coupons")
-            self.assertEqual(StripeCoupon.objects.count(), 7)  # 4 + 3 were created
-            for coupon in coupons.values():
-                coupon.refresh_from_db()
+            self.assertEqual(StripeCoupon.objects.all_with_deleted().count(), 7)  # 4 + 3 were created
+            for coupon_id, coupon in six.iteritems(coupons):
+                coupons[coupon_id] = StripeCoupon.objects.all_with_deleted().get(pk=coupon.pk)
 
             self.assertEqual(coupons["1A"].metadata, coupon_1a_new_response["metadata"])
             self.assertTrue(coupons["2A"].is_deleted)

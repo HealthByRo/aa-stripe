@@ -223,7 +223,7 @@ class TestWebhook(BaseTestCase):
             self.assertEqual(StripeCoupon.objects.filter(coupon_id="doesnotexist").count(), 0)
 
             # test receiving coupon.created to a coupon that already exists in our database
-            coupon_qs = StripeCoupon.objects.filter(coupon_id="nicecoupon")
+            coupon_qs = StripeCoupon.objects.all_with_deleted().filter(coupon_id="nicecoupon")
             payload["id"] = "evt_1"
             payload["request"]["id"] = "req_1"
             payload["data"]["object"]["id"] = "nicecoupon"
@@ -381,9 +381,8 @@ class TestWebhook(BaseTestCase):
         self.client.credentials(**self._get_signature_headers(payload))
         with mock.patch("aa_stripe.models.webhook_pre_parse.send") as mocked_signal:
             response = self.client.post(url, data=payload, format="json")
-            coupon.refresh_from_db()
             self.assertEqual(response.status_code, 201)
-            self.assertTrue(coupon.is_deleted)
+            self.assertTrue(StripeCoupon.objects.deleted().filter(pk=coupon.pk).exists())
             webhook = StripeWebhook.objects.first()
             self.assertTrue(webhook.is_parsed)
             mocked_signal.assert_called_with(event_action="deleted", event_model="coupon", event_type="coupon.deleted",
@@ -395,9 +394,8 @@ class TestWebhook(BaseTestCase):
         payload["request"]["id"] = ["req_someother"]
         self.client.credentials(**self._get_signature_headers(payload))
         response = self.client.post(url, data=payload, format="json")
-        coupon.refresh_from_db()
         self.assertEqual(response.status_code, 201)
-        self.assertTrue(coupon.is_deleted)
+        self.assertTrue(StripeCoupon.objects.deleted().filter(pk=coupon.pk).exists())
 
         # make sure trying to parse already parsed webhook is impossible
         self.assertTrue(webhook.is_parsed)

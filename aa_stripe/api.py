@@ -11,7 +11,7 @@ from aa_stripe.settings import stripe_settings
 
 
 class CouponDetailsAPI(RetrieveAPIView):
-    queryset = StripeCoupon.objects.filter(is_deleted=False)
+    queryset = StripeCoupon.objects.all()
     serializer_class = StripeCouponSerializer
     permission_classes = (IsAuthenticated,)
     lookup_field = "coupon_id"
