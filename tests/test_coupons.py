@@ -49,7 +49,7 @@ class TestCoupons(BaseTestCase):
             self.assertEqual(coupon.coupon_id, stripe_response["id"])
             self.assertEqual(coupon.created, timestamp_to_timezone_aware_date(stripe_response["created"]))
             self.assertEqual(coupon.stripe_response, stripe_response)
-            self.assertEqual(m.last_request.text.split("redeem_by=")[1], dateformat.format(coupon.redeem_by, "U"))
+            self.assertIn("redeem_by={}".format(dateformat.format(coupon.redeem_by, "U")), m.last_request.body)
 
             # test creating coupon with coupon_id
             stripe_response["id"] = "YOLO1"
