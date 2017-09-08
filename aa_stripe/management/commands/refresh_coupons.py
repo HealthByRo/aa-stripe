@@ -44,7 +44,7 @@ class Command(BaseCommand):
                 last_stripe_coupon = stripe_coupon_list["data"][-1]
 
         # update can be used here, because those coupons does not exist in the Stripe API anymore
-        counts["deleted"] = StripeCoupon.objects.filter(is_deleted=False).exclude(
+        counts["deleted"] = StripeCoupon.objects.exclude(
             pk__in=active_coupons_ids).update(is_deleted=True)
         if options.get("verbosity") > 1:
             print("Coupons created: {created}, updated: {updated}, deleted: {deleted}".format(**counts))

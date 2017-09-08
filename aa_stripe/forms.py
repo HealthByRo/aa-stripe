@@ -16,7 +16,7 @@ class StripeCouponForm(forms.ModelForm):
     def clean_coupon_id(self):
         coupon_id = self.cleaned_data.get("coupon_id")
         if coupon_id:
-            if StripeCoupon.objects.filter(coupon_id=coupon_id, is_deleted=False).exists():
+            if StripeCoupon.objects.filter(coupon_id=coupon_id).exists():
                 raise forms.ValidationError(_("Coupon with this id already exists"))
 
         return coupon_id
