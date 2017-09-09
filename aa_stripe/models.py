@@ -5,6 +5,7 @@ from time import sleep
 import simplejson as json
 import six
 import stripe
+from dateutil.relativedelta import relativedelta
 from django import dispatch
 from django.conf import settings
 from django.contrib.contenttypes import fields as generic
@@ -405,6 +406,7 @@ class StripeSubscription(StripeBasicModel):
         help_text="https://stripe.com/docs/api/python#create_subscription-coupon")
     end_date = models.DateField(null=True, blank=True, db_index=True)
     canceled_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    at_period_end = models.BooleanField(default=False)
 
     def create_at_stripe(self):
         if self.is_created_at_stripe:
@@ -446,30 +448,31 @@ class StripeSubscription(StripeBasicModel):
         self.set_stripe_data(subscription)
         return subscription
 
-    def _stripe_cancel(self):
+    def _stripe_cancel(self, at_period_end=False):
         subscription = self.refresh_from_stripe()
         if subscription["status"] != "canceled":
-            return stripe.Subscription.delete(subscription)
+            return subscription.delete(at_period_end=at_period_end)
 
-    def cancel(self):
-        sub = self._stripe_cancel()
-        if sub and sub["status"] == "canceled":
+    def cancel(self, at_period_end=False):
+        sub = self._stripe_cancel(at_period_end=at_period_end)
+        if sub and sub["status"] == "canceled" or sub["cancel_at_period_end"]:
             self.canceled_at = timezone.now()
             self.status = self.STATUS_CANCELED
+            self.at_period_end = at_period_end
             self.save()
 
     @classmethod
     def get_subcriptions_for_cancel(cls):
-        today = timezone.localtime(timezone.now()).date()
+        today = timezone.localtime(timezone.now() + relativedelta(hours=1)).date()
         return cls.objects.filter(
             end_date__lte=today, status=cls.STATUS_ACTIVE)
 
     @classmethod
-    def end_subscriptions(cls):
-        # do not use in cron - one broken subscription will kill all.
-        # instead please use end_subscriptions.py script.
+    def end_subscriptions(cls, at_period_end=False):
+        # do not use in cron - one broken subscription will exit script.
+        # Instead please use end_subscriptions.py script.
         for subscription in cls.get_subcriptions_for_cancel():
-            subscription.cancel()
+            subscription.cancel(at_period_end)
             sleep(0.25)  # 4 requests per second tops
 
 

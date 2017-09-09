@@ -90,8 +90,8 @@ Utility functions for subscriptions
 * subscription.refresh_from_stripe() - gets updated subscription data from Stripe. Example usage: parsing webhooks - when webhook altering subscription is received it is good practice to verify the subscription at Stripe before making any actions.
 * subscription.cancel() - cancels subscription at Stripe.
 * StripeSubscription.get_subcriptions_for_cancel() - returns all subscriptions that should be canceled. Stripe does not support end date for subscription so it is up the user to implement expiration mechanism. Subscription has end_date that can be used for that.
-* StripeSubscription.end_subscriptions() - cancels all subscriptions on Stripe that has passed end date. Use with caution, check internal comments.
-* management command: end_subscription.py. Terminates outdated subscriptions in a safe way. In case of error returns it at the end, using Sentry if available or in console. Should be used in cron script.
+* StripeSubscription.end_subscriptions() - cancels all subscriptions on Stripe that has passed end date. Use with caution, check internal comments. 
+* management command: end_subscription.py. Terminates outdated subscriptions in a safe way. In case of error returns it at the end, using Sentry if available or in console. Should be used in cron script. By default sets at_period_end=True.
 
 Subscription Plans
 ------------------

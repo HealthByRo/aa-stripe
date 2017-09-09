@@ -14,6 +14,13 @@ except ImportError:
 
 
 class Command(BaseCommand):
+    """
+    Terminates outdated subscriptions at period end.
+
+    Should be run hourly.
+    Exceptions are queued and returned at the end.
+    """
+
     help = "Terminate outdated subscriptions"
 
     def handle(self, *args, **options):
@@ -21,7 +28,7 @@ class Command(BaseCommand):
         exceptions = []
         for subscription in subscriptions:
             try:
-                subscription.cancel()
+                subscription.cancel(at_period_end=True)
                 sleep(0.25)  # 4 requests per second tops
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()

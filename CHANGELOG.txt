@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.20]
+### Added
+- Improved end_subscriptions
+
 ## [0.2.19]
 ### Added
 - Bugfixes

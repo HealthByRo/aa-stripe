@@ -144,7 +144,7 @@ class TestSubscriptions(TestCase):
 
             with freeze_time("2017-07-04 12:00:00+00"):
                 call_command("end_subscriptions")
-                mocked_cancel.assert_called_with()
+                mocked_cancel.assert_called_with(at_period_end=True)
 
                 subscription.refresh_from_db()
                 self.assertIsNotNone(subscription.canceled_at)
