@@ -58,6 +58,8 @@ To charge users, create an instance of ``aa_stripe.models.StripeCharge`` model a
                                   comment="Comment for internal information")
   c.charge()
 
+Upon successfull charge also sends signal, ``charge_charged`` with instance as one parameter.
+
 There is also a management command called ``charge_stripe`` in case
 you need to process all the remaining charges.
 
