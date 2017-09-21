@@ -19,7 +19,7 @@ from jsonfield import JSONField
 from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeMethodNotAllowed, StripeWebhookAlreadyParsed,
                                   StripeWebhookParseError)
 from aa_stripe.settings import stripe_settings
-from aa_stripe.signals import charge_completed
+from aa_stripe.signals import stripe_charge_completed
 from aa_stripe.utils import timestamp_to_timezone_aware_date
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
@@ -306,7 +306,7 @@ class StripeCharge(StripeBasicModel):
             self.stripe_response = stripe_charge
             self.is_charged = True
             self.save()
-            charge_completed.send(sender=StripeCharge, instance=self)
+            stripe_charge_completed.send(sender=StripeCharge, instance=self)
             return stripe_charge
 
 
