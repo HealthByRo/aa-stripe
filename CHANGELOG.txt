@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [0.2.21]
 ### Added
 - Signal: StripeCharge.charged
+- StripeCharge.charge_attempt_failed + support of catching charge errors. `charge_stripe` command will not retry those charges.
 
 ## [0.2.20]
 ### Added
