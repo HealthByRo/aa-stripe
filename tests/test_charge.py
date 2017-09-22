@@ -10,7 +10,7 @@ from django.utils.six import StringIO
 from stripe.error import StripeError
 
 from aa_stripe.models import StripeCharge, StripeCustomer
-from aa_stripe.signals import stripe_charge_completed
+from aa_stripe.signals import stripe_charge_succeeded
 
 UserModel = get_user_model()
 
@@ -25,7 +25,7 @@ class TestCharges(TestCase):
 
         def handler(sender, instance, **kwargs):
             self.signal_was_called = True
-        stripe_charge_completed.connect(handler)
+        stripe_charge_succeeded.connect(handler)
 
         data = {
             "customer_id": "cus_AlSWz1ZQw7qG2z",
