@@ -10,7 +10,7 @@ from django.utils.six import StringIO
 from stripe.error import CardError, StripeError
 
 from aa_stripe.models import StripeCharge, StripeCustomer
-from aa_stripe.signals import stripe_charge_exception, stripe_charge_succeeded
+from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_succeeded
 
 UserModel = get_user_model()
 
@@ -30,7 +30,7 @@ class TestCharges(TestCase):
         def exception_handler(sender, instance, **kwargs):
             self.exception_signal_was_called = True
         stripe_charge_succeeded.connect(success_handler)
-        stripe_charge_exception.connect(exception_handler)
+        stripe_charge_card_exception.connect(exception_handler)
 
         data = {
             "customer_id": "cus_AlSWz1ZQw7qG2z",

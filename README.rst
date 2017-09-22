@@ -60,7 +60,7 @@ To charge users, create an instance of ``aa_stripe.models.StripeCharge`` model a
 
 Upon successfull charge also sends signal, ``stripe_charge_succeeded`` with instance as single parameter.
 
-If charge fails due to CardError, ``charge_attept_failed`` is set to True and this charge will not be automatically retried by ``charge_stripe`` command. Signal ``stripe_charge_exception`` with instance and exception will be send.
+If charge fails due to CardError, ``charge_attept_failed`` is set to True and this charge will not be automatically retried by ``charge_stripe`` command. Signal ``stripe_charge_card_exception`` with instance and exception will be send.
 
 There is also a management command called ``charge_stripe`` in case you need to process all the remaining charges or to run it by cron.
 
