@@ -19,7 +19,7 @@ from jsonfield import JSONField
 from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeMethodNotAllowed, StripeWebhookAlreadyParsed,
                                   StripeWebhookParseError)
 from aa_stripe.settings import stripe_settings
-from aa_stripe.signals import stripe_charge_succeeded
+from aa_stripe.signals import stripe_charge_succeeded, stripe_charge_exception
 from aa_stripe.utils import timestamp_to_timezone_aware_date
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
@@ -298,11 +298,12 @@ class StripeCharge(StripeBasicModel):
                     customer=customer.stripe_customer_id,
                     description=self.description
                 )
-            except stripe.error.CardError:
+            except stripe.error.CardError as e:
                 self.charge_attempt_failed = True
                 self.is_charged = False
                 self.save()
-                raise
+                stripe_charge_exception.send(sender=StripeCharge, instance=self, exception=e)
+                return  # just exit.
             except stripe.error.StripeError:
                 self.is_charged = False
                 self.save()
