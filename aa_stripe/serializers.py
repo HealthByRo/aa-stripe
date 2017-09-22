@@ -3,7 +3,17 @@ import stripe
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import JSONField, ModelSerializer
 
-from aa_stripe.models import StripeCustomer, StripeWebhook
+from aa_stripe.models import StripeCoupon, StripeCustomer, StripeWebhook
+
+
+class StripeCouponSerializer(ModelSerializer):
+    class Meta:
+        model = StripeCoupon
+        fields = [
+            "coupon_id", "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
+            "metadata", "percent_off", "redeem_by", "times_redeemed", "valid", "is_created_at_stripe", "created",
+            "updated", "is_deleted"
+        ]
 
 
 class StripeCustomerSerializer(ModelSerializer):

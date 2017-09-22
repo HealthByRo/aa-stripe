@@ -5,10 +5,11 @@ from __future__ import unicode_literals
 import django.core.validators
 import django.db.models.deletion
 import jsonfield.fields
-from django.conf import settings
 from django.db import migrations, models
 
-USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
+from aa_stripe.settings import stripe_settings
+
+USER_MODEL = stripe_settings.USER_MODEL
 
 
 class Migration(migrations.Migration):

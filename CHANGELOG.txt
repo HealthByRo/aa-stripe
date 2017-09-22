@@ -1,6 +1,29 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.21]
+### Added
+- Signal: StripeCharge.stripe_charge_succeeded
+- Signal: StripeCharge.stripe_charge_card_exception
+- StripeCharge.charge_attempt_failed + support of catching charge errors. `charge_stripe` command will not retry those charges. 
+
+## [0.2.20]
+### Added
+- Improved end_subscriptions
+
+## [0.2.19]
+### Added
+- Bugfixes
+
+## [0.2.18]
+### Added
+- Bugfixes
+
+## [0.2.17]
+### Added
+- Full integration of Coupons
+- Webhooks(Events) failsafe
+
 ## [0.2.15]
 ### Added
 - Documentation about Subscriptions, SubscriptionPlan
