@@ -7,10 +7,10 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 from django.utils.six import StringIO
-from stripe.error import StripeError, CardError
+from stripe.error import CardError, StripeError
 
 from aa_stripe.models import StripeCharge, StripeCustomer
-from aa_stripe.signals import stripe_charge_succeeded, stripe_charge_exception
+from aa_stripe.signals import stripe_charge_exception, stripe_charge_succeeded
 
 UserModel = get_user_model()
 

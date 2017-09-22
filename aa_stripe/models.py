@@ -19,7 +19,7 @@ from jsonfield import JSONField
 from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeMethodNotAllowed, StripeWebhookAlreadyParsed,
                                   StripeWebhookParseError)
 from aa_stripe.settings import stripe_settings
-from aa_stripe.signals import stripe_charge_succeeded, stripe_charge_exception
+from aa_stripe.signals import stripe_charge_exception, stripe_charge_succeeded
 from aa_stripe.utils import timestamp_to_timezone_aware_date
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
