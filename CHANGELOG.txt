@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.22]
+### Changed
+- StripeSubscriptionPlan.amount is now a BigInteger
+
 ## [0.2.21]
 ### Added
 - Signal: StripeCharge.stripe_charge_succeeded
