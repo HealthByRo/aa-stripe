@@ -9,14 +9,8 @@ from aa_stripe.models import StripeSubscription
 
 try:
     from raven.contrib.django.raven_compat.models import client
-    from django.conf import settings
-    settings.RAVEN_CONFIG["dsn"]
-    if settings.RAVEN_CONFIG["dsn"] != "":
-        sentry_available = True
-    else:
-        sentry_available = False
-except (KeyError, NameError, ImportError):
-    sentry_available = False
+except ImportError:
+    pass
 
 
 class Command(BaseCommand):
@@ -38,9 +32,12 @@ class Command(BaseCommand):
                 sleep(0.25)  # 4 requests per second tops
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                if sentry_available:
-                    client.captureException()
-                else:
+                try:
+                    if client.is_enabled():
+                        client.captureException()
+                    else:
+                        raise
+                except NameError:
                     exceptions.append({
                         "obj": subscription,
                         "exc_type": exc_type,

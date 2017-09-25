@@ -1,6 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.25]
+- better sentry support
+
 ## [0.2.24]
 - improved cron commands error handling
 
