@@ -13,6 +13,8 @@ try:
     settings.RAVEN_CONFIG["dsn"]
     if settings.RAVEN_CONFIG["dsn"] != "":
         sentry_available = True
+    else:
+        sentry_available = False
 except (KeyError, NameError, ImportError):
     sentry_available = False
 

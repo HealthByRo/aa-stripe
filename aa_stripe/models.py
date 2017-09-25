@@ -290,6 +290,7 @@ class StripeCharge(StripeBasicModel):
 
         stripe.api_key = stripe_settings.API_KEY
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
+        self.customer = customer
         if customer:
             try:
                 stripe_charge = stripe.Charge.create(
