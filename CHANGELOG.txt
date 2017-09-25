@@ -1,8 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.2.23]
+- - improved cron commands error handling
+
 ## [0.2.22]
-### Changed
 - StripeSubscriptionPlan.amount is now a BigInteger
 
 ## [0.2.21]
