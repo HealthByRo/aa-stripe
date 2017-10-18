@@ -80,14 +80,7 @@ class TestWebhook(BaseTestCase):
               "receipt_email": null,
               "receipt_number": null,
               "refunded": false,
-              "refunds": {
-                "object": "list",
-                "data": [
-                ],
-                "has_more": false,
-                "total_count": 0,
-                "url": "/v1/charges/ch_1ASX5ELoWm2f6pRwC6ZyewYR/refunds"
-              },
+              "refunds": {},
               "review": null,
               "shipping": null,
               "source": {

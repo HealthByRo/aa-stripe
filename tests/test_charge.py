@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.utils.six import StringIO
 from stripe.error import CardError, StripeError
 
-from aa_stripe.models import StripeCharge, StripeCustomer
+from aa_stripe.models import StripeCharge, StripeCustomer, StripeMethodNotAllowed
 from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_succeeded
 
 UserModel = get_user_model()
@@ -86,3 +86,41 @@ class TestCharges(TestCase):
         self.assertEqual(charge.stripe_response["id"], "AA1")
         charge_create_mocked.assert_called_with(amount=charge.amount, currency=data["currency"],
                                                 customer=data["customer_id"], description=data["description"])
+
+    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create")
+    def test_refund(self, refund_create_mocked):
+        data = {
+            "customer_id": "cus_AlSWz1ZQw7qG2z",
+            "currency": "usd",
+            "amount": 100,
+            "description": "ABC"
+        }
+        refund_create_mocked.return_value = stripe.Refund(id="R1")
+
+        customer = StripeCustomer.objects.create(
+            user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
+        self.assertTrue(customer, StripeCustomer.get_latest_active_customer_for_user(self.user))
+        charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], customer=customer,
+                                             description=data["description"])
+
+        self.assertFalse(charge.is_refunded)
+
+        # refund - error: not charged
+        with self.assertRaises(StripeMethodNotAllowed):
+            charge.refund()
+            self.assertFalse(charge.is_refunded)
+
+        charge.is_charged = True
+        charge.stripe_charge_id = "abc"
+        charge.save()
+
+        # refund - passes
+        charge.refund()
+        refund_create_mocked.assert_called_with(charge=charge.stripe_charge_id)
+        self.assertTrue(charge.is_refunded)
+        self.assertEqual(charge.stripe_refund_id, "R1")
+
+        # refund - error: already refunded
+        with self.assertRaises(StripeMethodNotAllowed):
+            charge.refund()
+            self.assertTrue(charge.is_refunded)

@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.3.0]
+### Added
+- Refunding StripeCharge
+
 ## [0.2.26]
 - updated admin
 
@@ -20,7 +24,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Signal: StripeCharge.stripe_charge_succeeded
 - Signal: StripeCharge.stripe_charge_card_exception
-- StripeCharge.charge_attempt_failed + support of catching charge errors. `charge_stripe` command will not retry those charges. 
+- StripeCharge.charge_attempt_failed + support of catching charge errors. `charge_stripe` command will not retry those charges.
 
 ## [0.2.20]
 ### Added
