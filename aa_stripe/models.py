@@ -276,8 +276,10 @@ class StripeCharge(StripeBasicModel):
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField(null=True, help_text=_("in cents"))
     is_charged = models.BooleanField(default=False)
+    is_refunded = models.BooleanField(default=False)
     charge_attempt_failed = models.BooleanField(default=False)
     stripe_charge_id = models.CharField(max_length=255, blank=True, db_index=True)
+    stripe_refund_id = models.CharField(max_length=255, blank=True, db_index=True)
     description = models.CharField(max_length=255, help_text=_("Description sent to Stripe"))
     comment = models.CharField(max_length=255, help_text=_("Comment for internal information"))
     content_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
@@ -316,6 +318,18 @@ class StripeCharge(StripeBasicModel):
             self.save()
             stripe_charge_succeeded.send(sender=StripeCharge, instance=self)
             return stripe_charge
+
+    def refund(self):
+        if not self.is_charged:
+            raise StripeMethodNotAllowed("Cannot refund not charged transaction.")
+
+        if self.is_refunded:
+            raise StripeMethodNotAllowed("Already refunded.")
+
+        stripe_refund = stripe.Refund.create(charge=self.stripe_charge_id)
+        self.is_refunded = True
+        self.stripe_refund_id = stripe_refund["id"]
+        self.save()
 
 
 class StripeSubscriptionPlan(StripeBasicModel):
