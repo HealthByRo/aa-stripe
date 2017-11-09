@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 import django.core.validators
 import django.db.models.deletion
 import jsonfield.fields
+from django.conf import settings
 from django.db import migrations, models
 
 from aa_stripe.settings import stripe_settings
@@ -15,6 +16,7 @@ USER_MODEL = stripe_settings.USER_MODEL
 class Migration(migrations.Migration):
 
     dependencies = [
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         migrations.swappable_dependency(USER_MODEL),
         ('aa_stripe', '0002_auto_20170607_0714'),
     ]
