@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
+import logging
 import stripe
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import JSONField, ModelSerializer
 
 from aa_stripe.models import StripeCoupon, StripeCustomer, StripeWebhook
+
+logging.getLogger("aa-stripe")
 
 
 class StripeCouponSerializer(ModelSerializer):
@@ -30,6 +33,9 @@ class StripeCustomerSerializer(ModelSerializer):
                     user=user, stripe_js_response=stripe_js_response)
                 instance.create_at_stripe()
             except stripe.StripeError as e:
+                logging.error(
+                    "[AA-Stripe] creating customer failed for user {user.id}: {{ error }}".format(user=user, error=e)
+                )
                 raise ValidationError({"stripe_js_response": e})
 
         return instance
