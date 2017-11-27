@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+
 import stripe
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import JSONField, ModelSerializer
