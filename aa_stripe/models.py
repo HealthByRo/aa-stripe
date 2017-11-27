@@ -279,6 +279,8 @@ class StripeCharge(StripeBasicModel):
     amount = models.IntegerField(null=True, help_text=_("in cents"))
     is_charged = models.BooleanField(default=False)
     is_refunded = models.BooleanField(default=False)
+    # if True, it will not be triggered through stripe_charge command
+    is_manual_charge = models.BooleanField(default=False)
     charge_attempt_failed = models.BooleanField(default=False)
     stripe_charge_id = models.CharField(max_length=255, blank=True, db_index=True)
     stripe_refund_id = models.CharField(max_length=255, blank=True, db_index=True)
