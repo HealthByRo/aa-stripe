@@ -1,6 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.3.3]
+### Added
+- is_manual_charge flag
+
+### Fixed
+- reduced the chance of double charge
+
 ## [0.3.2]
 ### Added
 - logging error on create user at stripe failure

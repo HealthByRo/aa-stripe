@@ -19,7 +19,7 @@ class Command(BaseCommand):
     help = "Charge stripe"
 
     def handle(self, *args, **options):
-        charges = StripeCharge.objects.filter(is_charged=False, charge_attempt_failed=False)
+        charges = StripeCharge.objects.filter(is_charged=False, charge_attempt_failed=False, is_manual_charge=False)
         stripe.api_key = stripe_settings.API_KEY
         exceptions = []
         for c in charges:

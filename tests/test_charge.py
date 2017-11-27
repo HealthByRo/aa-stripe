@@ -51,6 +51,8 @@ class TestCharges(TestCase):
 
         charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], customer=customer,
                                              description=data["description"])
+        manual_charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], customer=customer,
+                                                    description=data["description"])
         self.assertFalse(charge.is_charged)
 
         # test in case of an API error
@@ -83,9 +85,15 @@ class TestCharges(TestCase):
         self.assertTrue(self.success_signal_was_called)
         charge.refresh_from_db()
         self.assertTrue(charge.is_charged)
+        manual_charge.refresh_from_db()
+        self.assertFalse(manual_charge.is_charged)
         self.assertEqual(charge.stripe_response["id"], "AA1")
         charge_create_mocked.assert_called_with(amount=charge.amount, currency=data["currency"],
                                                 customer=data["customer_id"], description=data["description"])
+
+        # manual call
+        manual_charge.charge()
+        self.assertTrue(manual_charge.is_charged)
 
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create")
     def test_refund(self, refund_create_mocked):
