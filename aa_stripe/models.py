@@ -289,6 +289,8 @@ class StripeCharge(StripeBasicModel):
     source = generic.GenericForeignKey('content_type', 'object_id')
 
     def charge(self):
+        self.refresh_from_db()  # to minimize the chance of double charging
+
         if self.is_charged:
             raise StripeMethodNotAllowed("Already charged.")
 
