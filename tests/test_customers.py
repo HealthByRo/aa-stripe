@@ -58,48 +58,67 @@ class TestCreatingUsers(APITestCase):
         self.assertEqual(response.status_code, 400)
 
         with requests_mock.Mocker() as m:
-            m.register_uri('POST', 'https://api.stripe.com/v1/customers', [{'text': json.dumps({
-                "id": "cus_9Oop0gQ1R1ATMi",
-                "object": "customer",
-                "account_balance": 0,
-                "created": 1476810921,
-                "currency": "usd",
-                "default_source": None,
-                "delinquent": False,
-                "description": None,
-                "discount": None,
-                "email": None,
-                "livemode": False,
-                "metadata": {
+            m.register_uri('POST', 'https://api.stripe.com/v1/customers', [
+                {
+                    "text": json.dumps({
+                        "error": {"message": "Your card was declined.", "type": "card_error", "param": "",
+                                  "code": "card_declined", "decline_code": "do_not_honor"}
+                    }),
+                    "status_code": 400
                 },
-                "shipping": None,
-                "sources": {
-                    "object": "list",
-                    "data": [
+                {
+                    "text": json.dumps({
+                        "id": "cus_9Oop0gQ1R1ATMi",
+                        "object": "customer",
+                        "account_balance": 0,
+                        "created": 1476810921,
+                        "currency": "usd",
+                        "default_source": None,
+                        "delinquent": False,
+                        "description": None,
+                        "discount": None,
+                        "email": None,
+                        "livemode": False,
+                        "metadata": {
+                        },
+                        "shipping": None,
+                        "sources": {
+                            "object": "list",
+                            "data": [
 
-                    ],
-                    "has_more": False,
-                    "total_count": 0,
-                    "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/sources"
-                },
-                "subscriptions": {
-                    "object": "list",
-                    "data": [
+                            ],
+                            "has_more": False,
+                            "total_count": 0,
+                            "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/sources"
+                        },
+                        "subscriptions": {
+                            "object": "list",
+                            "data": [
 
-                    ],
-                    "has_more": False,
-                    "total_count": 0,
-                    "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/subscriptions"
-                }
-            })}])
+                            ],
+                            "has_more": False,
+                            "total_count": 0,
+                            "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/subscriptions"
+                        }})
+                }])
+
+            # test response error
+            stripe_customer_qs = StripeCustomer.objects.filter(is_created_at_stripe=True)
             data = {"stripe_js_response": stripe_js_response}
             self.client.force_authenticate(user=self.user)
             response = self.client.post(url, data, format="json")
-            self.assertEqual(response.status_code, 201)
-
+            self.assertEqual(response.status_code, 400)
             self.assertEqual(m.call_count, 1)
-            self.assertEqual(StripeCustomer.objects.count(), 1)
-            customer = StripeCustomer.objects.first()
+            self.assertEqual(set(response.data.keys()), {"stripe_error"})
+            self.assertEqual(response.data["stripe_error"], "Your card was declined.")
+            self.assertEqual(stripe_customer_qs.count(), 0)
+
+            # test success response from Stripe
+            response = self.client.post(url, data, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(m.call_count, 2)
+            self.assertEqual(stripe_customer_qs.count(), 1)
+            customer = stripe_customer_qs.first()
             self.assertTrue(customer.is_active)
             self.assertEqual(customer.user, self.user)
             self.assertEqual(customer.stripe_js_response, stripe_js_response)
