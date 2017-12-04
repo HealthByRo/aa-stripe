@@ -35,9 +35,9 @@ class StripeCustomerSerializer(ModelSerializer):
                 instance.create_at_stripe()
             except stripe.StripeError as e:
                 logging.error(
-                    "[AA-Stripe] creating customer failed for user {user.id}: {{ error }}".format(user=user, error=e)
+                    "[AA-Stripe] creating customer failed for user {user.id}: {error}".format(user=user, error=e)
                 )
-                raise ValidationError({"stripe_js_response": e})
+                raise ValidationError({"stripe_error": e._message})
 
         return instance
 
