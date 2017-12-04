@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.4.0]
+### Changed
+- handling Stripe API errors (CustomersAPI view raises ValidationError with {"stripe_error": "displayable message"} on Stripe error)
+
 ## [0.3.3]
 ### Added
 - is_manual_charge flag
