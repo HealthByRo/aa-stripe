@@ -70,9 +70,13 @@ class BaseTestCase(APITestCase):
             self.customer = customer
         return customer
 
-    def _create_card(self, customer=None, stripe_card_id="", set_self=True):
+    def _create_card(self, customer=None, stripe_card_id="", is_default=True, set_self=True):
         card = StripeCard.objects.create(customer=customer or self.customer, last4=4242, exp_month=1, exp_year=2025,
                                          stripe_card_id=stripe_card_id or "card_{}".format(uuid4().hex))
+        if is_default:
+            card.customer.default_card = card
+            card.customer.save()
+
         if set_self:
             self.card = card
         return card

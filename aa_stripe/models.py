@@ -107,18 +107,6 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
             if set_deleted:
                 self.is_deleted = True
 
-    def save(self, *args, **kwargs):
-        if self.pk:
-            card = self._retrieve_from_stripe(set_deleted=True)
-            if card:
-                card.exp_month = self.exp_month
-                card.exp_year = self.exp_year
-                card.save()
-        super(StripeCard, self).save(*args, **kwargs)
-        if not self.customer.default_card:
-            self.customer.default_card = self
-            self.customer.save()
-
     def delete(self, *args, **kwargs):
         card = self._retrieve_from_stripe(set_deleted=True)
         if card:
