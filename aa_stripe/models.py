@@ -332,12 +332,12 @@ class StripeCharge(StripeBasicModel):
         if self.is_charged:
             raise StripeMethodNotAllowed("Already charged.")
 
-        if not self.customer.default_card:
-            raise ValidationError(_("Customer must have a default_card set to create charge at Stripe"))
-
         stripe.api_key = stripe_settings.API_KEY
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         self.customer = customer
+        if not customer.default_card:
+            raise ValidationError(_("Customer must have a default_card set to create charge at Stripe"))
+
         if customer:
             try:
                 stripe_charge = stripe.Charge.create(
