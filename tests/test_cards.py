@@ -18,10 +18,11 @@ class TestCards(BaseTestCase):
             "sources": {
                 "object": "list",
                 "data": [
-                    {"exp_month": 8, "exp_year": 2018, "last4": "4242"}
+                    {"exp_month": 8, "exp_year": 2018, "last4": "4242", "id": "card_xyz"},
+                    {"exp_month": 8, "exp_year": 2018, "last4": "1242", "id": "card_abc"}
                 ],
                 "has_more": False,
-                "total_count": 0,
+                "total_count": 2,
                 "url": "/v1/customers/cus_xyz/sources"
             }
         }
@@ -40,5 +41,17 @@ class TestCards(BaseTestCase):
             "GET", "https://api.stripe.com/v1/customers/cus_xyz/sources/card_xyz", status_code=404,
             text=json.dumps({"error": {"type": "invalid_request_error"}}))
         self._create_card(stripe_card_id="card_xyz")
-        StripeCard.objects.filter(pk=self.card.pk).update(is_deleted=True)
-        StripeCard.objects.all_with_deleted().get(pk=self.card.pk).delete()
+        self.card.delete()
+        self.assertTrue(StripeCard.objects.deleted().filter(pk=self.card.pk).exists())
+
+        # try deleting card that exists at Stripe API - should call Stripe and DELETE
+        m.register_uri(
+            "GET", "https://api.stripe.com/v1/customers/cus_xyz/sources/card_abc", status_code=200,
+            text=json.dumps({"id": "card_abc", "object": "card", "customer": "cus_xyz"}))
+        m.register_uri(
+            "DELETE", "https://api.stripe.com/v1/customers/cus_xyz/sources/card_abc", status_code=200,
+            text=json.dumps({"deleted": "true", "id": "card_xyz"})
+        )
+        card = self._create_card(stripe_card_id="card_abc")
+        card.delete()
+        self.assertTrue(StripeCard.objects.deleted().filter(pk=card.pk).exists())
