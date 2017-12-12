@@ -326,6 +326,8 @@ class StripeCharge(StripeBasicModel):
             return stripe_charge
 
     def refund(self):
+        stripe.api_key = stripe_settings.API_KEY
+
         if not self.is_charged:
             raise StripeMethodNotAllowed("Cannot refund not charged transaction.")
 
