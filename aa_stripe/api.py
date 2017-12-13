@@ -21,16 +21,16 @@ class CouponDetailsAPI(RetrieveAPIView):
 
 class CustomersAPI(CreateAPIView, RetrieveModelMixin):
     queryset = StripeCustomer.objects.all()
+    serializer_class = StripeCustomerSerializer
     permission_classes = (IsAuthenticated,)
 
     def get_object(self):
         return get_object_or_404(self.get_queryset(), user=self.request.user)
 
     def get_serializer_class(self):
-        if self.request.method == 'GET':
+        if hasattr(self, "request") and self.request.method == "GET":
             return StripeCustomerRetriveSerializer
-        elif self.request.method == 'POST':
-            return StripeCustomerSerializer
+        return self.serializer_class
 
     def get(self, request):
         return self.retrieve(request)

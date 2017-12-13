@@ -93,7 +93,7 @@ class TestCreatingUsers(APITestCase):
         self.assertEqual(response.status_code, 400)
 
         with requests_mock.Mocker() as m:
-            m.register_uri('POST', 'https://api.stripe.com/v1/customers', [
+            m.register_uri("POST", "https://api.stripe.com/v1/customers", [
                 {
                     "text": json.dumps({
                         "error": {"message": "Your card was declined.", "type": "card_error", "param": "",
@@ -137,11 +137,11 @@ class TestCreatingUsers(APITestCase):
 
         self.client.force_authenticate(user=self.user)
         response = self.client.get(url, format="json")
-        self.assertEqual(response.status_code, 404)  # logged in but cunstomer is not yet created
+        self.assertEqual(response.status_code, 404)  # logged in but customer is not yet created
 
         with requests_mock.Mocker() as m:
             m.register_uri(
-                'POST', 'https://api.stripe.com/v1/customers',
+                "POST", "https://api.stripe.com/v1/customers",
                 [{
                     "text": json.dumps(self.get_successful_create_stripe_customer_response(stripe_customer_id))
                 }])
@@ -149,6 +149,6 @@ class TestCreatingUsers(APITestCase):
             self.client.post(url, data, format="json")
 
         response = self.client.get(url, format="json")
-        self.assertEqual(response.status_code, 200)  # logged in and cunstomer is created
+        self.assertEqual(response.status_code, 200)  # logged in and customer is created
         self.assertEqual(set(response.data.keys()), {"stripe_customer_id"})
         self.assertEqual(response.data["stripe_customer_id"], stripe_customer_id)
