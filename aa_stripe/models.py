@@ -15,6 +15,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import dateformat, timezone
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
@@ -22,7 +23,7 @@ from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeMethodNotAllo
                                   StripeWebhookParseError)
 from aa_stripe.settings import stripe_settings
 from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_succeeded
-from aa_stripe.utils import timestamp_to_timezone_aware_date
+from aa_stripe.utils import SafeDeleteManager, SafeDeleteModel, timestamp_to_timezone_aware_date
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 
@@ -39,12 +40,17 @@ class StripeBasicModel(models.Model):
         abstract = True
 
 
+@python_2_unicode_compatible
 class StripeCustomer(StripeBasicModel):
     user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name='stripe_customers')
     stripe_js_response = JSONField()
     stripe_customer_id = models.CharField(max_length=255, db_index=True)
+    default_card = models.ForeignKey("StripeCard", null=True, blank=True, on_delete=models.PROTECT)
     is_active = models.BooleanField(default=True)
     is_created_at_stripe = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.user.email
 
     def create_at_stripe(self):
         if self.is_created_at_stripe:
@@ -71,29 +77,47 @@ class StripeCustomer(StripeBasicModel):
         ordering = ["id"]
 
 
-class StripeCouponQuerySet(models.query.QuerySet):
-    def delete(self):
-        # StripeCoupon.delete must be executed (along with post_save)
-        deleted_counter = 0
-        for obj in self:
-            obj.delete()
-            deleted_counter = deleted_counter + 1
+@python_2_unicode_compatible
+class StripeCard(SafeDeleteModel, StripeBasicModel):
+    customer = models.ForeignKey("StripeCustomer", on_delete=models.CASCADE)
+    stripe_card_id = models.CharField(max_length=255, db_index=True, help_text=_("Unique card id in Stripe"))
+    last4 = models.CharField(max_length=4, help_text=_("Last 4 digits of the card"))
+    exp_month = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)],
+                                            help_text=_("Two digit number representing the card’s expiration month"))
+    exp_year = models.PositiveIntegerField(validators=[MinValueValidator(1900)],
+                                           help_text=_("Four digit number representing the card’s expiration year"))
 
-        return deleted_counter, {self.model._meta.label: deleted_counter}
+    objects = SafeDeleteManager()
+
+    def __str__(self):
+        return self.stripe_card_id
+
+    def _retrieve_from_stripe(self, set_deleted=False):
+        """
+        Retrieve card from Stripe
+        Will set StripeCard.is_deleted to True if card could not be fetched and the set_deleted parameter is True,
+        although StripeCard.save() method will not be executed.
+        """
+        stripe.api_key = stripe_settings.API_KEY
+        try:
+            customer = stripe.Customer.retrieve(self.customer.stripe_customer_id)
+            return customer.sources.retrieve(self.stripe_card_id)
+        except stripe.error.InvalidRequestError:  # means that the card is not available - does not exist
+            if set_deleted:
+                self.is_deleted = True
+
+    def delete(self, *args, **kwargs):
+        card = self._retrieve_from_stripe(set_deleted=True)
+        if card:
+            card.delete()
+            self.is_deleted = True
+
+        self.save()
+        return 0, {self._meta.label: 0}
 
 
-class StripeCouponManager(models.Manager):
-    def all_with_deleted(self):
-        return StripeCouponQuerySet(self.model, using=self._db)
-
-    def deleted(self):
-        return self.all_with_deleted().filter(is_deleted=True)
-
-    def get_queryset(self):
-        return self.all_with_deleted().filter(is_deleted=False)
-
-
-class StripeCoupon(StripeBasicModel):
+@python_2_unicode_compatible
+class StripeCoupon(SafeDeleteModel, StripeBasicModel):
     # fields that are fetched from Stripe API
     STRIPE_FIELDS = {
         "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
@@ -167,10 +191,9 @@ class StripeCoupon(StripeBasicModel):
         default=False,
         help_text=_("Taking account of the above properties, whether this coupon can still be applied to a customer."))
     created = models.DateTimeField()
-    is_deleted = models.BooleanField(default=False)
     is_created_at_stripe = models.BooleanField(default=False)
 
-    objects = StripeCouponManager()
+    objects = SafeDeleteManager()
 
     def __init__(self, *args, **kwargs):
         super(StripeCoupon, self).__init__(*args, **kwargs)
@@ -299,12 +322,12 @@ class StripeCharge(StripeBasicModel):
         stripe.api_key = stripe_settings.API_KEY
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         self.customer = customer
-        if customer:
+        if customer and customer.default_card:
             try:
                 stripe_charge = stripe.Charge.create(
                     amount=self.amount,
                     currency="usd",
-                    customer=customer.stripe_customer_id,
+                    source=customer.default_card.stripe_card_id,
                     description=self.description
                 )
             except stripe.error.CardError as e:

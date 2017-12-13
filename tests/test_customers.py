@@ -127,6 +127,10 @@ class TestCreatingUsers(APITestCase):
             self.assertEqual(customer.stripe_js_response, stripe_js_response)
             self.assertEqual(customer.stripe_customer_id, stripe_customer_id)
             self.assertEqual(customer.stripe_response["id"], stripe_customer_id)
+            self.assertIsNotNone(customer.default_card)
+            self.assertEqual(customer.default_card.last4, "4242")
+            self.assertEqual(customer.default_card.exp_month, 8)
+            self.assertEqual(customer.default_card.exp_year, 2017)
 
     def test_user_get_stripe_customer_id(self):
         url = reverse("stripe-customers")
