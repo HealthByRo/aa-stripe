@@ -2,8 +2,8 @@
 from django.contrib import admin
 
 from aa_stripe.forms import StripeCouponForm
-from aa_stripe.models import (StripeCharge, StripeCoupon, StripeCustomer, StripeSubscription, StripeSubscriptionPlan,
-                              StripeWebhook)
+from aa_stripe.models import (StripeCard, StripeCharge, StripeCoupon, StripeCustomer, StripeSubscription,
+                              StripeSubscriptionPlan, StripeWebhook)
 
 
 class ReadOnlyBase(object):
@@ -36,6 +36,11 @@ class ReadOnlyBase(object):
 
 class ReadOnly(ReadOnlyBase, admin.ModelAdmin):
     editable_fields = []
+
+
+class StripeCardAdmin(ReadOnly):
+    list_display = ("stripe_card_id", "customer")
+    list_filter = ("stripe_card_id",)
 
 
 class StripeCustomerAdmin(ReadOnly):
@@ -84,6 +89,7 @@ class StripeWebhookAdmin(ReadOnly):
     ordering = ("-created",)
 
 
+admin.site.register(StripeCard, StripeCardAdmin)
 admin.site.register(StripeCustomer, StripeCustomerAdmin)
 admin.site.register(StripeCharge, StripeChargeAdmin)
 admin.site.register(StripeCoupon, StripeCouponAdmin)

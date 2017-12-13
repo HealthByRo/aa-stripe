@@ -5,9 +5,9 @@ import mock
 import stripe
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import TestCase
 from django.utils.six import StringIO
 from stripe.error import CardError, StripeError
+from tests.test_utils import BaseTestCase
 
 from aa_stripe.models import StripeCharge, StripeCustomer, StripeMethodNotAllowed
 from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_succeeded
@@ -15,9 +15,9 @@ from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_succee
 UserModel = get_user_model()
 
 
-class TestCharges(TestCase):
+class TestCharges(BaseTestCase):
     def setUp(self):
-        self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
+        self._create_user()
 
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.create")
     def test_charges(self, charge_create_mocked):
@@ -49,6 +49,7 @@ class TestCharges(TestCase):
             user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
         self.assertTrue(customer, StripeCustomer.get_latest_active_customer_for_user(self.user))
 
+        self._create_card(customer)
         charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], customer=customer,
                                              description=data["description"])
         manual_charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], customer=customer,
@@ -89,7 +90,7 @@ class TestCharges(TestCase):
         self.assertFalse(manual_charge.is_charged)
         self.assertEqual(charge.stripe_response["id"], "AA1")
         charge_create_mocked.assert_called_with(amount=charge.amount, currency=data["currency"],
-                                                customer=data["customer_id"], description=data["description"])
+                                                source=self.card.stripe_card_id, description=data["description"])
 
         # manual call
         manual_charge.charge()
@@ -108,6 +109,7 @@ class TestCharges(TestCase):
         customer = StripeCustomer.objects.create(
             user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
         self.assertTrue(customer, StripeCustomer.get_latest_active_customer_for_user(self.user))
+        self._create_card(customer)
         charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], customer=customer,
                                              description=data["description"])
 
