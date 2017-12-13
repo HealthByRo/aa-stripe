@@ -1,12 +1,14 @@
 import simplejson as json
 import stripe
 from rest_framework import status
-from rest_framework.generics import CreateAPIView, RetrieveAPIView
+from rest_framework.generics import CreateAPIView, RetrieveAPIView, get_object_or_404
+from rest_framework.mixins import RetrieveModelMixin
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from aa_stripe.models import StripeCoupon, StripeCustomer, StripeWebhook
-from aa_stripe.serializers import StripeCouponSerializer, StripeCustomerSerializer, StripeWebhookSerializer
+from aa_stripe.serializers import (StripeCouponSerializer, StripeCustomerRetriveSerializer, StripeCustomerSerializer,
+                                   StripeWebhookSerializer)
 from aa_stripe.settings import stripe_settings
 
 
@@ -17,10 +19,21 @@ class CouponDetailsAPI(RetrieveAPIView):
     lookup_field = "coupon_id"
 
 
-class CustomersAPI(CreateAPIView):
+class CustomersAPI(CreateAPIView, RetrieveModelMixin):
     queryset = StripeCustomer.objects.all()
-    serializer_class = StripeCustomerSerializer
     permission_classes = (IsAuthenticated,)
+
+    def get_object(self):
+        return get_object_or_404(self.get_queryset(), user=self.request.user)
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return StripeCustomerRetriveSerializer
+        elif self.request.method == 'POST':
+            return StripeCustomerSerializer
+
+    def get(self, request):
+        return self.retrieve(request)
 
 
 class WebhookAPI(CreateAPIView):

@@ -137,7 +137,7 @@ class TestCreatingUsers(APITestCase):
 
         self.client.force_authenticate(user=self.user)
         response = self.client.get(url, format="json")
-        self.assertEqual(response.status_code, 400)  # logged in but cunstomer is not yet created
+        self.assertEqual(response.status_code, 404)  # logged in but cunstomer is not yet created
 
         with requests_mock.Mocker() as m:
             m.register_uri(
@@ -150,3 +150,5 @@ class TestCreatingUsers(APITestCase):
 
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 200)  # logged in and cunstomer is created
+        self.assertEqual(set(response.data.keys()), {"stripe_customer_id"})
+        self.assertEqual(response.data["stripe_customer_id"], stripe_customer_id)
