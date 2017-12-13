@@ -323,10 +323,7 @@ class StripeCharge(StripeBasicModel):
         stripe.api_key = stripe_settings.API_KEY
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         self.customer = customer
-        if not customer.default_card:
-            raise ValidationError(_("Customer must have a default_card set to create charge at Stripe"))
-
-        if customer:
+        if customer and customer.default_card:
             try:
                 stripe_charge = stripe.Charge.create(
                     amount=self.amount,

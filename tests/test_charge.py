@@ -135,11 +135,3 @@ class TestCharges(BaseTestCase):
         with self.assertRaises(StripeMethodNotAllowed):
             charge.refund()
             self.assertTrue(charge.is_refunded)
-
-    def test_no_default_card(self):
-        # make sure charging with no default card set is disallowed
-        self._create_customer()
-        self.assertEqual(StripeCard.objects.count(), 0)
-        charge = StripeCharge.objects.create(user=self.user, amount=10, customer=self.customer, description="ABC")
-        with self.assertRaises(ValidationError):
-            charge.charge()
