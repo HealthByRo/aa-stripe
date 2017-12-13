@@ -5,7 +5,7 @@ import stripe
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import JSONField, ModelSerializer
 
-from aa_stripe.models import StripeCoupon, StripeCustomer, StripeWebhook
+from aa_stripe.models import StripeCard, StripeCoupon, StripeCustomer, StripeWebhook
 
 logging.getLogger("aa-stripe")
 
@@ -32,6 +32,11 @@ class StripeCustomerSerializer(ModelSerializer):
                 stripe_js_response = validated_data.pop("stripe_js_response")
                 instance = StripeCustomer.objects.create(
                     user=user, stripe_js_response=stripe_js_response)
+                card_data = stripe_js_response["card"]
+                card = StripeCard.objects.create(
+                    stripe_card_id=card_data["id"], customer=instance, last4=card_data["last4"],
+                    exp_month=card_data["exp_month"], exp_year=card_data["exp_year"], stripe_response=card_data)
+                instance.default_card = card  # .create_at_stripe() will call .save()
                 instance.create_at_stripe()
             except stripe.StripeError as e:
                 logging.error(
