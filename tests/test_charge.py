@@ -4,13 +4,12 @@ import sys
 import mock
 import stripe
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.utils.six import StringIO
 from stripe.error import CardError, StripeError
 from tests.test_utils import BaseTestCase
 
-from aa_stripe.models import StripeCard, StripeCharge, StripeCustomer, StripeMethodNotAllowed
+from aa_stripe.models import StripeCharge, StripeCustomer, StripeMethodNotAllowed
 from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_succeeded
 
 UserModel = get_user_model()
