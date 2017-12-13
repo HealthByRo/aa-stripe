@@ -67,14 +67,14 @@ class TestCreatingUsers(APITestCase):
                 "data": [],
                 "has_more": False,
                 "total_count": 0,
-                "url": f"/v1/customers/{id}/sources"
+                "url": "/v1/customers/{}/sources".format(id)
             },
             "subscriptions": {
                 "object": "list",
                 "data": [],
                 "has_more": False,
                 "total_count": 0,
-                "url": f"/v1/customers/{id}/subscriptions"
+                "url": "/v1/customers/{}/subscriptions".format(id)
             }
         }
 

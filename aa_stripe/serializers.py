@@ -3,7 +3,7 @@ import logging
 
 import stripe
 from rest_framework.exceptions import ValidationError
-from rest_framework.serializers import JSONField, CharField, ModelSerializer
+from rest_framework.serializers import JSONField, ModelSerializer
 
 from aa_stripe.models import StripeCoupon, StripeCustomer, StripeWebhook
 
@@ -21,8 +21,6 @@ class StripeCouponSerializer(ModelSerializer):
 
 
 class StripeCustomerRetriveSerializer(ModelSerializer):
-    stripe_customer_id = CharField(max_length=255)
-
     class Meta:
         model = StripeCustomer
         fields = ["stripe_customer_id"]
