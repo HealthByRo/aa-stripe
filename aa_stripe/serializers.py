@@ -20,6 +20,12 @@ class StripeCouponSerializer(ModelSerializer):
         ]
 
 
+class StripeCustomerRetriveSerializer(ModelSerializer):
+    class Meta:
+        model = StripeCustomer
+        fields = ["stripe_customer_id"]
+
+
 class StripeCustomerSerializer(ModelSerializer):
     stripe_js_response = JSONField()
 

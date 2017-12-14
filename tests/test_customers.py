@@ -13,10 +13,8 @@ class TestCreatingUsers(APITestCase):
     def setUp(self):
         self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
 
-    def test_user_create(self):
-        self.assertEqual(StripeCustomer.objects.count(), 0)
-        url = reverse("stripe-customers")
-        stripe_js_response = {
+    def get_stripe_js_response(self):
+        return {
             "id": "tok_193mTaHSTEMJ0IPXhhZ5vuTX",
             "object": "customer",
             "client_ip": None,
@@ -49,6 +47,43 @@ class TestCreatingUsers(APITestCase):
             },
         }
 
+    def get_successful_create_stripe_customer_response(self, id="cus_9Oop0gQ1R1ATMi"):
+        return {
+            "id": id,
+            "object": "customer",
+            "account_balance": 0,
+            "created": 1476810921,
+            "currency": "usd",
+            "default_source": None,
+            "delinquent": False,
+            "description": None,
+            "discount": None,
+            "email": None,
+            "livemode": False,
+            "metadata": {},
+            "shipping": None,
+            "sources": {
+                "object": "list",
+                "data": [],
+                "has_more": False,
+                "total_count": 0,
+                "url": "/v1/customers/{}/sources".format(id)
+            },
+            "subscriptions": {
+                "object": "list",
+                "data": [],
+                "has_more": False,
+                "total_count": 0,
+                "url": "/v1/customers/{}/subscriptions".format(id)
+            }
+        }
+
+    def test_user_create(self):
+        self.assertEqual(StripeCustomer.objects.count(), 0)
+        url = reverse("stripe-customers")
+        stripe_js_response = self.get_stripe_js_response()
+
+        stripe_customer_id = "cus_9Oop0gQ1R1ATMi"
         data = {}
         response = self.client.post(url, format="json")
         self.assertEqual(response.status_code, 403)  # not logged
@@ -58,7 +93,7 @@ class TestCreatingUsers(APITestCase):
         self.assertEqual(response.status_code, 400)
 
         with requests_mock.Mocker() as m:
-            m.register_uri('POST', 'https://api.stripe.com/v1/customers', [
+            m.register_uri("POST", "https://api.stripe.com/v1/customers", [
                 {
                     "text": json.dumps({
                         "error": {"message": "Your card was declined.", "type": "card_error", "param": "",
@@ -67,39 +102,7 @@ class TestCreatingUsers(APITestCase):
                     "status_code": 400
                 },
                 {
-                    "text": json.dumps({
-                        "id": "cus_9Oop0gQ1R1ATMi",
-                        "object": "customer",
-                        "account_balance": 0,
-                        "created": 1476810921,
-                        "currency": "usd",
-                        "default_source": None,
-                        "delinquent": False,
-                        "description": None,
-                        "discount": None,
-                        "email": None,
-                        "livemode": False,
-                        "metadata": {
-                        },
-                        "shipping": None,
-                        "sources": {
-                            "object": "list",
-                            "data": [
-
-                            ],
-                            "has_more": False,
-                            "total_count": 0,
-                            "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/sources"
-                        },
-                        "subscriptions": {
-                            "object": "list",
-                            "data": [
-
-                            ],
-                            "has_more": False,
-                            "total_count": 0,
-                            "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/subscriptions"
-                        }})
+                    "text": json.dumps(self.get_successful_create_stripe_customer_response(stripe_customer_id))
                 }])
 
             # test response error
@@ -122,9 +125,34 @@ class TestCreatingUsers(APITestCase):
             self.assertTrue(customer.is_active)
             self.assertEqual(customer.user, self.user)
             self.assertEqual(customer.stripe_js_response, stripe_js_response)
-            self.assertEqual(customer.stripe_customer_id, "cus_9Oop0gQ1R1ATMi")
-            self.assertEqual(customer.stripe_response["id"], "cus_9Oop0gQ1R1ATMi")
+            self.assertEqual(customer.stripe_customer_id, stripe_customer_id)
+            self.assertEqual(customer.stripe_response["id"], stripe_customer_id)
             self.assertIsNotNone(customer.default_card)
             self.assertEqual(customer.default_card.last4, "4242")
             self.assertEqual(customer.default_card.exp_month, 8)
             self.assertEqual(customer.default_card.exp_year, 2017)
+
+    def test_user_get_stripe_customer_id(self):
+        url = reverse("stripe-customers")
+        stripe_customer_id = "cus_Bw7eXawkf0zsal"
+
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, 403)  # not logged
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, 404)  # logged in but customer is not yet created
+
+        with requests_mock.Mocker() as m:
+            m.register_uri(
+                "POST", "https://api.stripe.com/v1/customers",
+                [{
+                    "text": json.dumps(self.get_successful_create_stripe_customer_response(stripe_customer_id))
+                }])
+            data = {"stripe_js_response": self.get_stripe_js_response()}
+            self.client.post(url, data, format="json")
+
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, 200)  # logged in and customer is created
+        self.assertEqual(set(response.data.keys()), {"stripe_customer_id"})
+        self.assertEqual(response.data["stripe_customer_id"], stripe_customer_id)
