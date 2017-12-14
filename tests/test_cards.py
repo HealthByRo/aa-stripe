@@ -69,8 +69,40 @@ class TestListCreateCards(BaseTestCase):
     todays_year = datetime.utcnow().year
     exp_year = partial(randint, todays_year, todays_year + 50)
 
-    def card_id(self):
+    def stripe_card_id(self):
         return "card_{}".format(uuid4().hex[:24])
+
+    def get_successful_create_stripe_card_response(self,
+                                                   id="card_1BZ3932eZvKYlo2CsPjdeVLE",
+                                                   customer_id="cus_9Oop0gQ1R1ATMi",
+                                                   last4="8431",
+                                                   exp_month=8,
+                                                   exp_year=2019):
+        return {
+            "id": id,
+            "object": "card",
+            "address_city": None,
+            "address_country": None,
+            "address_line1": None,
+            "address_line1_check": None,
+            "address_line2": None,
+            "address_state": None,
+            "address_zip": None,
+            "address_zip_check": None,
+            "brand": "American Express",
+            "country": "US",
+            "customer": customer_id,
+            "cvc_check": None,
+            "dynamic_last4": None,
+            "exp_month": exp_month,
+            "exp_year": exp_year,
+            "fingerprint": "EdFCik9NII3EjtXE",
+            "funding": "credit",
+            "last4": last4,
+            "metadata": {},
+            "name": None,
+            "tokenization_method": None
+        }
 
     def setUp(self):
         self._create_user()
@@ -78,8 +110,61 @@ class TestListCreateCards(BaseTestCase):
 
     def test_create_card(self):
         self.assertEqual(StripeCard.objects.count(), 0)
-        # Create card
-        self.assertEqual(StripeCard.objects.count(), 1)
+        url = reverse("stripe-customers-cards")
+        response = self.client.post(url, format="json")
+        self.assertEqual(response.status_code, 403)  # not logged
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(url, format="json")
+        self.assertEqual(response.status_code, 400)  # no source tag
+
+        stripe_card_id = self.stripe_card_id()
+        customer_id = self.customer.stripe_customer_id
+        last4 = str(self.last4())
+        exp_month = self.exp_month()
+        exp_year = self.exp_year()
+        with requests_mock.Mocker() as m:
+            m.register_uri("POST", "https://api.stripe.com/v1/customers/{}/sources".format(customer_id), [{
+                "text":
+                json.dumps({
+                    "error": {
+                        "type": "invalid_request_error",
+                        "message": "No such token: tosdfsdf",
+                        "param": "source"
+                    }
+                }),
+                "status_code":
+                400
+            }, {
+                "text":
+                json.dumps(
+                    self.get_successful_create_stripe_card_response(
+                        id=stripe_card_id, customer_id=customer_id, last4=last4, exp_month=exp_month,
+                        exp_year=exp_year))
+            }])
+
+            # test response error
+            stripe_card_qs = StripeCard.objects.filter(customer=self.customer)
+            data = {"source": "tosdfsdf"}
+            response = self.client.post(url, data, format="json")
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(m.call_count, 1)
+            self.assertEqual(set(response.data.keys()), {"stripe_error"})
+            self.assertEqual(response.data["stripe_error"], "No such token: tosdfsdf")
+            self.assertEqual(stripe_card_qs.count(), 0)
+
+            # test success response from Stripe
+            data = {"source": "tok_amex"}
+            response = self.client.post(url, data, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(m.call_count, 2)
+            self.assertEqual(stripe_card_qs.count(), 1)
+            card = stripe_card_qs.first()
+            self.assertEqual(card.customer, self.customer)
+            self.assertEqual(card.stripe_card_id, stripe_card_id)
+            self.assertEqual(card.last4, last4)
+            self.assertEqual(card.exp_month, exp_month)
+            self.assertEqual(card.exp_year, exp_year)
 
     def test_list_cards(self):
         url = reverse("stripe-customers-cards")
@@ -93,15 +178,15 @@ class TestListCreateCards(BaseTestCase):
         cards_dict = dict((c.stripe_card_id, c)
                           for c in [
                               self._create_card(
-                                  stripe_card_id=self.card_id(),
+                                  stripe_card_id=self.stripe_card_id(),
                                   set_self=False,
-                                  last4=self.last4(),
+                                  last4=str(self.last4()),
                                   exp_month=self.exp_month(),
                                   exp_year=self.exp_year()),
                               self._create_card(
-                                  stripe_card_id=self.card_id(),
+                                  stripe_card_id=self.stripe_card_id(),
                                   set_self=False,
-                                  last4=self.last4(),
+                                  last4=str(self.last4()),
                                   exp_month=self.exp_month(),
                                   exp_year=self.exp_year())
                           ])
