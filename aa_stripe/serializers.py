@@ -10,6 +10,13 @@ from aa_stripe.models import StripeCard, StripeCoupon, StripeCustomer, StripeWeb
 logging.getLogger("aa-stripe")
 
 
+class StripeCardSerializer(ModelSerializer):
+
+    class Meta:
+        model = StripeCard
+        fields = ["stripe_card_id", "last4", "exp_month", "exp_year"]
+
+
 class StripeCouponSerializer(ModelSerializer):
     class Meta:
         model = StripeCoupon

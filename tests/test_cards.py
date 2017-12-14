@@ -173,7 +173,8 @@ class TestListCreateCards(BaseTestCase):
 
         self.client.force_authenticate(user=self.user)
         response = self.client.get(url, format="json")
-        self.assertEqual(response.status_code, 404)  # logged in but no cards
+        self.assertEqual(response.data, [])  # logged in but no cards
+        self.assertEqual(response.status_code, 200)
 
         cards_dict = dict((c.stripe_card_id, c)
                           for c in [
@@ -195,8 +196,8 @@ class TestListCreateCards(BaseTestCase):
         self.assertEqual(response.status_code, 200)  # logged in and two cards
         self.assertEqual(len(response.data), 2)
         for r in response.data:
-            self.assertIn(r.stripe_card_id, cards_dict)
-            card = cards_dict[r.stripe_card_id]
-            self.assertEqual(r.last4, card.last4)
-            self.assertEqual(r.exp_month, card.exp_month)
-            self.assertEqual(r.exp_year, card.exp_year)
+            self.assertIn(r['stripe_card_id'], cards_dict)
+            card = cards_dict[r['stripe_card_id']]
+            self.assertEqual(r['last4'], card.last4)
+            self.assertEqual(r['exp_month'], card.exp_month)
+            self.assertEqual(r['exp_year'], card.exp_year)
