@@ -10,11 +10,37 @@ from aa_stripe.models import StripeCard, StripeCoupon, StripeCustomer, StripeWeb
 logging.getLogger("aa-stripe")
 
 
-class StripeCardSerializer(ModelSerializer):
+class StripeCardListSerializer(ModelSerializer):
 
     class Meta:
         model = StripeCard
         fields = ["stripe_card_id", "last4", "exp_month", "exp_year"]
+
+
+class StripeCardCreateSerializer(ModelSerializer):
+    stripe_js_response = JSONField()
+
+    def create(self, validated_data):
+        instance = None
+        if validated_data.get("stripe_js_response"):
+            try:
+                user = self.context['request'].user
+                stripe_js_response = validated_data.pop("stripe_js_response")
+                customer = StripeCustomer.get_latest_active_customer_for_user(user)
+                instance = StripeCard.objects.create(
+                    exp_month=1, exp_year=1900, customer=customer, stripe_js_response=stripe_js_response)
+                instance.create_at_stripe()
+            except stripe.StripeError as e:
+                logging.error(
+                    "[AA-Stripe] creating card failed for user {user.id}: {error}".format(user=user, error=e)
+                )
+                raise ValidationError({"stripe_error": e._message})
+
+        return instance
+
+    class Meta:
+        model = StripeCard
+        fields = ["stripe_js_response"]
 
 
 class StripeCouponSerializer(ModelSerializer):
@@ -43,18 +69,20 @@ class StripeCustomerSerializer(ModelSerializer):
             try:
                 user = self.context['request'].user
                 stripe_js_response = validated_data.pop("stripe_js_response")
-                instance = StripeCustomer.objects.create(
-                    user=user, stripe_js_response=stripe_js_response)
+                instance = StripeCustomer.objects.create(user=user, stripe_js_response=stripe_js_response)
                 card_data = stripe_js_response["card"]
                 card = StripeCard.objects.create(
-                    stripe_card_id=card_data["id"], customer=instance, last4=card_data["last4"],
-                    exp_month=card_data["exp_month"], exp_year=card_data["exp_year"], stripe_response=card_data)
+                    stripe_card_id=card_data["id"],
+                    customer=instance,
+                    last4=card_data["last4"],
+                    exp_month=card_data["exp_month"],
+                    exp_year=card_data["exp_year"],
+                    stripe_response=card_data)
                 instance.default_card = card  # .create_at_stripe() will call .save()
                 instance.create_at_stripe()
             except stripe.StripeError as e:
-                logging.error(
-                    "[AA-Stripe] creating customer failed for user {user.id}: {error}".format(user=user, error=e)
-                )
+                logging.error("[AA-Stripe] creating customer failed for user {user.id}: {error}".format(
+                    user=user, error=e))
                 raise ValidationError({"stripe_error": e._message})
 
         return instance

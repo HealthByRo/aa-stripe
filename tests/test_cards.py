@@ -72,6 +72,37 @@ class TestListCreateCards(BaseTestCase):
     def stripe_card_id(self):
         return "card_{}".format(uuid4().hex[:24])
 
+    def get_successful_retrive_stripe_customer_response(self, id):
+        return {
+            "id": id,
+            "object": "customer",
+            "account_balance": 0,
+            "created": 1513338196,
+            "currency": "usd",
+            "default_source": None,
+            "delinquent": False,
+            "description": None,
+            "discount": None,
+            "email": None,
+            "livemode": False,
+            "metadata": {},
+            "shipping": None,
+            "sources": {
+                "object": "list",
+                "data": [],
+                "has_more": False,
+                "total_count": 0,
+                "url": "/v1/customers/{}/sources".format(id)
+            },
+            "subscriptions": {
+                "object": "list",
+                "data": [],
+                "has_more": False,
+                "total_count": 0,
+                "url": "/v1/customers/{}/subscriptions".format(id)
+            }
+        }
+
     def get_successful_create_stripe_card_response(self,
                                                    id="card_1BZ3932eZvKYlo2CsPjdeVLE",
                                                    customer_id="cus_9Oop0gQ1R1ATMi",
@@ -142,22 +173,26 @@ class TestListCreateCards(BaseTestCase):
                         id=stripe_card_id, customer_id=customer_id, last4=last4, exp_month=exp_month,
                         exp_year=exp_year))
             }])
+            m.register_uri("GET", "https://api.stripe.com/v1/customers/{}".format(customer_id),
+                           [{
+                               "text": json.dumps(self.get_successful_retrive_stripe_customer_response(customer_id))
+                           }])
 
             # test response error
-            stripe_card_qs = StripeCard.objects.filter(customer=self.customer)
-            data = {"source": "tosdfsdf"}
+            stripe_card_qs = StripeCard.objects.filter(customer=self.customer, is_created_at_stripe=True)
+            data = {"stripe_js_response": {"source": "tosdfsdf"}}
             response = self.client.post(url, data, format="json")
             self.assertEqual(response.status_code, 400)
-            self.assertEqual(m.call_count, 1)
+            self.assertEqual(m.call_count, 2)
             self.assertEqual(set(response.data.keys()), {"stripe_error"})
             self.assertEqual(response.data["stripe_error"], "No such token: tosdfsdf")
             self.assertEqual(stripe_card_qs.count(), 0)
 
             # test success response from Stripe
-            data = {"source": "tok_amex"}
+            data = {"stripe_js_response": {"source": "tok_amex"}}
             response = self.client.post(url, data, format="json")
             self.assertEqual(response.status_code, 201)
-            self.assertEqual(m.call_count, 2)
+            self.assertEqual(m.call_count, 4)
             self.assertEqual(stripe_card_qs.count(), 1)
             card = stripe_card_qs.first()
             self.assertEqual(card.customer, self.customer)
@@ -190,14 +225,14 @@ class TestListCreateCards(BaseTestCase):
                                   last4=str(self.last4()),
                                   exp_month=self.exp_month(),
                                   exp_year=self.exp_year())
-                          ])
+        ])
 
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 200)  # logged in and two cards
         self.assertEqual(len(response.data), 2)
         for r in response.data:
-            self.assertIn(r['stripe_card_id'], cards_dict)
-            card = cards_dict[r['stripe_card_id']]
-            self.assertEqual(r['last4'], card.last4)
-            self.assertEqual(r['exp_month'], card.exp_month)
-            self.assertEqual(r['exp_year'], card.exp_year)
+            self.assertIn(r["stripe_card_id"], cards_dict)
+            card = cards_dict[r["stripe_card_id"]]
+            self.assertEqual(r["last4"], card.last4)
+            self.assertEqual(r["exp_month"], card.exp_month)
+            self.assertEqual(r["exp_year"], card.exp_year)

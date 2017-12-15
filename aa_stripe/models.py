@@ -81,11 +81,13 @@ class StripeCustomer(StripeBasicModel):
 class StripeCard(SafeDeleteModel, StripeBasicModel):
     customer = models.ForeignKey("StripeCustomer", on_delete=models.CASCADE)
     stripe_card_id = models.CharField(max_length=255, db_index=True, help_text=_("Unique card id in Stripe"))
+    stripe_js_response = JSONField()
     last4 = models.CharField(max_length=4, help_text=_("Last 4 digits of the card"))
     exp_month = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)],
                                             help_text=_("Two digit number representing the card’s expiration month"))
     exp_year = models.PositiveIntegerField(validators=[MinValueValidator(1900)],
                                            help_text=_("Four digit number representing the card’s expiration year"))
+    is_created_at_stripe = models.BooleanField(default=False)
 
     objects = SafeDeleteManager()
 
@@ -105,6 +107,23 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
         except stripe.error.InvalidRequestError:  # means that the card is not available - does not exist
             if set_deleted:
                 self.is_deleted = True
+
+    def create_at_stripe(self):
+        if self.is_created_at_stripe:
+            raise StripeMethodNotAllowed()
+
+        stripe.api_key = stripe_settings.API_KEY
+        customer = stripe.Customer.retrieve(self.customer.stripe_customer_id)
+        card = customer.sources.create(source=self.stripe_js_response["source"])
+
+        self.stripe_card_id = card["id"]
+        self.last4 = card["last4"]
+        self.exp_month = card["exp_month"]
+        self.exp_year = card["exp_year"]
+        self.stripe_response = card
+        self.is_created_at_stripe = True
+        self.save()
+        return self
 
     def delete(self, *args, **kwargs):
         card = self._retrieve_from_stripe(set_deleted=True)
