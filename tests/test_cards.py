@@ -19,17 +19,27 @@ class TestCards(BaseTestCase):
             "created": 1513013595,
             "currency": "usd",
             "default_source": None,
-            "metadata": {
-            },
+            "metadata": {},
             "sources": {
-                "object": "list",
-                "data": [
-                    {"exp_month": 8, "exp_year": 2018, "last4": "4242", "id": "card_xyz"},
-                    {"exp_month": 8, "exp_year": 2018, "last4": "1242", "id": "card_abc"}
-                ],
-                "has_more": False,
-                "total_count": 2,
-                "url": "/v1/customers/cus_xyz/sources"
+                "object":
+                "list",
+                "data": [{
+                    "exp_month": 8,
+                    "exp_year": 2018,
+                    "last4": "4242",
+                    "id": "card_xyz"
+                }, {
+                    "exp_month": 8,
+                    "exp_year": 2018,
+                    "last4": "1242",
+                    "id": "card_abc"
+                }],
+                "has_more":
+                False,
+                "total_count":
+                2,
+                "url":
+                "/v1/customers/cus_xyz/sources"
             }
         }
         m.register_uri("GET", "https://api.stripe.com/v1/customers/cus_xyz", status_code=200,
@@ -135,6 +145,14 @@ class TestListCreateCards(BaseTestCase):
             "tokenization_method": None
         }
 
+    def get_new_random_card(self):
+        return self._create_card(
+            stripe_card_id=self.stripe_card_id(),
+            set_self=False,
+            last4=str(self.last4()),
+            exp_month=self.exp_month(),
+            exp_year=self.exp_year())
+
     def setUp(self):
         self._create_user()
         self._create_customer("cus_xyz")
@@ -211,25 +229,34 @@ class TestListCreateCards(BaseTestCase):
         self.assertEqual(response.data, [])  # logged in but no cards
         self.assertEqual(response.status_code, 200)
 
-        cards_dict = dict((c.stripe_card_id, c)
-                          for c in [
-                              self._create_card(
-                                  stripe_card_id=self.stripe_card_id(),
-                                  set_self=False,
-                                  last4=str(self.last4()),
-                                  exp_month=self.exp_month(),
-                                  exp_year=self.exp_year()),
-                              self._create_card(
-                                  stripe_card_id=self.stripe_card_id(),
-                                  set_self=False,
-                                  last4=str(self.last4()),
-                                  exp_month=self.exp_month(),
-                                  exp_year=self.exp_year())
-        ])
+        cards_dict = dict((c.stripe_card_id, c) for c in [self.get_new_random_card(), self.get_new_random_card()])
 
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 200)  # logged in and two cards
         self.assertEqual(len(response.data), 2)
+        for r in response.data:
+            self.assertIn(r["stripe_card_id"], cards_dict)
+            card = cards_dict[r["stripe_card_id"]]
+            self.assertEqual(r["last4"], card.last4)
+            self.assertEqual(r["exp_month"], card.exp_month)
+            self.assertEqual(r["exp_year"], card.exp_year)
+
+        self._create_user(2)
+        self._create_customer("cus_abc")
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.data, [])  # logged in but no cards
+        self.assertEqual(response.status_code, 200)
+
+        cards_dict = dict((c.stripe_card_id, c)
+                          for c in [self.get_new_random_card(),
+                                    self.get_new_random_card(),
+                                    self.get_new_random_card()])
+
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, 200)  # logged in and three cards belonging only to this user
+        self.assertEqual(len(response.data), 3)
         for r in response.data:
             self.assertIn(r["stripe_card_id"], cards_dict)
             card = cards_dict[r["stripe_card_id"]]

@@ -2,16 +2,16 @@ import requests_mock
 import simplejson as json
 from django.contrib.auth import get_user_model
 from rest_framework.reverse import reverse
-from rest_framework.test import APITestCase
+from tests.test_utils import BaseTestCase
 
 from aa_stripe.models import StripeCustomer
 
 UserModel = get_user_model()
 
 
-class TestCreatingUsers(APITestCase):
+class TestCreatingUsers(BaseTestCase):
     def setUp(self):
-        self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
+        self._create_user()
 
     def get_stripe_js_response(self):
         return {
@@ -134,7 +134,6 @@ class TestCreatingUsers(APITestCase):
 
     def test_user_get_stripe_customer_id(self):
         url = reverse("stripe-customers")
-        stripe_customer_id = "cus_Bw7eXawkf0zsal"
 
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 403)  # not logged
@@ -143,16 +142,24 @@ class TestCreatingUsers(APITestCase):
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 404)  # logged in but customer is not yet created
 
-        with requests_mock.Mocker() as m:
-            m.register_uri(
-                "POST", "https://api.stripe.com/v1/customers",
-                [{
-                    "text": json.dumps(self.get_successful_create_stripe_customer_response(stripe_customer_id))
-                }])
-            data = {"stripe_js_response": self.get_stripe_js_response()}
-            self.client.post(url, data, format="json")
+        self._create_customer()
 
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 200)  # logged in and customer is created
         self.assertEqual(set(response.data.keys()), {"stripe_customer_id"})
-        self.assertEqual(response.data["stripe_customer_id"], stripe_customer_id)
+        self.assertEqual(response.data["stripe_customer_id"], self.customer.stripe_customer_id)
+        self.assertTrue(
+            StripeCustomer.objects.filter(
+                stripe_customer_id=self.customer.stripe_customer_id).first().is_created_at_stripe)
+
+        self._create_user(2)
+        self._create_customer()
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, 200)  # logged in and customer is created belonging to user
+        self.assertEqual(set(response.data.keys()), {"stripe_customer_id"})
+        self.assertEqual(response.data["stripe_customer_id"], self.customer.stripe_customer_id)
+        self.assertTrue(
+            StripeCustomer.objects.filter(
+                stripe_customer_id=self.customer.stripe_customer_id).first().is_created_at_stripe)

@@ -17,6 +17,13 @@ class StripeCardsAPI(ListCreateAPIView):
     serializer_class = StripeCardListSerializer
     permission_classes = (IsAuthenticated,)
 
+    def get_queryset(self):
+        if hasattr(self, "request"):
+            return self.queryset.filter(
+                customer=StripeCustomer.get_latest_active_customer_for_user(self.request.user),
+                is_created_at_stripe=True)
+        return self.queryset
+
     def get_serializer_class(self):
         if hasattr(self, "request") and self.request.method == "POST":
             return StripeCardCreateSerializer
@@ -31,7 +38,7 @@ class CouponDetailsAPI(RetrieveAPIView):
 
 
 class CustomersAPI(CreateAPIView, RetrieveModelMixin):
-    queryset = StripeCustomer.objects.all()
+    queryset = StripeCustomer.objects.filter(is_created_at_stripe=True)
     serializer_class = StripeCustomerSerializer
     permission_classes = (IsAuthenticated,)
 
