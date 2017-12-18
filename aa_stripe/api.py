@@ -1,15 +1,33 @@
 import simplejson as json
 import stripe
 from rest_framework import status
-from rest_framework.generics import CreateAPIView, RetrieveAPIView, get_object_or_404
+from rest_framework.generics import CreateAPIView, ListCreateAPIView, RetrieveAPIView, get_object_or_404
 from rest_framework.mixins import RetrieveModelMixin
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from aa_stripe.models import StripeCoupon, StripeCustomer, StripeWebhook
-from aa_stripe.serializers import (StripeCouponSerializer, StripeCustomerRetriveSerializer, StripeCustomerSerializer,
-                                   StripeWebhookSerializer)
+from aa_stripe.models import StripeCard, StripeCoupon, StripeCustomer, StripeWebhook
+from aa_stripe.serializers import (StripeCardCreateSerializer, StripeCardListSerializer, StripeCouponSerializer,
+                                   StripeCustomerRetriveSerializer, StripeCustomerSerializer, StripeWebhookSerializer)
 from aa_stripe.settings import stripe_settings
+
+
+class StripeCardsAPI(ListCreateAPIView):
+    queryset = StripeCard.objects.all()
+    serializer_class = StripeCardListSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        if hasattr(self, "request"):
+            return self.queryset.filter(
+                customer=StripeCustomer.get_latest_active_customer_for_user(self.request.user),
+                is_created_at_stripe=True)
+        return self.queryset
+
+    def get_serializer_class(self):
+        if hasattr(self, "request") and self.request.method == "POST":
+            return StripeCardCreateSerializer
+        return self.serializer_class
 
 
 class CouponDetailsAPI(RetrieveAPIView):
@@ -20,7 +38,7 @@ class CouponDetailsAPI(RetrieveAPIView):
 
 
 class CustomersAPI(CreateAPIView, RetrieveModelMixin):
-    queryset = StripeCustomer.objects.all()
+    queryset = StripeCustomer.objects.filter(is_created_at_stripe=True)
     serializer_class = StripeCustomerSerializer
     permission_classes = (IsAuthenticated,)
 
