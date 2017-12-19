@@ -3,6 +3,7 @@ from functools import partial
 from random import randint
 from uuid import uuid4
 
+import pytest
 import requests_mock
 import simplejson as json
 from rest_framework.reverse import reverse
@@ -12,77 +13,15 @@ from aa_stripe.models import StripeCard
 
 
 class TestCards(BaseTestCase):
-    def _setup_customer_api_mock(self, m):
-        stripe_customer_response = {
-            "id": "cus_xyz",
-            "object": "customer",
-            "created": 1513013595,
-            "currency": "usd",
-            "default_source": None,
-            "metadata": {},
-            "sources": {
-                "object":
-                "list",
-                "data": [{
-                    "exp_month": 8,
-                    "exp_year": 2018,
-                    "last4": "4242",
-                    "id": "card_xyz"
-                }, {
-                    "exp_month": 8,
-                    "exp_year": 2018,
-                    "last4": "1242",
-                    "id": "card_abc"
-                }],
-                "has_more":
-                False,
-                "total_count":
-                2,
-                "url":
-                "/v1/customers/cus_xyz/sources"
-            }
-        }
-        m.register_uri("GET", "https://api.stripe.com/v1/customers/cus_xyz", status_code=200,
-                       text=json.dumps(stripe_customer_response))
+    _last4 = partial(randint, 1000, 9999)
+    _exp_month = partial(randint, 1, 12)
+    _todays_year = datetime.utcnow().year
+    _exp_year = partial(randint, _todays_year + 1, _todays_year + 50)
 
-    def setUp(self):
-        self._create_user()
-        self._create_customer("cus_xyz")
-
-    @requests_mock.Mocker()
-    def test_delete(self, m):
-        # try deleting card that does not exist at Stripe API - should not call Stripe (DELETE)
-        self._setup_customer_api_mock(m)
-        m.register_uri(
-            "GET", "https://api.stripe.com/v1/customers/cus_xyz/sources/card_xyz", status_code=404,
-            text=json.dumps({"error": {"type": "invalid_request_error"}}))
-        self._create_card(stripe_card_id="card_xyz")
-        self.card.delete()
-        self.assertTrue(StripeCard.objects.deleted().filter(pk=self.card.pk).exists())
-
-        # try deleting card that exists at Stripe API - should call Stripe and DELETE
-        m.register_uri(
-            "GET", "https://api.stripe.com/v1/customers/cus_xyz/sources/card_abc", status_code=200,
-            text=json.dumps({"id": "card_abc", "object": "card", "customer": "cus_xyz"}))
-        m.register_uri(
-            "DELETE", "https://api.stripe.com/v1/customers/cus_xyz/sources/card_abc", status_code=200,
-            text=json.dumps({"deleted": "true", "id": "card_xyz"})
-        )
-        card = self._create_card(stripe_card_id="card_abc")
-        card.delete()
-        self.assertTrue(StripeCard.objects.deleted().filter(pk=card.pk).exists())
-
-
-class TestListCreateCards(BaseTestCase):
-    last4 = partial(randint, 1000, 9999)
-    exp_month = partial(randint, 1, 12)
-    todays_year = datetime.utcnow().year
-    exp_year = partial(randint, todays_year, todays_year + 50)
-
-    def stripe_card_id(self):
+    def _stripe_card_id(self):
         return "card_{}".format(uuid4().hex[:24])
 
-    def get_successful_retrive_stripe_customer_response(self, id):
+    def _get_successful_retrive_stripe_customer_response(self, id):
         return {
             "id": id,
             "object": "customer",
@@ -113,12 +52,12 @@ class TestListCreateCards(BaseTestCase):
             }
         }
 
-    def get_successful_create_stripe_card_response(self,
-                                                   id="card_1BZ3932eZvKYlo2CsPjdeVLE",
-                                                   customer_id="cus_9Oop0gQ1R1ATMi",
-                                                   last4="8431",
-                                                   exp_month=8,
-                                                   exp_year=2019):
+    def _get_successful_create_stripe_card_response(self,
+                                                    id="card_1BZ3932eZvKYlo2CsPjdeVLE",
+                                                    customer_id="cus_9Oop0gQ1R1ATMi",
+                                                    last4="8431",
+                                                    exp_month=8,
+                                                    exp_year=2019):
         return {
             "id": id,
             "object": "card",
@@ -145,17 +84,100 @@ class TestListCreateCards(BaseTestCase):
             "tokenization_method": None
         }
 
-    def get_new_random_card(self):
+    def _get_new_random_card(self):
         return self._create_card(
-            stripe_card_id=self.stripe_card_id(),
+            stripe_card_id=self._stripe_card_id(),
             set_self=False,
-            last4=str(self.last4()),
-            exp_month=self.exp_month(),
-            exp_year=self.exp_year())
+            last4=str(self._last4()),
+            exp_month=self._exp_month(),
+            exp_year=self._exp_year())
+
+    def _setup_customer_api_mock(self, m):
+        stripe_customer_response = {
+            "id": "cus_xyz",
+            "object": "customer",
+            "created": 1513013595,
+            "currency": "usd",
+            "default_source": None,
+            "metadata": {},
+            "sources": {
+                "object":
+                "list",
+                "data": [{
+                    "exp_month": 8,
+                    "exp_year": 2018,
+                    "last4": "4242",
+                    "id": "card_xyz"
+                }, {
+                    "exp_month": 8,
+                    "exp_year": 2018,
+                    "last4": "1242",
+                    "id": "card_abc"
+                }],
+                "has_more":
+                False,
+                "total_count":
+                2,
+                "url":
+                "/v1/customers/cus_xyz/sources"
+            }
+        }
+        m.register_uri(
+            "GET",
+            "https://api.stripe.com/v1/customers/cus_xyz",
+            status_code=200,
+            text=json.dumps(stripe_customer_response))
 
     def setUp(self):
         self._create_user()
         self._create_customer("cus_xyz")
+
+    @requests_mock.Mocker()
+    def test_delete(self, m):
+        self._setup_customer_api_mock(m)
+        card = self._get_new_random_card()
+        url = reverse("stripe-customers-cards-details", args=[card.stripe_card_id])
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, 403)
+
+        # try deleting card that does not exist at Stripe API - should not call Stripe (DELETE)
+        self.client.force_authenticate(user=self.user)
+        m.register_uri(
+            "GET",
+            "https://api.stripe.com/v1/customers/cus_xyz/sources/{}".format(card.stripe_card_id),
+            status_code=404,
+            text=json.dumps({
+                "error": {
+                    "type": "invalid_request_error"
+                }
+            }))
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, 204)
+        self.assertTrue(StripeCard.objects.deleted().filter(pk=card.pk).exists())
+
+        card = self._get_new_random_card()
+        url = reverse("stripe-customers-cards-details", args=[card.stripe_card_id])
+        # try deleting card that exists at Stripe API - should call Stripe and DELETE
+        m.register_uri(
+            "GET",
+            "https://api.stripe.com/v1/customers/cus_xyz/sources/{}".format(card.stripe_card_id),
+            status_code=200,
+            text=json.dumps({
+                "id": card.stripe_card_id,
+                "object": "card",
+                "customer": "cus_xyz"
+            }))
+        m.register_uri(
+            "DELETE",
+            "https://api.stripe.com/v1/customers/cus_xyz/sources/{}".format(card.stripe_card_id),
+            status_code=200,
+            text=json.dumps({
+                "deleted": "true",
+                "id": card.stripe_card_id
+            }))
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, 204)
+        self.assertTrue(StripeCard.objects.deleted().filter(pk=card.pk).exists())
 
     def test_create_card(self):
         self.assertEqual(StripeCard.objects.count(), 0)
@@ -167,11 +189,11 @@ class TestListCreateCards(BaseTestCase):
         response = self.client.post(url, format="json")
         self.assertEqual(response.status_code, 400)  # no source tag
 
-        stripe_card_id = self.stripe_card_id()
+        stripe_card_id = self._stripe_card_id()
         customer_id = self.customer.stripe_customer_id
-        last4 = str(self.last4())
-        exp_month = self.exp_month()
-        exp_year = self.exp_year()
+        last4 = str(self._last4())
+        exp_month = self._exp_month()
+        exp_year = self._exp_year()
         with requests_mock.Mocker() as m:
             m.register_uri("POST", "https://api.stripe.com/v1/customers/{}/sources".format(customer_id), [{
                 "text":
@@ -187,13 +209,13 @@ class TestListCreateCards(BaseTestCase):
             }, {
                 "text":
                 json.dumps(
-                    self.get_successful_create_stripe_card_response(
+                    self._get_successful_create_stripe_card_response(
                         id=stripe_card_id, customer_id=customer_id, last4=last4, exp_month=exp_month,
                         exp_year=exp_year))
             }])
             m.register_uri("GET", "https://api.stripe.com/v1/customers/{}".format(customer_id),
                            [{
-                               "text": json.dumps(self.get_successful_retrive_stripe_customer_response(customer_id))
+                               "text": json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id))
                            }])
 
             # test response error
@@ -229,7 +251,7 @@ class TestListCreateCards(BaseTestCase):
         self.assertEqual(response.data, [])  # logged in but no cards
         self.assertEqual(response.status_code, 200)
 
-        cards_dict = dict((c.stripe_card_id, c) for c in [self.get_new_random_card(), self.get_new_random_card()])
+        cards_dict = dict((c.stripe_card_id, c) for c in [self._get_new_random_card(), self._get_new_random_card()])
 
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 200)  # logged in and two cards
@@ -249,10 +271,11 @@ class TestListCreateCards(BaseTestCase):
         self.assertEqual(response.data, [])  # logged in but no cards
         self.assertEqual(response.status_code, 200)
 
-        cards_dict = dict((c.stripe_card_id, c)
-                          for c in [self.get_new_random_card(),
-                                    self.get_new_random_card(),
-                                    self.get_new_random_card()])
+        cards_dict = dict(
+            (c.stripe_card_id, c)
+            for c in [self._get_new_random_card(),
+                      self._get_new_random_card(),
+                      self._get_new_random_card()])
 
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 200)  # logged in and three cards belonging only to this user
@@ -263,3 +286,41 @@ class TestListCreateCards(BaseTestCase):
             self.assertEqual(r["last4"], card.last4)
             self.assertEqual(r["exp_month"], card.exp_month)
             self.assertEqual(r["exp_year"], card.exp_year)
+
+    def test_get_card(self):
+        url = reverse("stripe-customers-cards-details", args=[self._stripe_card_id()])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 403)
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)  # no card
+
+        card_1 = self._get_new_random_card()
+        url = reverse("stripe-customers-cards-details", args=[card_1.stripe_card_id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["stripe_card_id"], card_1.stripe_card_id)
+        self.assertEqual(response.data["last4"], card_1.last4)
+        self.assertEqual(response.data["exp_month"], card_1.exp_month)
+        self.assertEqual(response.data["exp_year"], card_1.exp_year)
+
+        self._create_user(3)
+        self._create_customer("cus_abcd")
+        card_2 = self._get_new_random_card()
+        url = reverse("stripe-customers-cards-details", args=[card_2.stripe_card_id])
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["stripe_card_id"], card_2.stripe_card_id)
+        self.assertNotEqual(response.data["stripe_card_id"], card_1.stripe_card_id)
+
+    @pytest.mark.skip(reason="not sure how stripe api works")
+    def test_update_card(self):
+        card = self._get_new_random_card()
+        url = reverse("stripe-customers-cards-details", args=[card.stripe_card_id])
+        self.client.force_authenticate(user=self.user)
+        data = {"stripeToken": "tok_amex"}
+        response = self.client.patch(url, data, format="multipart")
+        self.assertEqual(response.status_code, 200)

@@ -1,7 +1,8 @@
 import simplejson as json
 import stripe
 from rest_framework import status
-from rest_framework.generics import CreateAPIView, ListCreateAPIView, RetrieveAPIView, get_object_or_404
+from rest_framework.generics import (CreateAPIView, ListCreateAPIView, RetrieveAPIView, RetrieveUpdateDestroyAPIView,
+                                     get_object_or_404)
 from rest_framework.mixins import RetrieveModelMixin
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -28,6 +29,13 @@ class StripeCardsAPI(ListCreateAPIView):
         if hasattr(self, "request") and self.request.method == "POST":
             return StripeCardCreateSerializer
         return self.serializer_class
+
+
+class StripeCardsDetailsAPI(RetrieveUpdateDestroyAPIView):
+    queryset = StripeCard.objects.all()
+    serializer_class = StripeCardListSerializer
+    permission_classes = (IsAuthenticated,)
+    lookup_field = "stripe_card_id"
 
 
 class CouponDetailsAPI(RetrieveAPIView):
