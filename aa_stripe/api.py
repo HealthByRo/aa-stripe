@@ -8,8 +8,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from aa_stripe.models import StripeCard, StripeCoupon, StripeCustomer, StripeWebhook
-from aa_stripe.serializers import (StripeCardCreateSerializer, StripeCardListSerializer, StripeCouponSerializer,
-                                   StripeCustomerRetriveSerializer, StripeCustomerSerializer, StripeWebhookSerializer)
+from aa_stripe.serializers import (StripeCardCreateSerializer, StripeCardListSerializer, StripeCardUpdateSerializer,
+                                   StripeCouponSerializer, StripeCustomerRetriveSerializer, StripeCustomerSerializer,
+                                   StripeWebhookSerializer)
 from aa_stripe.settings import stripe_settings
 
 
@@ -36,6 +37,11 @@ class StripeCardsDetailsAPI(RetrieveUpdateDestroyAPIView):
     serializer_class = StripeCardListSerializer
     permission_classes = (IsAuthenticated,)
     lookup_field = "stripe_card_id"
+
+    def get_serializer_class(self):
+        if hasattr(self, "request") and self.request.method == "PATCH":
+            return StripeCardUpdateSerializer
+        return self.serializer_class
 
 
 class CouponDetailsAPI(RetrieveAPIView):

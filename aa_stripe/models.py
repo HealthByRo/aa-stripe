@@ -125,6 +125,47 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
         self.save()
         return self
 
+    def update_at_stripe(self, stripe_token, should_be_default):
+        is_default = self.customer.default_card is self
+        should_be_default = is_default if should_be_default is None else should_be_default
+
+        if is_default and not should_be_default:
+            raise StripeMethodNotAllowed()
+
+        stripe.api_key = stripe_settings.API_KEY
+
+        customer = stripe.Customer.retrieve(self.customer.stripe_customer_id)
+
+        if is_default and should_be_default:
+            customer.source = stripe_token
+            customer.save()
+
+        if not is_default and not should_be_default:
+            original_default_source = customer.default_source
+            customer.default_source = self.stripe_card_id
+            customer.save()
+            customer.source = stripe_token
+            customer.save()
+            customer.default_source = original_default_source
+            customer.save()
+
+        if not is_default and should_be_default:
+            customer.default_source = self.stripe_card_id
+            customer.save()
+            customer.source = stripe_token
+            customer.save()
+
+        updated_card = customer.sources.retrieve(self.stripe_card_id)
+
+        self.stripe_card_id = updated_card["id"]
+        self.last4 = updated_card["last4"]
+        self.exp_month = updated_card["exp_month"]
+        self.exp_year = updated_card["exp_year"]
+        self.stripe_response = updated_card
+
+        self.save()
+        return self
+
     def delete(self, *args, **kwargs):
         card = self._retrieve_from_stripe(set_deleted=True)
         if card:

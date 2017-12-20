@@ -316,11 +316,10 @@ class TestCards(BaseTestCase):
         self.assertEqual(response.data["stripe_card_id"], card_2.stripe_card_id)
         self.assertNotEqual(response.data["stripe_card_id"], card_1.stripe_card_id)
 
-    @pytest.mark.skip(reason="not sure how stripe api works")
     def test_update_card(self):
         card = self._get_new_random_card()
         url = reverse("stripe-customers-cards-details", args=[card.stripe_card_id])
         self.client.force_authenticate(user=self.user)
-        data = {"stripeToken": "tok_amex"}
-        response = self.client.patch(url, data, format="multipart")
+        data = {"stripe_token": "tok_amex", "should_be_default": True}
+        response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, 200)
