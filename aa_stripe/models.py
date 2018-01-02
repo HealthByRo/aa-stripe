@@ -126,7 +126,7 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
         return self
 
     def update_at_stripe(self, stripe_token, should_be_default):
-        is_default = self.customer.default_card is self
+        is_default = self.customer.default_card.pk is self.pk
         should_be_default = is_default if should_be_default is None else should_be_default
 
         if is_default and not should_be_default:

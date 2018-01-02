@@ -3,7 +3,6 @@ from functools import partial
 from random import randint
 from uuid import uuid4
 
-import pytest
 import requests_mock
 import simplejson as json
 from rest_framework.reverse import reverse
@@ -84,9 +83,10 @@ class TestCards(BaseTestCase):
             "tokenization_method": None
         }
 
-    def _get_new_random_card(self):
+    def _get_new_random_card(self, is_default=True):
         return self._create_card(
             stripe_card_id=self._stripe_card_id(),
+            is_default=is_default,
             set_self=False,
             last4=str(self._last4()),
             exp_month=self._exp_month(),
@@ -317,9 +317,55 @@ class TestCards(BaseTestCase):
         self.assertNotEqual(response.data["stripe_card_id"], card_1.stripe_card_id)
 
     def test_update_card(self):
-        card = self._get_new_random_card()
-        url = reverse("stripe-customers-cards-details", args=[card.stripe_card_id])
-        self.client.force_authenticate(user=self.user)
+        not_existing_stripe_card_id = self._stripe_card_id()
+        url = reverse("stripe-customers-cards-details", args=[not_existing_stripe_card_id])
         data = {"stripe_token": "tok_amex", "should_be_default": True}
         response = self.client.patch(url, data, format="json")
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.patch(url, data, format="json")
+        self.assertEqual(response.status_code, 404)
+
+        default_card = self._get_new_random_card()
+        other_card = self._get_new_random_card(False)
+        cases_map = {
+            (True, True): 204,
+            (True, False): 400,
+            (False, True): 204,
+            (False, False): 204,
+        }
+        for case in cases_map:
+            is_default = case[0]
+            should_be_default = case[1]
+            return_code = cases_map[case]
+            card_to_be_updated = default_card if is_default else other_card
+
+            url = reverse("stripe-customers-cards-details", args=[card_to_be_updated.stripe_card_id])
+            data = {"stripe_token": "tok_amex", "should_be_default": should_be_default}
+            customer_id = self.customer.stripe_customer_id
+
+            with requests_mock.Mocker() as m:
+                m.register_uri(
+                    "GET", "https://api.stripe.com/v1/customers/{}".format(customer_id),
+                    [{
+                        "text": json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id))
+                    }])
+                m.register_uri(
+                    "POST", "https://api.stripe.com/v1/customers/{}".format(customer_id),
+                    [{
+                        "text": json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id))
+                    }])
+                m.register_uri("GET", "https://api.stripe.com/v1/customers/{}/sources/{}".format(
+                    customer_id, card_to_be_updated.stripe_card_id), [{
+                        "text":
+                        json.dumps(
+                            self._get_successful_create_stripe_card_response(
+                                id=card_to_be_updated.stripe_card_id,
+                                customer_id=customer_id,
+                                last4=card_to_be_updated.last4,
+                                exp_month=card_to_be_updated.exp_month,
+                                exp_year=card_to_be_updated.exp_year))
+                    }])
+                response = self.client.patch(url, data, format="json")
+                self.assertEqual(response.status_code, return_code)

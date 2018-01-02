@@ -52,18 +52,11 @@ class BaseTestCase(APITestCase):
         customer_id = customer_id or "cus_{}".format(uuid4().hex)
         stripe_response = {
             "id": customer_id, "object": "customer", "account_balance": 0, "created": 1512126654, "currency": None,
-            "default_source": "card_1BUCsadPxLoWm2fwZbz", "delinquent": False,
+            "default_source": None, "delinquent": False,
             "description": "foo@bar.bar id: 1", "discount": None, "email": None, "livemode": False, "metadata": {},
-            "shipping": None, "sources": {"object": "list", "data": [
-                {"id": "card_1BAXCPxLoWm2f6pRwe9pGwZbz", "object": "card", "address_city": None,
-                 "address_country": None, "address_line1": None, "address_line1_check": None, "address_line2": None,
-                 "address_state": None, "address_zip": None, "address_zip_check": None, "brand": "Visa",
-                 "country": "US", "customer": customer_id, "cvc_check": "pass", "dynamic_last4": None, "exp_month": 9,
-                 "exp_year": 2025, "fingerprint": "DmBIQwsaiNOChP", "funding": "credit", "last4": "4242",
-                 "metadata": {}, "name": None, "tokenization_method": None
-                 }], "has_more": False, "total_count": 1, "url": "/v1/customers/cus_BrwISa2lfUVaoa/sources"
-            }, "subscriptions": {"object": "list", "data": [], "has_more": False, "total_count": 0,
-                                 "url": "/v1/customers/{}/subscriptions".format(customer_id)}}
+            "shipping": None, "sources": {},
+            "subscriptions": {"object": "list", "data": [], "has_more": False, "total_count": 0,
+                              "url": "/v1/customers/{}/subscriptions".format(customer_id)}}
         customer = StripeCustomer.objects.create(
             stripe_response=stripe_response, user=self.user, stripe_customer_id=customer_id, is_created_at_stripe=True)
         if set_self:
