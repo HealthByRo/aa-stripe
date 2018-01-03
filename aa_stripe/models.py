@@ -155,7 +155,7 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
             customer.source = stripe_token
             customer.save()
 
-        updated_card = customer.sources.retrieve(self.stripe_card_id)
+        updated_card = customer.sources.retrieve(customer.default_source)
 
         self.stripe_card_id = updated_card["id"]
         self.last4 = updated_card["last4"]

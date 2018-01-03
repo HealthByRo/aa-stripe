@@ -20,14 +20,14 @@ class TestCards(BaseTestCase):
     def _stripe_card_id(self):
         return "card_{}".format(uuid4().hex[:24])
 
-    def _get_successful_retrive_stripe_customer_response(self, id):
+    def _get_successful_retrive_stripe_customer_response(self, id, default_source=None):
         return {
             "id": id,
             "object": "customer",
             "account_balance": 0,
             "created": 1513338196,
             "currency": "usd",
-            "default_source": None,
+            "default_source": default_source,
             "delinquent": False,
             "description": None,
             "discount": None,
@@ -339,6 +339,8 @@ class TestCards(BaseTestCase):
             is_default = case[0]
             set_default = case[1]
             return_code = cases_map[case]
+            default_card.refresh_from_db()
+            other_card.refresh_from_db()
             self.customer.default_card = default_card
             self.customer.save()
             card_to_be_updated = default_card if is_default else other_card
@@ -346,6 +348,7 @@ class TestCards(BaseTestCase):
             url = reverse("stripe-customers-cards-details", args=[card_to_be_updated.stripe_card_id])
             data = {"stripe_token": "tok_amex", "set_default": set_default}
             customer_id = self.customer.stripe_customer_id
+            updated_card_id = self._stripe_card_id()
 
             with requests_mock.Mocker() as m:
                 m.register_uri(
@@ -356,14 +359,15 @@ class TestCards(BaseTestCase):
                 m.register_uri(
                     "POST", "https://api.stripe.com/v1/customers/{}".format(customer_id),
                     [{
-                        "text": json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id))
+                        "text":
+                        json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id, updated_card_id))
                     }])
                 m.register_uri("GET", "https://api.stripe.com/v1/customers/{}/sources/{}".format(
-                    customer_id, card_to_be_updated.stripe_card_id), [{
+                    customer_id, updated_card_id), [{
                         "text":
                         json.dumps(
                             self._get_successful_create_stripe_card_response(
-                                id=card_to_be_updated.stripe_card_id,
+                                id=updated_card_id,
                                 customer_id=customer_id,
                                 last4=card_to_be_updated.last4,
                                 exp_month=card_to_be_updated.exp_month,
