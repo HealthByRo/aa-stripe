@@ -330,10 +330,10 @@ class TestCards(BaseTestCase):
         default_card = self._get_new_random_card()
         other_card = self._get_new_random_card(False)
         cases_map = {
-            (True, True): 204,
+            (True, True): 200,
             (True, False): 400,
-            (False, True): 204,
-            (False, False): 204,
+            (False, True): 200,
+            (False, False): 200,
         }
         for case in cases_map:
             is_default = case[0]

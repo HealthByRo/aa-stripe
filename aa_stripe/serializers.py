@@ -5,6 +5,7 @@ import stripe
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import BooleanField, JSONField, ModelSerializer
 
+from aa_stripe.exceptions import StripeLogicalError
 from aa_stripe.models import StripeCard, StripeCoupon, StripeCustomer, StripeWebhook
 
 logging.getLogger("aa-stripe")
@@ -25,9 +26,14 @@ class StripeCardUpdateSerializer(ModelSerializer):
         if validated_data.get("stripe_token"):
             try:
                 user = self.context["request"].user
-                stripe_token = validated_data.pop("stripe_token")
-                should_be_default = validated_data.pop("should_be_default", None)
+                instance.stripe_token = stripe_token = validated_data.pop("stripe_token")
+                instance.should_be_default = should_be_default = validated_data.pop("should_be_default", None)
                 return instance.update_at_stripe(stripe_token, should_be_default)
+            except StripeLogicalError as e:
+                logging.error(
+                    "[AA-Stripe] updating card failed for user {user.id}: {error}".format(user=user, error=e)
+                )
+                raise ValidationError({"stripe_error": e.details})
             except stripe.StripeError as e:
                 logging.error(
                     "[AA-Stripe] updating card failed for user {user.id}: {error}".format(user=user, error=e)
@@ -38,7 +44,7 @@ class StripeCardUpdateSerializer(ModelSerializer):
 
     class Meta:
         model = StripeCard
-        fields = ["stripe_token", "should_be_default"]
+        fields = ["stripe_js_response", "stripe_token", "should_be_default"]
 
 
 class StripeCardCreateSerializer(ModelSerializer):

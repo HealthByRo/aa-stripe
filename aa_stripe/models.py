@@ -19,8 +19,8 @@ from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
-from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeMethodNotAllowed, StripeWebhookAlreadyParsed,
-                                  StripeWebhookParseError)
+from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeLogicalError, StripeMethodNotAllowed,
+                                  StripeWebhookAlreadyParsed, StripeWebhookParseError)
 from aa_stripe.settings import stripe_settings
 from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_succeeded
 from aa_stripe.utils import SafeDeleteManager, SafeDeleteModel, timestamp_to_timezone_aware_date
@@ -130,7 +130,7 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
         should_be_default = is_default if should_be_default is None else should_be_default
 
         if is_default and not should_be_default:
-            raise StripeMethodNotAllowed()
+            raise StripeLogicalError()
 
         stripe.api_key = stripe_settings.API_KEY
 
