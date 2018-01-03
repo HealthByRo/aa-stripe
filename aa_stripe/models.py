@@ -125,22 +125,22 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
         self.save()
         return self
 
-    def update_at_stripe(self, stripe_token, should_be_default):
+    def update_at_stripe(self, stripe_token, set_default):
         is_default = self.customer.default_card.pk is self.pk
-        should_be_default = is_default if should_be_default is None else should_be_default
+        set_default = is_default if set_default is None else set_default
 
-        if is_default and not should_be_default:
+        if is_default and not set_default:
             raise StripeLogicalError()
 
         stripe.api_key = stripe_settings.API_KEY
 
         customer = stripe.Customer.retrieve(self.customer.stripe_customer_id)
 
-        if is_default and should_be_default:
+        if is_default and set_default:
             customer.source = stripe_token
             customer.save()
 
-        if not is_default and not should_be_default:
+        if not is_default and not set_default:
             original_default_source = customer.default_source
             customer.default_source = self.stripe_card_id
             customer.save()
@@ -149,7 +149,7 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
             customer.default_source = original_default_source
             customer.save()
 
-        if not is_default and should_be_default:
+        if not is_default and set_default:
             customer.default_source = self.stripe_card_id
             customer.save()
             customer.source = stripe_token
@@ -164,6 +164,11 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
         self.stripe_response = updated_card
 
         self.save()
+
+        if not is_default and set_default:
+            self.customer.default_card = self
+            self.customer.save()
+
         return self
 
     def delete(self, *args, **kwargs):

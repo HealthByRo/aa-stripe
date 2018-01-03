@@ -319,7 +319,7 @@ class TestCards(BaseTestCase):
     def test_update_card(self):
         not_existing_stripe_card_id = self._stripe_card_id()
         url = reverse("stripe-customers-cards-details", args=[not_existing_stripe_card_id])
-        data = {"stripe_token": "tok_amex", "should_be_default": True}
+        data = {"stripe_token": "tok_amex", "set_default": True}
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, 403)
 
@@ -337,12 +337,14 @@ class TestCards(BaseTestCase):
         }
         for case in cases_map:
             is_default = case[0]
-            should_be_default = case[1]
+            set_default = case[1]
             return_code = cases_map[case]
+            self.customer.default_card = default_card
+            self.customer.save()
             card_to_be_updated = default_card if is_default else other_card
 
             url = reverse("stripe-customers-cards-details", args=[card_to_be_updated.stripe_card_id])
-            data = {"stripe_token": "tok_amex", "should_be_default": should_be_default}
+            data = {"stripe_token": "tok_amex", "set_default": set_default}
             customer_id = self.customer.stripe_customer_id
 
             with requests_mock.Mocker() as m:

@@ -39,7 +39,7 @@ class StripeCardsDetailsAPI(RetrieveUpdateDestroyAPIView):
     lookup_field = "stripe_card_id"
 
     def get_serializer_class(self):
-        if hasattr(self, "request") and self.request.method == "PATCH":
+        if hasattr(self, "request") and self.request.method in ("PATCH", "PUT"):
             return StripeCardUpdateSerializer
         return self.serializer_class
 
