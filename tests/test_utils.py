@@ -68,7 +68,7 @@ class BaseTestCase(APITestCase):
                      stripe_card_id="",
                      is_default=True,
                      set_self=True,
-                     last4=4242,
+                     last4="4242",
                      exp_month=1,
                      exp_year=2025):
         card = StripeCard.objects.create(

@@ -636,6 +636,9 @@ class StripeWebhook(models.Model):
         elif action == "deleted":
             StripeCoupon.objects.filter(coupon_id=coupon_id, created=created).delete()
 
+    def _parse_customer_source_notification(self, action):
+        pass
+
     def parse(self, save=False):
         if self.is_parsed:
             raise StripeWebhookAlreadyParsed
@@ -654,6 +657,8 @@ class StripeWebhook(models.Model):
         if event_model:
             if event_model == "coupon":
                 self._parse_coupon_notification(event_action)
+            elif event_model == "customer.source":
+                self._parse_customer_source_notification(event_action)
 
         self.is_parsed = True
         if save:

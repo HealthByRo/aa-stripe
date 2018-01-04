@@ -395,6 +395,108 @@ class TestWebhook(BaseTestCase):
         with self.assertRaises(StripeWebhookAlreadyParsed):
             webhook.parse()
 
+    def test_customer_source_create(self):
+        self.assertEqual(StripeWebhook.objects.count(), 0)
+        payload = json.loads('''{
+          "api_version": "2017-08-15",
+          "created": 1513331763,
+          "data": {
+              "object": {
+                  "address_city": null,
+                  "address_country": null,
+                  "address_line1": null,
+                  "address_line1_check": null,
+                  "address_line2": null,
+                  "address_state": null,
+                  "address_zip": null,
+                  "address_zip_check": null,
+                  "brand": "Visa",
+                  "country": "US",
+                  "customer": "cus_BxAF4YEKGafO4G",
+                  "cvc_check": "pass",
+                  "dynamic_last4": null,
+                  "exp_month": 4,
+                  "exp_year": 2024,
+                  "fingerprint": "DsGmBIQwiNOvChPk",
+                  "funding": "credit",
+                  "id": "card_1BZFvCLoWm2f6pRwtPCp9r8W",
+                  "last4": "4242",
+                  "metadata": {},
+                  "name": null,
+                  "object": "card",
+                  "tokenization_method": null
+              }
+          },
+          "id": "evt_1BZFvDLoWm2f6pRwOTYgdQWN",
+          "livemode": false,
+          "object": "event",
+          "pending_webhooks": 1,
+          "request": {
+              "id": "req_3a3ESXMf52AQYw",
+              "idempotency_key": null
+          },
+          "type": "customer.source.created"
+        }''')
+        url = reverse("stripe-webhooks")
+
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(url, data=payload, format="json")
+        self.assertEqual(StripeWebhook.objects.count(), 1)
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(True)
+
+    def test_customer_source_update(self):
+        self._create_card("cus_BvfxAxtzApkqRa", "card_1BXobrLoWm2f6pRwXOAv0OOW", True, True, "4242", 4, 2024)
+        payload = json.loads('''{
+          "api_version": "2017-08-15",
+          "created": 1513075967,
+          "data": {
+              "object": {
+                  "address_city": null,
+                  "address_country": null,
+                  "address_line1": null,
+                  "address_line1_check": null,
+                  "address_line2": null,
+                  "address_state": null,
+                  "address_zip": null,
+                  "address_zip_check": null,
+                  "brand": "Visa",
+                  "country": "US",
+                  "customer": "cus_BvfxAxtzApkqRa",
+                  "cvc_check": "pass",
+                  "dynamic_last4": null,
+                  "exp_month": 4,
+                  "exp_year": 2020,
+                  "fingerprint": "DsGmBIQwiNOvChPk",
+                  "funding": "credit",
+                  "id": "card_1BXobrLoWm2f6pRwXOAv0OOW",
+                  "last4": "4242",
+                  "metadata": {},
+                  "name": null,
+                  "object": "card",
+                  "tokenization_method": null
+              },
+              "previous_attributes": {
+                  "exp_year": 2024
+              }
+          },
+          "id": "evt_1BYBNTLoWm2f6pRwhYTm8U7i",
+          "livemode": false,
+          "object": "event",
+          "pending_webhooks": 1,
+          "request": {
+              "id": "req_MGh8BwdKyXtKSB",
+              "idempotency_key": null
+          },
+          "type": "customer.source.updated"
+        }''')
+        url = reverse("stripe-webhooks")
+
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(url, data=payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(True)
+
     def test_ping(self):
         # test receiving ping event (the only event without "." inside the event name)
         StripeWebhook.objects.all().delete()
