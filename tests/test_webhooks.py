@@ -14,7 +14,7 @@ from tests.test_utils import BaseTestCase
 
 from aa_stripe.exceptions import StripeWebhookAlreadyParsed
 from aa_stripe.management.commands.check_pending_webhooks import StripePendingWebooksLimitExceeded
-from aa_stripe.models import StripeCoupon, StripeWebhook
+from aa_stripe.models import StripeCoupon, StripeWebhook, StripeCard
 from aa_stripe.settings import stripe_settings
 
 
@@ -437,16 +437,32 @@ class TestWebhook(BaseTestCase):
           },
           "type": "customer.source.created"
         }''')
+        payload["id"] = "evt_1"
         url = reverse("stripe-webhooks")
 
         self.client.credentials(**self._get_signature_headers(payload))
         response = self.client.post(url, data=payload, format="json")
         self.assertEqual(StripeWebhook.objects.count(), 1)
         self.assertEqual(response.status_code, 201)
-        self.assertFalse(True)
+        # there is no customer with id cus_BxAF4YEKGafO4G yet, so no card should be created
+        self.assertFalse(StripeCard.objects.filter(stripe_card_id=payload["data"]["object"]["id"]).exists())
+
+        payload["id"] = "evt_2"
+        self._create_user()
+        self._create_customer("cus_BxAF4YEKGafO4G")
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(url, data=payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(
+            StripeCard.objects.filter(
+                stripe_card_id=payload["data"]["object"]["id"],
+                customer__stripe_customer_id=payload["data"]["object"]["customer"]).exists())
+        self.assertEqual(StripeCard.objects.count(), 1)
 
     def test_customer_source_update(self):
-        self._create_card("cus_BvfxAxtzApkqRa", "card_1BXobrLoWm2f6pRwXOAv0OOW", True, True, "4242", 4, 2024)
+        self._create_user()
+        self._create_customer("cus_OTHER")
+        self._create_card(self.customer, "card_NOT_UPDATED", True, True, "4242", 4, 2024)
         payload = json.loads('''{
           "api_version": "2017-08-15",
           "created": 1513075967,
@@ -490,11 +506,42 @@ class TestWebhook(BaseTestCase):
           },
           "type": "customer.source.updated"
         }''')
+        payload["id"] = "evt_1"
         url = reverse("stripe-webhooks")
 
         self.client.credentials(**self._get_signature_headers(payload))
         response = self.client.post(url, data=payload, format="json")
         self.assertEqual(response.status_code, 201)
+        self.assertEqual(StripeCard.objects.count(), 1)
+        card = StripeCard.objects.filter(stripe_card_id="card_NOT_UPDATED").first()
+        self.assertEqual(card.exp_year, 2024)
+        self.assertEqual(card.exp_month, 4)
+        self.assertEqual(card.last4, "4242")
+
+        payload["id"] = "evt_2"
+        self.card.stripe_card_id = "card_1BXobrLoWm2f6pRwXOAv0OOW"
+        self.card.save()
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(url, data=payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(StripeCard.objects.count(), 1)
+        card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
+        self.assertEqual(card.exp_year, 2024)
+        self.assertEqual(card.exp_month, 4)
+        self.assertEqual(card.last4, "4242")
+
+        payload["id"] = "evt_3"
+        self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
+        self.customer.save()
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(url, data=payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(StripeCard.objects.count(), 1)
+        card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
+        self.assertEqual(card.exp_year, 2020)
+        self.assertEqual(card.exp_month, 4)
+        self.assertEqual(card.last4, "4242")
+
         self.assertFalse(True)
 
     def test_ping(self):
