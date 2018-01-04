@@ -19,8 +19,8 @@ from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
-from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeLogicalError, StripeMethodNotAllowed,
-                                  StripeWebhookAlreadyParsed, StripeWebhookParseError)
+from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeMethodNotAllowed, StripeWebhookAlreadyParsed,
+                                  StripeWebhookParseError)
 from aa_stripe.settings import stripe_settings
 from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_succeeded
 from aa_stripe.utils import SafeDeleteManager, SafeDeleteModel, timestamp_to_timezone_aware_date
@@ -127,35 +127,35 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
 
     def update_at_stripe(self, stripe_token, set_default):
         is_default = self.customer.default_card.pk is self.pk
-        set_default = is_default if set_default is None else set_default
-
-        if is_default and not set_default:
-            raise StripeLogicalError()
+        set_default = is_default if not set_default else set_default
 
         stripe.api_key = stripe_settings.API_KEY
 
         customer = stripe.Customer.retrieve(self.customer.stripe_customer_id)
-
-        if is_default and set_default:
-            customer.source = stripe_token
-            customer.save()
-
-        if not is_default and not set_default:
-            original_default_source = customer.default_source
-            customer.default_source = self.stripe_card_id
-            customer.save()
-            customer.source = stripe_token
-            customer.save()
-            customer.default_source = original_default_source
-            customer.save()
+        new_card_id = None
 
         if not is_default and set_default:
             customer.default_source = self.stripe_card_id
             customer.save()
             customer.source = stripe_token
             customer.save()
+            new_card_id = customer.default_source
+        else:
+            if is_default:
+                customer.source = stripe_token
+                customer.save()
+                new_card_id = customer.default_source
+            else:
+                original_default_source = customer.default_source
+                customer.default_source = self.stripe_card_id
+                customer.save()
+                customer.source = stripe_token
+                customer.save()
+                new_card_id = customer.default_source
+                customer.default_source = original_default_source
+                customer.save()
 
-        updated_card = customer.sources.retrieve(customer.default_source)
+        updated_card = customer.sources.retrieve(new_card_id)
 
         self.stripe_card_id = updated_card["id"]
         self.last4 = updated_card["last4"]

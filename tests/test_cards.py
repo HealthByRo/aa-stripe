@@ -331,7 +331,7 @@ class TestCards(BaseTestCase):
         other_card = self._get_new_random_card(False)
         cases_map = {
             (True, True): 200,
-            (True, False): 400,
+            (True, False): 200,
             (False, True): 200,
             (False, False): 200,
         }

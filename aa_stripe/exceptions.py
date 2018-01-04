@@ -5,10 +5,6 @@ class StripeMethodNotAllowed(Exception):
     details = _("Already created at stripe")
 
 
-class StripeLogicalError(Exception):
-    details = _("Stripe does not support this operation")
-
-
 class StripeWebhookAlreadyParsed(Exception):
     details = _("This webhook has already been parsed")
 
