@@ -516,7 +516,6 @@ class TestWebhook(BaseTestCase):
         card = StripeCard.objects.filter(stripe_card_id="card_NOT_UPDATED").first()
         self.assertEqual(card.exp_year, 2024)
         self.assertEqual(card.exp_month, 4)
-        self.assertEqual(card.last4, "4242")
 
         payload["id"] = "evt_2"
         self.card.stripe_card_id = "card_1BXobrLoWm2f6pRwXOAv0OOW"
@@ -528,7 +527,6 @@ class TestWebhook(BaseTestCase):
         card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
         self.assertEqual(card.exp_year, 2024)
         self.assertEqual(card.exp_month, 4)
-        self.assertEqual(card.last4, "4242")
 
         payload["id"] = "evt_3"
         self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
@@ -540,9 +538,36 @@ class TestWebhook(BaseTestCase):
         card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
         self.assertEqual(card.exp_year, 2020)
         self.assertEqual(card.exp_month, 4)
-        self.assertEqual(card.last4, "4242")
 
-        self.assertFalse(True)
+        payload["id"] = "evt_4"
+        payload["data"]["object"]["exp_month"] = 6
+        payload["data"]["object"]["exp_year"] = 2023
+        payload["data"]["previous_attributes"]["exp_month"] = 4
+        payload["data"]["previous_attributes"]["exp_year"] = 2020
+        self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
+        self.customer.save()
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(url, data=payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(StripeCard.objects.count(), 1)
+        card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
+        self.assertEqual(card.exp_year, 2023)
+        self.assertEqual(card.exp_month, 6)
+
+        payload["id"] = "evt_5"
+        payload["data"]["object"]["exp_month"] = 8
+        payload["data"]["previous_attributes"]["exp_month"] = 6
+        del payload["data"]["previous_attributes"]["exp_year"]
+        self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
+        self.customer.save()
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(url, data=payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(StripeCard.objects.count(), 1)
+        card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
+        self.assertEqual(card.exp_year, 2023)
+        self.assertEqual(card.exp_month, 8)
+        self.assertEqual(card.last4, "4242")
 
     def test_ping(self):
         # test receiving ping event (the only event without "." inside the event name)
