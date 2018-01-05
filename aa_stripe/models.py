@@ -79,6 +79,7 @@ class StripeCustomer(StripeBasicModel):
 
 @python_2_unicode_compatible
 class StripeCard(SafeDeleteModel, StripeBasicModel):
+    STRIPE_UPDATABLE_FIELDS = set(["exp_month", "exp_year"])
     customer = models.ForeignKey("StripeCustomer", on_delete=models.CASCADE)
     stripe_card_id = models.CharField(max_length=255, db_index=True, help_text=_("Unique card id in Stripe"))
     stripe_js_response = JSONField()
@@ -177,6 +178,16 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
             self.customer.save()
 
         return self
+
+    def sync_with_stripe(self):
+        card = self._retrieve_from_stripe(True)
+        if card:
+            self.last4 = card["last4"]
+            self.exp_month = card["exp_month"]
+            self.exp_year = card["exp_year"]
+            self.stripe_response = card
+            self.is_created_at_stripe = True
+        return not self.is_deleted
 
     def delete(self, *args, **kwargs):
         card = self._retrieve_from_stripe(set_deleted=True)
@@ -637,7 +648,33 @@ class StripeWebhook(models.Model):
             StripeCoupon.objects.filter(coupon_id=coupon_id, created=created).delete()
 
     def _parse_customer_source_notification(self, action):
-        pass
+        stripe_card_id = self.raw_data["data"]["object"]["id"]
+        stripe_customer_id = self.raw_data["data"]["object"]["customer"]
+        try:
+            customer = StripeCustomer.objects.get(stripe_customer_id=stripe_customer_id)
+        except StripeCustomer.DoesNotExist:
+            raise StripeWebhookParseError(
+                _("There is no customer with id that is assigned to this card in our database"))
+        if action == "created":
+            try:
+                StripeCard.objects.all_with_deleted().get(stripe_card_id=stripe_card_id, customer=customer)
+            except StripeCard.DoesNotExist:
+                card = StripeCard(stripe_card_id=stripe_card_id, customer=customer)
+                if card.sync_with_stripe():
+                    card.save()
+                else:
+                    raise StripeWebhookParseError(_("Card with this id does not exists at Stripe API"))
+            else:
+                raise StripeWebhookParseError(_("Card with this id and customer already exists"))
+        elif action == "updated":
+            try:
+                card = StripeCard.objects.get(stripe_card_id=stripe_card_id, customer=customer)
+                for updated_field in StripeCard.STRIPE_UPDATABLE_FIELDS & set(
+                        self.raw_data["data"]["previous_attributes"]):
+                    setattr(card, updated_field, self.raw_data["data"]["object"][updated_field])
+                card.save()
+            except StripeCard.DoesNotExist:
+                pass  # do not update if does not exist
 
     def parse(self, save=False):
         if self.is_parsed:
