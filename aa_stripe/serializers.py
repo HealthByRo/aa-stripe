@@ -3,7 +3,7 @@ import logging
 
 import stripe
 from rest_framework.exceptions import ValidationError
-from rest_framework.serializers import JSONField, ModelSerializer
+from rest_framework.serializers import BooleanField, CharField, JSONField, ModelSerializer
 
 from aa_stripe.models import StripeCard, StripeCoupon, StripeCustomer, StripeWebhook
 
@@ -17,6 +17,30 @@ class StripeCardListSerializer(ModelSerializer):
         fields = ["stripe_card_id", "last4", "exp_month", "exp_year"]
 
 
+class StripeCardUpdateSerializer(ModelSerializer):
+    stripe_token = CharField(write_only=True)
+    set_default = BooleanField(write_only=True, required=False)
+
+    def update(self, instance, validated_data):
+        if validated_data.get("stripe_token"):
+            try:
+                user = self.context["request"].user
+                stripe_token = validated_data.pop("stripe_token")
+                set_default = validated_data.pop("set_default", None)
+                return instance.update_at_stripe(stripe_token, set_default)
+            except stripe.StripeError as e:
+                logging.error(
+                    "[AA-Stripe] updating card failed for user {user.id}: {error}".format(user=user, error=e)
+                )
+                raise ValidationError({"stripe_error": e._message})
+
+        return instance
+
+    class Meta:
+        model = StripeCard
+        fields = ["stripe_js_response", "stripe_token", "set_default"]
+
+
 class StripeCardCreateSerializer(ModelSerializer):
     stripe_js_response = JSONField()
 
@@ -24,7 +48,7 @@ class StripeCardCreateSerializer(ModelSerializer):
         instance = None
         if validated_data.get("stripe_js_response"):
             try:
-                user = self.context['request'].user
+                user = self.context["request"].user
                 stripe_js_response = validated_data.pop("stripe_js_response")
                 customer = StripeCustomer.get_latest_active_customer_for_user(user)
                 instance = StripeCard.objects.create(
@@ -67,7 +91,7 @@ class StripeCustomerSerializer(ModelSerializer):
         if validated_data.get("stripe_js_response"):
             # Create a Customer
             try:
-                user = self.context['request'].user
+                user = self.context["request"].user
                 stripe_js_response = validated_data.pop("stripe_js_response")
                 instance = StripeCustomer.objects.create(user=user, stripe_js_response=stripe_js_response)
                 card_data = stripe_js_response["card"]

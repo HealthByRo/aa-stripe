@@ -125,6 +125,59 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
         self.save()
         return self
 
+    def update_at_stripe(self, stripe_token, set_default):
+        is_default = self.customer.default_card.pk is self.pk
+        # When the card is not the default card we need to change
+        # the default_source attribute before setting the source attribute on customer
+        # because setting source attribute will overwrite the default_source
+        # and we do not allow unsetting the default card hence
+        # we overwrite set_default here if card is default
+        set_default = is_default if not set_default else set_default
+
+        stripe.api_key = stripe_settings.API_KEY
+
+        customer = stripe.Customer.retrieve(self.customer.stripe_customer_id)
+        # When a card is updated with setting source_token to source field on customer
+        # Stripe is genereating new card id for the card
+        new_card_id = None
+
+        if not is_default and set_default:
+            customer.default_source = self.stripe_card_id
+            customer.save()
+            customer.source = stripe_token
+            customer.save()
+            new_card_id = customer.default_source
+        else:
+            if is_default:
+                customer.source = stripe_token
+                customer.save()
+                new_card_id = customer.default_source
+            else:
+                original_default_source = customer.default_source
+                customer.default_source = self.stripe_card_id
+                customer.save()
+                customer.source = stripe_token
+                customer.save()
+                new_card_id = customer.default_source
+                customer.default_source = original_default_source
+                customer.save()
+
+        updated_card = customer.sources.retrieve(new_card_id)
+
+        self.stripe_card_id = updated_card["id"]
+        self.last4 = updated_card["last4"]
+        self.exp_month = updated_card["exp_month"]
+        self.exp_year = updated_card["exp_year"]
+        self.stripe_response = updated_card
+
+        self.save()
+
+        if not is_default and set_default:
+            self.customer.default_card = self
+            self.customer.save()
+
+        return self
+
     def delete(self, *args, **kwargs):
         card = self._retrieve_from_stripe(set_deleted=True)
         if card:
