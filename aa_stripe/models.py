@@ -657,6 +657,7 @@ class StripeWebhook(models.Model):
         except StripeCustomer.DoesNotExist:
             raise StripeWebhookParseError(
                 _("There is no customer with id that is assigned to this card in our database"))
+
         if action == "created":
             try:
                 StripeCard.objects.all_with_deleted().get(stripe_card_id=stripe_card_id, customer=customer)
