@@ -595,6 +595,62 @@ class TestWebhook(BaseTestCase):
           },
           "type": "customer.source.updated"
         }''')
+        stripe_customer_response = json.loads('''{
+          "id": "cus_BvfxAxtzApkqRa",
+          "object": "customer",
+          "account_balance": 0,
+          "created": 1515145927,
+          "currency": "usd",
+          "default_source": null,
+          "delinquent": false,
+          "description": null,
+          "discount": null,
+          "email": null,
+          "livemode": false,
+          "metadata": {
+          },
+          "shipping": null,
+          "sources": {
+            "object": "list",
+            "data": [
+              {
+                "address_city": null,
+                "address_country": null,
+                "address_line1": null,
+                "address_line1_check": null,
+                "address_line2": null,
+                "address_state": null,
+                "address_zip": null,
+                "address_zip_check": null,
+                "brand": "Visa",
+                "country": "US",
+                "customer": "cus_BvfxAxtzApkqRa",
+                "cvc_check": "pass",
+                "dynamic_last4": null,
+                "exp_month": 4,
+                "exp_year": 2020,
+                "fingerprint": "DsGmBIQwiNOvChPk",
+                "funding": "credit",
+                "id": "card_1BXobrLoWm2f6pRwXOAv0OOW",
+                "last4": "4242",
+                "metadata": {},
+                "name": null,
+                "object": "card",
+                "tokenization_method": null
+              }
+            ],
+            "has_more": false,
+            "total_count": 0,
+            "url": "/v1/customers/cus_BvfxAxtzApkqRa/sources"
+          },
+          "subscriptions": {
+            "object": "list",
+            "data": [],
+            "has_more": false,
+            "total_count": 0,
+            "url": "/v1/customers/cus_BvfxAxtzApkqRa/subscriptions"
+          }
+        }''')
         url = reverse("stripe-webhooks")
 
         self.client.credentials(**self._get_signature_headers(payload))
@@ -616,38 +672,96 @@ class TestWebhook(BaseTestCase):
         self.assertEqual(card.exp_year, 2024)
         self.assertEqual(card.exp_month, 4)
 
-        payload["id"] = "evt_2"
-        self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
-        self.customer.save()
-        self.client.credentials(**self._get_signature_headers(payload))
-        response = self.client.post(url, data=payload, format="json")
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(StripeCard.objects.count(), 1)
-        card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
-        self.assertEqual(card.exp_year, 2020)
-        self.assertEqual(card.exp_month, 4)
+        with requests_mock.Mocker() as m:
+            payload["id"] = "evt_2"
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/customers/cus_BvfxAxtzApkqRa",
+                text=json.dumps(stripe_customer_response))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/customers/cus_BvfxAxtzApkqRa/sources/card_1BXobrLoWm2f6pRwXOAv0OOW",
+                text=json.dumps(stripe_customer_response["sources"]["data"][0]))
+            self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
+            self.customer.save()
+            self.client.credentials(**self._get_signature_headers(payload))
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(StripeCard.objects.count(), 1)
+            card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
+            self.assertEqual(card.exp_year, 2020)
+            self.assertEqual(card.exp_month, 4)
 
-        payload["id"] = "evt_3"
-        payload["data"]["object"]["exp_month"] = 6
-        payload["data"]["object"]["exp_year"] = 2023
-        payload["data"]["previous_attributes"]["exp_month"] = 4
-        payload["data"]["previous_attributes"]["exp_year"] = 2020
-        self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
-        self.customer.save()
-        self.client.credentials(**self._get_signature_headers(payload))
-        response = self.client.post(url, data=payload, format="json")
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(StripeCard.objects.count(), 1)
-        card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
-        self.assertEqual(card.exp_year, 2023)
-        self.assertEqual(card.exp_month, 6)
+        with requests_mock.Mocker() as m:
+            payload["id"] = "evt_3"
+            payload["data"]["object"]["exp_month"] = 6
+            payload["data"]["object"]["exp_year"] = 2023
+            payload["data"]["previous_attributes"]["exp_month"] = 4
+            payload["data"]["previous_attributes"]["exp_year"] = 2020
+            stripe_customer_response["sources"]["data"][0] = payload["data"]["object"]
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/customers/cus_BvfxAxtzApkqRa",
+                text=json.dumps(stripe_customer_response))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/customers/cus_BvfxAxtzApkqRa/sources/card_1BXobrLoWm2f6pRwXOAv0OOW",
+                text=json.dumps(stripe_customer_response["sources"]["data"][0]))
+            self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
+            self.customer.save()
+            self.client.credentials(**self._get_signature_headers(payload))
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(StripeCard.objects.count(), 1)
+            card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
+            self.assertEqual(card.exp_year, 2023)
+            self.assertEqual(card.exp_month, 6)
 
-        payload["id"] = "evt_4"
-        payload["data"]["object"]["exp_month"] = 8
-        payload["data"]["previous_attributes"]["exp_month"] = 6
-        del payload["data"]["previous_attributes"]["exp_year"]
-        self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
-        self.customer.save()
+        with requests_mock.Mocker() as m:
+            payload["id"] = "evt_4"
+            payload["data"]["object"]["exp_month"] = 8
+            payload["data"]["previous_attributes"]["exp_month"] = 6
+            del payload["data"]["previous_attributes"]["exp_year"]
+            stripe_customer_response["sources"]["data"][0] = payload["data"]["object"]
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/customers/cus_BvfxAxtzApkqRa",
+                text=json.dumps(stripe_customer_response))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/customers/cus_BvfxAxtzApkqRa/sources/card_1BXobrLoWm2f6pRwXOAv0OOW",
+                text=json.dumps(stripe_customer_response["sources"]["data"][0]))
+            self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
+            self.customer.save()
+            self.client.credentials(**self._get_signature_headers(payload))
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(StripeCard.objects.count(), 1)
+            card = StripeCard.objects.filter(stripe_card_id="card_1BXobrLoWm2f6pRwXOAv0OOW").first()
+            self.assertEqual(card.exp_year, 2023)
+            self.assertEqual(card.exp_month, 8)
+            self.assertEqual(card.last4, "4242")
+
+        payload["id"] = "evt_5"
+        payload["data"]["object"] = json.loads('''{
+            "id": "ba_1Bi2QfLoWm2f6pRw7fZtTBNU",
+            "object": "bank_account",
+            "account": "acct_1AIXutLoWm2f6pRw",
+            "account_holder_name": "Jane Austen",
+            "account_holder_type": "individual",
+            "bank_name": "STRIPE TEST BANK",
+            "country": "US",
+            "currency": "usd",
+            "default_for_currency": false,
+            "fingerprint": "xRMn872ai9iIaRtl",
+            "last4": "6789",
+            "metadata": {
+            },
+            "routing_number": "110000000",
+            "status": "new"
+        }''')
+        del payload["data"]["previous_attributes"]["exp_month"]
+        payload["data"]["previous_attributes"]["bank_name"] = "Bogus Bank"
         self.client.credentials(**self._get_signature_headers(payload))
         response = self.client.post(url, data=payload, format="json")
         self.assertEqual(response.status_code, 201)
@@ -656,6 +770,32 @@ class TestWebhook(BaseTestCase):
         self.assertEqual(card.exp_year, 2023)
         self.assertEqual(card.exp_month, 8)
         self.assertEqual(card.last4, "4242")
+
+        with requests_mock.Mocker() as m:
+            payload["id"] = "evt_6"
+            payload["data"]["object"] = stripe_customer_response["sources"]["data"][0]
+            stripe_customer_response["sources"]["data"] = []
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/customers/cus_BvfxAxtzApkqRa",
+                text=json.dumps(stripe_customer_response))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/customers/cus_BvfxAxtzApkqRa/sources/card_1BXobrLoWm2f6pRwXOAv0OOW",
+                text=json.dumps({
+                    "error": {
+                        "type": "invalid_request_error",
+                        "message": "No such source: card_1BXobrLoWm2f6pRwXOAv0OOW",
+                        "param": "id"
+                    }
+                }),
+                status_code=404)
+            self.customer.stripe_customer_id = "cus_BvfxAxtzApkqRa"
+            self.customer.save()
+            self.client.credentials(**self._get_signature_headers(payload))
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(StripeCard.objects.count(), 0)
 
     def test_ping(self):
         # test receiving ping event (the only event without "." inside the event name)

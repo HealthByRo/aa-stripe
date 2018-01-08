@@ -79,7 +79,6 @@ class StripeCustomer(StripeBasicModel):
 
 @python_2_unicode_compatible
 class StripeCard(SafeDeleteModel, StripeBasicModel):
-    STRIPE_UPDATABLE_FIELDS = set(["exp_month", "exp_year"])
     customer = models.ForeignKey("StripeCustomer", on_delete=models.CASCADE)
     stripe_card_id = models.CharField(max_length=255, db_index=True, help_text=_("Unique card id in Stripe"))
     stripe_js_response = JSONField()
@@ -179,7 +178,7 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
 
         return self
 
-    def sync_with_stripe(self):
+    def refresh_from_stripe(self):
         card = self._retrieve_from_stripe(True)
         if card:
             self.last4 = card["last4"]
@@ -648,6 +647,9 @@ class StripeWebhook(models.Model):
             StripeCoupon.objects.filter(coupon_id=coupon_id, created=created).delete()
 
     def _parse_customer_source_notification(self, action):
+        if self.raw_data["data"]["object"]["object"] != "card":
+            return
+
         stripe_card_id = self.raw_data["data"]["object"]["id"]
         stripe_customer_id = self.raw_data["data"]["object"]["customer"]
         try:
@@ -660,18 +662,17 @@ class StripeWebhook(models.Model):
                 StripeCard.objects.all_with_deleted().get(stripe_card_id=stripe_card_id, customer=customer)
             except StripeCard.DoesNotExist:
                 card = StripeCard(stripe_card_id=stripe_card_id, customer=customer)
-                if card.sync_with_stripe():
+                if card.refresh_from_stripe():
                     card.save()
                 else:
                     raise StripeWebhookParseError(_("Card with this id does not exists at Stripe API"))
             else:
-                raise StripeWebhookParseError(_("Card with this id and customer already exists"))
+                pass  # we already have the card
+
         elif action == "updated":
             try:
                 card = StripeCard.objects.get(stripe_card_id=stripe_card_id, customer=customer)
-                for updated_field in StripeCard.STRIPE_UPDATABLE_FIELDS & set(
-                        self.raw_data["data"]["previous_attributes"]):
-                    setattr(card, updated_field, self.raw_data["data"]["object"][updated_field])
+                card.refresh_from_stripe()
                 card.save()
             except StripeCard.DoesNotExist:
                 pass  # do not update if does not exist
