@@ -127,11 +127,18 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
 
     def update_at_stripe(self, stripe_token, set_default):
         is_default = self.customer.default_card.pk is self.pk
+        # When the card is not the default card we need to change
+        # the default_source attribute before setting the source attribute on customer
+        # because setting source attribute will overwrite the default_source
+        # and we do not allow unsetting the default card hence
+        # we overwrite set_default here if card is default
         set_default = is_default if not set_default else set_default
 
         stripe.api_key = stripe_settings.API_KEY
 
         customer = stripe.Customer.retrieve(self.customer.stripe_customer_id)
+        # When a card is updated with setting source_token to source field on customer
+        # Stripe is genereating new card id for the card
         new_card_id = None
 
         if not is_default and set_default:

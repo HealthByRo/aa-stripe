@@ -136,6 +136,7 @@ class TestCards(BaseTestCase):
     def test_delete(self, m):
         self._setup_customer_api_mock(m)
         card = self._get_new_random_card()
+        second_card = self._get_new_random_card(False)
         url = reverse("stripe-customers-cards-details", args=[card.stripe_card_id])
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 403)
@@ -178,6 +179,13 @@ class TestCards(BaseTestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 204)
         self.assertTrue(StripeCard.objects.deleted().filter(pk=card.pk).exists())
+
+        self._create_user(3)
+        self._create_customer("cus_abcd")
+        self.client.force_authenticate(user=self.user)
+        url = reverse("stripe-customers-cards-details", args=[second_card.stripe_card_id])
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, 403)
 
     def test_create_card(self):
         self.assertEqual(StripeCard.objects.count(), 0)
@@ -316,6 +324,10 @@ class TestCards(BaseTestCase):
         self.assertEqual(response.data["stripe_card_id"], card_2.stripe_card_id)
         self.assertNotEqual(response.data["stripe_card_id"], card_1.stripe_card_id)
 
+        url = reverse("stripe-customers-cards-details", args=[card_1.stripe_card_id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 403)
+
     def test_update_card(self):
         not_existing_stripe_card_id = self._stripe_card_id()
         url = reverse("stripe-customers-cards-details", args=[not_existing_stripe_card_id])
@@ -375,3 +387,12 @@ class TestCards(BaseTestCase):
                     }])
                 response = self.client.patch(url, data, format="json")
                 self.assertEqual(response.status_code, return_code)
+
+        card_to_be_updated.refresh_from_db()
+        self._create_user(3)
+        self._create_customer("cus_abcd")
+        self.client.force_authenticate(user=self.user)
+        url = reverse("stripe-customers-cards-details", args=[card_to_be_updated.stripe_card_id])
+        data = {"stripe_token": "tok_amex", "set_default": set_default}
+        response = self.client.patch(url, data, format="json")
+        self.assertEqual(response.status_code, 403)
