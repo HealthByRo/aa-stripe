@@ -178,6 +178,16 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
 
         return self
 
+    def refresh_from_stripe(self):
+        card = self._retrieve_from_stripe(True)
+        if card:
+            self.last4 = card["last4"]
+            self.exp_month = card["exp_month"]
+            self.exp_year = card["exp_year"]
+            self.stripe_response = card
+            self.is_created_at_stripe = True
+        return not self.is_deleted
+
     def delete(self, *args, **kwargs):
         card = self._retrieve_from_stripe(set_deleted=True)
         if card:
@@ -636,6 +646,38 @@ class StripeWebhook(models.Model):
         elif action == "deleted":
             StripeCoupon.objects.filter(coupon_id=coupon_id, created=created).delete()
 
+    def _parse_customer_source_notification(self, action):
+        if self.raw_data["data"]["object"]["object"] != "card":
+            return
+
+        stripe_card_id = self.raw_data["data"]["object"]["id"]
+        stripe_customer_id = self.raw_data["data"]["object"]["customer"]
+        try:
+            customer = StripeCustomer.objects.get(stripe_customer_id=stripe_customer_id)
+        except StripeCustomer.DoesNotExist:
+            raise StripeWebhookParseError(
+                _("There is no customer with id that is assigned to this card in our database"))
+
+        if action == "created":
+            try:
+                StripeCard.objects.all_with_deleted().get(stripe_card_id=stripe_card_id, customer=customer)
+            except StripeCard.DoesNotExist:
+                card = StripeCard(stripe_card_id=stripe_card_id, customer=customer)
+                if card.refresh_from_stripe():
+                    card.save()
+                else:
+                    raise StripeWebhookParseError(_("Card with this id does not exists at Stripe API"))
+            else:
+                pass  # we already have the card
+
+        elif action == "updated":
+            try:
+                card = StripeCard.objects.get(stripe_card_id=stripe_card_id, customer=customer)
+                card.refresh_from_stripe()
+                card.save()
+            except StripeCard.DoesNotExist:
+                pass  # do not update if does not exist
+
     def parse(self, save=False):
         if self.is_parsed:
             raise StripeWebhookAlreadyParsed
@@ -654,6 +696,8 @@ class StripeWebhook(models.Model):
         if event_model:
             if event_model == "coupon":
                 self._parse_coupon_notification(event_action)
+            elif event_model == "customer.source":
+                self._parse_customer_source_notification(event_action)
 
         self.is_parsed = True
         if save:
