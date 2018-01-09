@@ -70,14 +70,16 @@ class BaseTestCase(APITestCase):
                      set_self=True,
                      last4="4242",
                      exp_month=1,
-                     exp_year=2025):
+                     exp_year=2025,
+                     is_deleted=False):
         card = StripeCard.objects.create(
             customer=customer or self.customer,
             last4=last4,
             exp_month=exp_month,
             exp_year=exp_year,
             stripe_card_id=stripe_card_id or "card_{}".format(uuid4().hex),
-            is_created_at_stripe=True)
+            is_created_at_stripe=True,
+            is_deleted=is_deleted)
         if is_default:
             card.customer.default_card = card
             card.customer.save()
