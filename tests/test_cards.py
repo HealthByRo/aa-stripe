@@ -6,7 +6,6 @@ from uuid import uuid4
 
 import requests_mock
 import simplejson as json
-from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from rest_framework.reverse import reverse
 from tests.test_utils import BaseTestCase
@@ -476,22 +475,20 @@ class TestCardsCommands(BaseCardsTestCase):
           }}
         }}'''.format(card_id))
 
-    @requests_mock.Mocker()
-    def test_sync_all_cards_for_all_customers_command(self, m):
+    def setUp(self):
+        m = requests_mock.Mocker()
         cards_created = (0, 2)
         cards_not_changed = (1,)
         cards_updated = (0, 3)
         cards_deleted = (0, 1)
         cards_we_deleted = (0, 1)
-        cards_cases = [*product(cards_created, cards_not_changed, cards_updated, cards_deleted, cards_we_deleted)]
-        cards_count_in_database_before_command_call = sum([c[1] + c[2] + c[3] + c[4] for c in cards_cases])
-        cards_not_deleted_count_in_database_before_command_call = sum([c[1] + c[2] + c[3] for c in cards_cases])
-        cards_count_in_database_after_command_call = sum([c[0] + c[1] + c[2] + c[3] + c[4] for c in cards_cases])
-        cards_not_deleted_count_in_database_after_command_call = sum([c[0] + c[1] + c[2] + c[4] for c in cards_cases])
-        test_cases = {}
-        test_update_cases = {c: {} for c in cards_cases}
-        for i, case in enumerate(cards_cases):
+        self.cards_cases = [*product(cards_created, cards_not_changed, cards_updated, cards_deleted, cards_we_deleted)]
+        self.user_id_case_map = {}
+        self.test_cases = {}
+        self.test_update_cases = {c: {} for c in self.cards_cases}
+        for i, case in enumerate(self.cards_cases):
             self._create_user(i)
+            self.user_id_case_map[self.user.id] = case
             self._create_customer()
             customer_id = self.customer.stripe_customer_id
             created_card_ids = [self._stripe_card_id() for r in range(case[0])]
@@ -506,8 +503,8 @@ class TestCardsCommands(BaseCardsTestCase):
             swap_default_card = case[0] and case[2] or case[2] and case[3]
             new_default_card = (created_card_ids + updated_card_ids)[1] if swap_default_card else default_card_id
 
-            test_cases[case] = (customer_id, created_card_ids, not_changed_card_ids, updated_card_ids, deleted_card_ids,
-                                we_deleted_card_ids, default_card_id, new_default_card)
+            self.test_cases[case] = (customer_id, created_card_ids, not_changed_card_ids, updated_card_ids,
+                                     deleted_card_ids, we_deleted_card_ids, default_card_id, new_default_card)
 
             customer_response = self._get_empty_sources_retrive_customer_stripe_response(customer_id)
             customer_response["sources"]["total_count"] = len(cards_at_stripe)
@@ -519,8 +516,8 @@ class TestCardsCommands(BaseCardsTestCase):
                     if card_id in updated_card_ids:
                         old_exp_month = self._exp_month()
                         old_exp_year = self._exp_year()
-                        test_update_cases[case][card_id] = (old_exp_month, old_exp_year, card_response["exp_month"],
-                                                            card_response["exp_year"])
+                        self.test_update_cases[case][card_id] = (old_exp_month, old_exp_year,
+                                                                 card_response["exp_month"], card_response["exp_year"])
                         self._create_card(
                             stripe_card_id=card_id,
                             is_default=card_id == default_card_id,
@@ -555,11 +552,57 @@ class TestCardsCommands(BaseCardsTestCase):
                     status_code=404,
                     text=json.dumps(self._get_retrive_card_stripe_response(card_id)))
 
-        user_ids = get_user_model().objects.values_list("id")
-        min_user_id, max_user_id = min(user_ids)[0], max(user_ids)[0]
+        m.start()
+        self.addCleanup(m.stop)
 
-        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_count_in_database_before_command_call)
-        self.assertEqual(StripeCard.objects.count(), cards_not_deleted_count_in_database_before_command_call)
-        call_command("sync_all_cards_for_all_customers", patient_id_range="{}_{}".format(min_user_id, max_user_id))
-        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_count_in_database_after_command_call)
-        self.assertEqual(StripeCard.objects.count(), cards_not_deleted_count_in_database_after_command_call)
+    def _get_cards_counts_before_command_call(self, cases):
+        cards_count_in_database_before_command_call = sum([c[1] + c[2] + c[3] + c[4] for c in self.cards_cases])
+        cards_not_deleted_count_in_database_before_command_call = sum([c[1] + c[2] + c[3] for c in self.cards_cases])
+        return (cards_count_in_database_before_command_call, cards_not_deleted_count_in_database_before_command_call)
+
+    def _get_cards_counts_after_command_call(self, cases):
+        cards_count_in_database_after_command_call = sum([c[0] + c[1] + c[2] + c[3] + c[4] for c in cases])
+        cards_not_deleted_count_in_database_after_command_call = sum([c[0] + c[1] + c[2] + c[4] for c in cases])
+        return (cards_count_in_database_after_command_call, cards_not_deleted_count_in_database_after_command_call)
+
+    def test_sync_all_cards_for_all_customers_command(self):
+        cases_to_run = self.cards_cases
+        cards_counts_before_command_call = self._get_cards_counts_before_command_call(cases_to_run)
+        cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
+
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_before_command_call[0])
+        self.assertEqual(StripeCard.objects.count(), cards_counts_before_command_call[1])
+        call_command("sync_all_cards_for_all_customers")
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
+        self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
+
+    def test_sync_all_cards_for_all_customers_command_with_max_argument(self):
+        max_user_id = max(self.user_id_case_map) // 2
+        cases_to_run = [self.user_id_case_map[k] for k in self.user_id_case_map if k <= max_user_id]
+        cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
+
+        call_command("sync_all_cards_for_all_customers", max_user_id=max_user_id)
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
+        self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
+        pass
+
+    def test_sync_all_cards_for_all_customers_command_with_min_argument(self):
+        min_user_id = max(self.user_id_case_map) // 3
+        cases_to_run = [self.user_id_case_map[k] for k in self.user_id_case_map if k >= min_user_id]
+        cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
+
+        call_command("sync_all_cards_for_all_customers", min_user_id=min_user_id)
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
+        self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
+
+    def test_sync_all_cards_for_all_customers_command_with_min_and_max_argument(self):
+        min_user_id = max(self.user_id_case_map) // 4
+        max_user_id = min_user_id * 2
+        cases_to_run = [
+            self.user_id_case_map[k] for k in self.user_id_case_map if k >= min_user_id and k <= max_user_id
+        ]
+        cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
+
+        call_command("sync_all_cards_for_all_customers", max_user_id=max_user_id, min_user_id=min_user_id)
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
+        self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
