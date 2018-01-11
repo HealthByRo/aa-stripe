@@ -10,7 +10,7 @@ from django.core.management import call_command
 from rest_framework.reverse import reverse
 from tests.test_utils import BaseTestCase
 
-from aa_stripe.models import StripeCard
+from aa_stripe.models import StripeCard, StripeCustomer
 
 
 class BaseCardsTestCase(BaseTestCase):
@@ -486,7 +486,7 @@ class TestCardsCommands(BaseCardsTestCase):
         ]
         self.user_id_case_map = {}
         self.test_cases = {}
-        self.test_update_cases = {c: {} for c in self.cards_cases}
+        self.test_update_cases = {c: {} for c in self.cards_cases if c[2]}
         self.all_cards_count_in_db = sum([c[1] + c[2] + c[3] + c[4] for c in self.cards_cases])
         self.all_not_deleted_cards_count_in_db = sum([c[1] + c[2] + c[3] for c in self.cards_cases])
         for i, case in enumerate(self.cards_cases):
@@ -520,8 +520,7 @@ class TestCardsCommands(BaseCardsTestCase):
                     if card_id in updated_card_ids:
                         old_exp_month = self._exp_month()
                         old_exp_year = self._exp_year()
-                        self.test_update_cases[case][card_id] = (old_exp_month, old_exp_year,
-                                                                 card_response["exp_month"], card_response["exp_year"])
+                        self.test_update_cases[case][card_id] = (card_response["exp_month"], card_response["exp_year"])
                         self._create_card(
                             stripe_card_id=card_id,
                             is_default=card_id == default_card_id,
@@ -566,14 +565,43 @@ class TestCardsCommands(BaseCardsTestCase):
         return (cards_count_in_database_after_command_call, cards_not_deleted_count_in_database_after_command_call)
 
     def test_sync_all_cards_for_all_customers_command(self):
-        cases_to_run = self.cards_cases
-        cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
+        cards_counts_after_command_call = self._get_cards_counts_after_command_call(self.cards_cases)
 
         self.assertEqual(StripeCard.objects.all_with_deleted().count(), self.all_cards_count_in_db)
         self.assertEqual(StripeCard.objects.count(), self.all_not_deleted_cards_count_in_db)
         call_command("sync_all_cards_for_all_customers")
         self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
         self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
+
+        for case in self.cards_cases:
+            test_case = self.test_cases[case]
+            customer = StripeCustomer.objects.get(stripe_customer_id=test_case[0])
+            # created on stripe
+            if len(test_case[1]):
+                self.assertTrue(StripeCard.objects.filter(customer=customer, stripe_card_id__in=test_case[1]).exists())
+            # not changed
+            self.assertTrue(StripeCard.objects.filter(customer=customer, stripe_card_id__in=test_case[2]).exists())
+            # updated
+            if len(test_case[3]):
+                updated_cards = StripeCard.objects.filter(customer=customer, stripe_card_id__in=test_case[3])
+                self.assertTrue(updated_cards.exists())
+                for update_case_card_id in test_case[3]:
+                    update_case = self.test_update_cases[case][update_case_card_id]
+                    updated_card = updated_cards.get(stripe_card_id=update_case_card_id)
+                    self.assertEqual(updated_card.exp_month, update_case[0])
+                    self.assertEqual(updated_card.exp_year, update_case[1])
+            # deleted on stripe
+            if len(test_case[4]):
+                self.assertTrue(StripeCard.objects.deleted().filter(customer=customer,
+                                                                    stripe_card_id__in=test_case[4]).exists())
+            # we deleted, should be restored
+            if len(test_case[5]):
+                self.assertTrue(StripeCard.objects.filter(customer=customer, stripe_card_id__in=test_case[5]).exists())
+            # changed default card on stripe
+            if test_case[6] != test_case[7]:
+                self.assertEqual(customer.default_card.stripe_card_id, test_case[7])
+            else:
+                self.assertEqual(customer.default_card.stripe_card_id, test_case[6])
 
     def test_sync_cards_for_customers_command_with_max_argument(self):
         max_user_id = max(self.user_id_case_map) // 2
