@@ -42,9 +42,42 @@ class Command(BaseCommand):
                 get_user_model().objects.filter(id__range=(options['min_id'], options['max_id']))):
             customer_from_stripe = stripe.Customer.retrieve(customer.stripe_customer_id)
             actual_cards = customer_from_stripe.sources.all(object="card")
-            actual_cards_set = set([c.id for c in actual_cards])
-            our_cards_set = set(StripeCard.objects.filter(customer=customer).values_list('stripe_card_id', flat=True))
-            print(actual_cards_set & our_cards_set)
+            actual_cards_map = {c.id: c for c in actual_cards}
+            actual_cards_set = set(actual_cards_map)
+            our_cards = StripeCard.objects.filter(customer=customer)
+            our_cards_set = set(our_cards.values_list('stripe_card_id', flat=True))
+            our_deleted_cards = StripeCard.objects.deleted().filter(customer=customer)
+            our_deleted_cards_set = set(our_deleted_cards.values_list('stripe_card_id', flat=True))
+
+            stripe_deleted_cards = our_cards_set - actual_cards_set
+            for card_id in stripe_deleted_cards:
+                card = our_cards.get(stripe_card_id=card_id)
+                card.is_deleted = True
+                card.save()
+
+            counts["deleted"] = len(stripe_deleted_cards)
+
+            undelete_cards = actual_cards_set & our_deleted_cards_set
+            for card_id in undelete_cards:
+                card = our_deleted_cards.get(stripe_card_id=card_id)
+                card.is_deleted = False
+                card.save()
+
+            counts["updated"] = len(undelete_cards)
+
+            created_cards = actual_cards_set - (our_cards_set | our_deleted_cards_set)
+            for card_id in created_cards:
+                card = StripeCard(customer=customer)
+                card.create_from_stripe_card(actual_cards_map[card_id])
+                card.save()
+
+            counts["created"] = len(created_cards)
+
+            stripe_defaut_source = customer_from_stripe.default_source
+            our_defaut_source = customer.default_card.stripe_card_id
+            if stripe_defaut_source != our_defaut_source:
+                customer.default_card = StripeCard.objects.get(stripe_card_id=stripe_defaut_source)
+                customer.save()
 
         if options.get("verbosity") > 1:
             print("Coupons created: {created}, updated: {updated}, deleted: {deleted}".format(**counts))

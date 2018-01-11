@@ -27,6 +27,7 @@ class BaseCardsTestCase(BaseTestCase):
 
 
 class TestCards(BaseCardsTestCase):
+
     def _get_successful_retrive_stripe_customer_response(self, id, default_source=None):
         return {
             "id": id,
@@ -375,12 +376,10 @@ class TestCards(BaseCardsTestCase):
                     [{
                         "text": json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id))
                     }])
-                m.register_uri(
-                    "POST", "https://api.stripe.com/v1/customers/{}".format(customer_id),
-                    [{
-                        "text":
-                        json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id, updated_card_id))
-                    }])
+                m.register_uri("POST", "https://api.stripe.com/v1/customers/{}".format(customer_id), [{
+                    "text":
+                    json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id, updated_card_id))
+                }])
                 m.register_uri("GET", "https://api.stripe.com/v1/customers/{}/sources/{}".format(
                     customer_id, updated_card_id), [{
                         "text":
@@ -486,6 +485,8 @@ class TestCardsCommands(BaseCardsTestCase):
         self.user_id_case_map = {}
         self.test_cases = {}
         self.test_update_cases = {c: {} for c in self.cards_cases}
+        self.all_cards_count_in_db = sum([c[1] + c[2] + c[3] + c[4] for c in self.cards_cases])
+        self.all_not_deleted_cards_count_in_db = sum([c[1] + c[2] + c[3] for c in self.cards_cases])
         for i, case in enumerate(self.cards_cases):
             self._create_user(i)
             self.user_id_case_map[self.user.id] = case
@@ -507,6 +508,7 @@ class TestCardsCommands(BaseCardsTestCase):
                                      deleted_card_ids, we_deleted_card_ids, default_card_id, new_default_card)
 
             customer_response = self._get_empty_sources_retrive_customer_stripe_response(customer_id)
+            customer_response["default_source"] = new_default_card
             customer_response["sources"]["total_count"] = len(cards_at_stripe)
             for card_id in cards_at_stripe:
                 card_response = self._get_retrive_card_stripe_response(card_id, customer_id)
@@ -555,28 +557,23 @@ class TestCardsCommands(BaseCardsTestCase):
         m.start()
         self.addCleanup(m.stop)
 
-    def _get_cards_counts_before_command_call(self, cases):
-        cards_count_in_database_before_command_call = sum([c[1] + c[2] + c[3] + c[4] for c in self.cards_cases])
-        cards_not_deleted_count_in_database_before_command_call = sum([c[1] + c[2] + c[3] for c in self.cards_cases])
-        return (cards_count_in_database_before_command_call, cards_not_deleted_count_in_database_before_command_call)
-
     def _get_cards_counts_after_command_call(self, cases):
-        cards_count_in_database_after_command_call = sum([c[0] + c[1] + c[2] + c[3] + c[4] for c in cases])
-        cards_not_deleted_count_in_database_after_command_call = sum([c[0] + c[1] + c[2] + c[4] for c in cases])
+        cards_count_in_database_after_command_call = self.all_cards_count_in_db + sum([c[0] for c in cases])
+        cards_not_deleted_count_in_database_after_command_call = self.all_not_deleted_cards_count_in_db + sum(
+            [c[0] + c[4] for c in cases]) - sum([c[3] for c in cases])
         return (cards_count_in_database_after_command_call, cards_not_deleted_count_in_database_after_command_call)
 
     def test_sync_all_cards_for_all_customers_command(self):
         cases_to_run = self.cards_cases
-        cards_counts_before_command_call = self._get_cards_counts_before_command_call(cases_to_run)
         cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
 
-        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_before_command_call[0])
-        self.assertEqual(StripeCard.objects.count(), cards_counts_before_command_call[1])
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), self.all_cards_count_in_db)
+        self.assertEqual(StripeCard.objects.count(), self.all_not_deleted_cards_count_in_db)
         call_command("sync_all_cards_for_all_customers")
         self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
         self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
 
-    def test_sync_all_cards_for_all_customers_command_with_max_argument(self):
+    def test_sync_cards_for_customers_command_with_max_argument(self):
         max_user_id = max(self.user_id_case_map) // 2
         cases_to_run = [self.user_id_case_map[k] for k in self.user_id_case_map if k <= max_user_id]
         cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
@@ -584,9 +581,8 @@ class TestCardsCommands(BaseCardsTestCase):
         call_command("sync_all_cards_for_all_customers", max_user_id=max_user_id)
         self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
         self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
-        pass
 
-    def test_sync_all_cards_for_all_customers_command_with_min_argument(self):
+    def test_sync_cards_for_customers_command_with_min_argument(self):
         min_user_id = max(self.user_id_case_map) // 3
         cases_to_run = [self.user_id_case_map[k] for k in self.user_id_case_map if k >= min_user_id]
         cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
@@ -595,7 +591,7 @@ class TestCardsCommands(BaseCardsTestCase):
         self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
         self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
 
-    def test_sync_all_cards_for_all_customers_command_with_min_and_max_argument(self):
+    def test_sync_cards_for_customers_command_with_min_and_max_argument(self):
         min_user_id = max(self.user_id_case_map) // 4
         max_user_id = min_user_id * 2
         cases_to_run = [
