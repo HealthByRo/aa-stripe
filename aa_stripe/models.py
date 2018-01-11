@@ -123,9 +123,9 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
         customer = stripe.Customer.retrieve(self.customer.stripe_customer_id)
         card = customer.sources.create(source=self.stripe_js_response["source"])
 
-        return self.create_from_stripe_card(card)
+        return self.update_from_stripe_card(card)
 
-    def create_from_stripe_card(self, card):
+    def update_from_stripe_card(self, card):
         self._set_fields_from_stripe_object(card)
         self.is_created_at_stripe = True
         self.save()
