@@ -481,7 +481,9 @@ class TestCardsCommands(BaseCardsTestCase):
         cards_updated = (0, 3)
         cards_deleted = (0, 1)
         cards_we_deleted = (0, 1)
-        self.cards_cases = [*product(cards_created, cards_not_changed, cards_updated, cards_deleted, cards_we_deleted)]
+        self.cards_cases = [
+            case for case in product(cards_created, cards_not_changed, cards_updated, cards_deleted, cards_we_deleted)
+        ]
         self.user_id_case_map = {}
         self.test_cases = {}
         self.test_update_cases = {c: {} for c in self.cards_cases}
