@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+from time import sleep
+
 import stripe
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
@@ -11,8 +14,8 @@ class Command(BaseCommand):
     help = "Sync all cards for all customers with Stripe API"
 
     def add_arguments(self, parser):
-        user_ids = get_user_model().objects.values_list("id")
-        min_user_id, max_user_id = min(user_ids)[0], max(user_ids)[0]
+        min_user_id = get_user_model().objects.order_by("id").first().id
+        max_user_id = get_user_model().objects.order_by("-id").first().id
         parser.add_argument(
             '--max_user_id',
             nargs='?',
@@ -36,10 +39,13 @@ class Command(BaseCommand):
         stripe.api_key = stripe_settings.API_KEY
 
         counts = {"created": 0, "updated": 0, "deleted": 0}
+        processed_users_set = set()
 
-        for customer in map(
-                StripeCustomer.get_latest_active_customer_for_user,
-                get_user_model().objects.filter(id__range=(options['min_id'], options['max_id']))):
+        for customer in StripeCustomer.objects.filter(
+                is_active=True, user__id__range=(options['min_id'], options['max_id'])).order_by("-id"):
+            if customer.user.id in processed_users_set:
+                continue
+
             customer_from_stripe = stripe.Customer.retrieve(customer.stripe_customer_id)
             actual_cards = customer_from_stripe.sources.all(object="card")
             actual_cards_map = {c.id: c for c in actual_cards}
@@ -77,9 +83,14 @@ class Command(BaseCommand):
                 customer.default_card = StripeCard.objects.get(stripe_card_id=stripe_defaut_source)
                 customer.save()
 
-            counts["created"] = len(created_cards)
-            counts["deleted"] = len(stripe_deleted_cards)
-            counts["updated"] = len(update_cards) + len(undelete_cards)
+            counts["created"] += len(created_cards)
+            counts["deleted"] += len(stripe_deleted_cards)
+            counts["updated"] += len(update_cards) + len(undelete_cards)
+            processed_users_set.add(customer.user.id)
+
+            print("Processed customer with user id: {}".format(customer.user.id))
+            if not settings.TESTING:
+                sleep(0.25)
 
         if options.get("verbosity") > 1:
-            print("Coupons created: {created}, updated: {updated}, deleted: {deleted}".format(**counts))
+            print("Cards created: {created}, updated: {updated}, deleted: {deleted}".format(**counts))
