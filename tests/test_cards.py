@@ -484,15 +484,15 @@ class TestCardsCommands(BaseCardsTestCase):
         self.cards_cases = [
             case for case in product(cards_created, cards_not_changed, cards_updated, cards_deleted, cards_we_deleted)
         ]
-        self.user_id_case_map = {}
+        self.customer_id_case_map = {}
         self.test_cases = {}
         self.test_update_cases = {c: {} for c in self.cards_cases if c[2]}
         self.all_cards_count_in_db = sum([c[1] + c[2] + c[3] + c[4] for c in self.cards_cases])
         self.all_not_deleted_cards_count_in_db = sum([c[1] + c[2] + c[3] for c in self.cards_cases])
         for i, case in enumerate(self.cards_cases):
             self._create_user(i)
-            self.user_id_case_map[self.user.id] = case
             self._create_customer()
+            self.customer_id_case_map[self.customer.id] = case
             customer_id = self.customer.stripe_customer_id
             created_card_ids = [self._stripe_card_id() for r in range(case[0])]
             not_changed_card_ids = [self._stripe_card_id() for r in range(case[1])]
@@ -604,31 +604,34 @@ class TestCardsCommands(BaseCardsTestCase):
                 self.assertEqual(customer.default_card.stripe_card_id, test_case[6])
 
     def test_sync_cards_for_customers_command_with_max_argument(self):
-        max_user_id = max(self.user_id_case_map) // 2
-        cases_to_run = [self.user_id_case_map[k] for k in self.user_id_case_map if k <= max_user_id]
+        max_customer_id = max(self.customer_id_case_map) // 2
+        cases_to_run = [self.customer_id_case_map[k] for k in self.customer_id_case_map if k <= max_customer_id]
         cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
 
-        call_command("sync_all_cards_for_all_customers", max_user_id=max_user_id)
+        call_command("sync_all_cards_for_all_customers", max_customer_id=max_customer_id)
         self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
         self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
 
     def test_sync_cards_for_customers_command_with_min_argument(self):
-        min_user_id = max(self.user_id_case_map) // 3
-        cases_to_run = [self.user_id_case_map[k] for k in self.user_id_case_map if k >= min_user_id]
+        min_customer_id = max(self.customer_id_case_map) // 3
+        cases_to_run = [self.customer_id_case_map[k] for k in self.customer_id_case_map if k >= min_customer_id]
         cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
 
-        call_command("sync_all_cards_for_all_customers", min_user_id=min_user_id)
+        call_command("sync_all_cards_for_all_customers", min_customer_id=min_customer_id)
         self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
         self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
 
     def test_sync_cards_for_customers_command_with_min_and_max_argument(self):
-        min_user_id = max(self.user_id_case_map) // 4
-        max_user_id = min_user_id * 2
+        min_customer_id = max(self.customer_id_case_map) // 4
+        max_customer_id = min_customer_id * 2
         cases_to_run = [
-            self.user_id_case_map[k] for k in self.user_id_case_map if k >= min_user_id and k <= max_user_id
+            self.customer_id_case_map[k]
+            for k in self.customer_id_case_map
+            if k >= min_customer_id and k <= max_customer_id
         ]
         cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
 
-        call_command("sync_all_cards_for_all_customers", max_user_id=max_user_id, min_user_id=min_user_id)
+        call_command(
+            "sync_all_cards_for_all_customers", max_customer_id=max_customer_id, min_customer_id=min_customer_id)
         self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
         self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])

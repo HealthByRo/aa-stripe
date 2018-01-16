@@ -3,7 +3,6 @@ from time import sleep
 
 import stripe
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
 from aa_stripe.models import StripeCard, StripeCustomer
@@ -14,25 +13,25 @@ class Command(BaseCommand):
     help = "Sync all cards for all customers with Stripe API"
 
     def add_arguments(self, parser):
-        min_user_id = get_user_model().objects.order_by("id").first().id
-        max_user_id = get_user_model().objects.order_by("-id").first().id
+        min_customer_id = StripeCustomer.objects.order_by("id").first().id
+        max_customer_id = StripeCustomer.objects.order_by("-id").first().id
         parser.add_argument(
-            '--max_user_id',
+            '--max_customer_id',
             nargs='?',
-            const=max_user_id,
-            default=max_user_id,
+            const=max_customer_id,
+            default=max_customer_id,
             type=int,
             dest='max_id',
-            help='Id of the last user for whom to update cards',
+            help='Id of the last customer for whom to update cards',
         )
         parser.add_argument(
-            '--min_user_id',
+            '--min_customer_id',
             nargs='?',
-            const=min_user_id,
-            default=min_user_id,
+            const=min_customer_id,
+            default=min_customer_id,
             type=int,
             dest='min_id',
-            help='Id of the first user for whom to update cards',
+            help='Id of the first customer for whom to update cards',
         )
 
     def handle(self, *args, **options):
@@ -42,7 +41,7 @@ class Command(BaseCommand):
         processed_users_set = set()
 
         for customer in StripeCustomer.objects.filter(
-                is_active=True, user__id__range=(options['min_id'], options['max_id'])).order_by("-id"):
+                is_active=True, id__range=(options['min_id'], options['max_id'])).order_by("-id"):
             if customer.user.id in processed_users_set:
                 continue
 
@@ -88,7 +87,7 @@ class Command(BaseCommand):
             counts["updated"] += len(update_cards) + len(undelete_cards)
             processed_users_set.add(customer.user.id)
 
-            print("Processed customer with user id: {}".format(customer.user.id))
+            print("Processed customer with id: {}".format(customer.id))
             if not settings.TESTING:
                 sleep(0.25)
 
