@@ -108,6 +108,13 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
             if set_deleted:
                 self.is_deleted = True
 
+    def _set_fields_from_stripe_object(self, stripe_object):
+        self.stripe_card_id = stripe_object["id"]
+        self.last4 = stripe_object["last4"]
+        self.exp_month = stripe_object["exp_month"]
+        self.exp_year = stripe_object["exp_year"]
+        self.stripe_response = stripe_object
+
     def create_at_stripe(self):
         if self.is_created_at_stripe:
             raise StripeMethodNotAllowed()
@@ -116,11 +123,10 @@ class StripeCard(SafeDeleteModel, StripeBasicModel):
         customer = stripe.Customer.retrieve(self.customer.stripe_customer_id)
         card = customer.sources.create(source=self.stripe_js_response["source"])
 
-        self.stripe_card_id = card["id"]
-        self.last4 = card["last4"]
-        self.exp_month = card["exp_month"]
-        self.exp_year = card["exp_year"]
-        self.stripe_response = card
+        return self.update_from_stripe_card(card)
+
+    def update_from_stripe_card(self, card):
+        self._set_fields_from_stripe_object(card)
         self.is_created_at_stripe = True
         self.save()
         return self

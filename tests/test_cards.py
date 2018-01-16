@@ -1,17 +1,19 @@
 from datetime import datetime
 from functools import partial
+from itertools import product
 from random import randint
 from uuid import uuid4
 
 import requests_mock
 import simplejson as json
+from django.core.management import call_command
 from rest_framework.reverse import reverse
 from tests.test_utils import BaseTestCase
 
-from aa_stripe.models import StripeCard
+from aa_stripe.models import StripeCard, StripeCustomer
 
 
-class TestCards(BaseTestCase):
+class BaseCardsTestCase(BaseTestCase):
     _last4 = partial(randint, 1000, 9999)
     _exp_month = partial(randint, 1, 12)
     _todays_year = datetime.utcnow().year
@@ -19,6 +21,12 @@ class TestCards(BaseTestCase):
 
     def _stripe_card_id(self):
         return "card_{}".format(uuid4().hex[:24])
+
+    def _stripe_card_fingerprint(self):
+        return uuid4().hex[:16]
+
+
+class TestCards(BaseCardsTestCase):
 
     def _get_successful_retrive_stripe_customer_response(self, id, default_source=None):
         return {
@@ -368,12 +376,10 @@ class TestCards(BaseTestCase):
                     [{
                         "text": json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id))
                     }])
-                m.register_uri(
-                    "POST", "https://api.stripe.com/v1/customers/{}".format(customer_id),
-                    [{
-                        "text":
-                        json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id, updated_card_id))
-                    }])
+                m.register_uri("POST", "https://api.stripe.com/v1/customers/{}".format(customer_id), [{
+                    "text":
+                    json.dumps(self._get_successful_retrive_stripe_customer_response(customer_id, updated_card_id))
+                }])
                 m.register_uri("GET", "https://api.stripe.com/v1/customers/{}/sources/{}".format(
                     customer_id, updated_card_id), [{
                         "text":
@@ -396,3 +402,236 @@ class TestCards(BaseTestCase):
         data = {"stripe_token": "tok_amex", "set_default": set_default}
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, 403)
+
+
+class TestCardsCommands(BaseCardsTestCase):
+
+    def _get_empty_sources_retrive_customer_stripe_response(self, customer_id):
+        return json.loads('''{{
+          "id": "{0}",
+          "object": "customer",
+          "account_balance": 0,
+          "created": 1515510882,
+          "currency": "usd",
+          "default_source": null,
+          "delinquent": false,
+          "description": null,
+          "discount": null,
+          "email": null,
+          "livemode": false,
+          "metadata": {{}},
+          "shipping": null,
+          "sources": {{
+            "object": "list",
+            "data": [],
+            "has_more": false,
+            "total_count": 0,
+            "url": "/v1/customers/{0}/sources"
+          }},
+          "subscriptions": {{
+            "object": "list",
+            "data": [],
+            "has_more": false,
+            "total_count": 0,
+            "url": "/v1/customers/{0}/subscriptions"
+          }}
+        }}'''.format(customer_id))
+
+    def _get_retrive_card_stripe_response(self, card_id, customer_id=None):
+        if customer_id:
+            return json.loads('''{{
+            "id": "{0}",
+            "object": "card",
+            "address_city": null,
+            "address_country": null,
+            "address_line1": null,
+            "address_line1_check": null,
+            "address_line2": null,
+            "address_state": null,
+            "address_zip": null,
+            "address_zip_check": null,
+            "brand": "Visa",
+            "country": "US",
+            "customer": "{1}",
+            "cvc_check": null,
+            "dynamic_last4": null,
+            "exp_month": {2},
+            "exp_year": {3},
+            "fingerprint": "{4}",
+            "funding": "credit",
+            "last4": "{5}",
+            "metadata": {{}},
+            "name": null,
+            "tokenization_method": null
+            }}'''.format(card_id, customer_id, self._exp_month(), self._exp_year(), self._stripe_card_fingerprint(),
+                         self._last4()))
+
+        return json.loads('''{{
+          "error": {{
+            "type": "invalid_request_error",
+            "message": "No such source: {}",
+            "param": "id"
+          }}
+        }}'''.format(card_id))
+
+    def setUp(self):
+        m = requests_mock.Mocker()
+        cards_created = (0, 2)
+        cards_not_changed = (1,)
+        cards_updated = (0, 3)
+        cards_deleted = (0, 1)
+        cards_we_deleted = (0, 1)
+        self.cards_cases = [
+            case for case in product(cards_created, cards_not_changed, cards_updated, cards_deleted, cards_we_deleted)
+        ]
+        self.customer_id_case_map = {}
+        self.test_cases = {}
+        self.test_update_cases = {c: {} for c in self.cards_cases if c[2]}
+        self.all_cards_count_in_db = sum([c[1] + c[2] + c[3] + c[4] for c in self.cards_cases])
+        self.all_not_deleted_cards_count_in_db = sum([c[1] + c[2] + c[3] for c in self.cards_cases])
+        for i, case in enumerate(self.cards_cases):
+            self._create_user(i)
+            self._create_customer()
+            self.customer_id_case_map[self.customer.id] = case
+            customer_id = self.customer.stripe_customer_id
+            created_card_ids = [self._stripe_card_id() for r in range(case[0])]
+            not_changed_card_ids = [self._stripe_card_id() for r in range(case[1])]
+            updated_card_ids = [self._stripe_card_id() for r in range(case[2])]
+            deleted_card_ids = [self._stripe_card_id() for r in range(case[3])]
+            we_deleted_card_ids = [self._stripe_card_id() for r in range(case[4])]
+
+            cards_at_stripe = created_card_ids + updated_card_ids + not_changed_card_ids + we_deleted_card_ids
+            cards_in_database = updated_card_ids + not_changed_card_ids + deleted_card_ids + we_deleted_card_ids
+            default_card_id = (updated_card_ids + not_changed_card_ids)[0]
+            swap_default_card = case[0] and case[2] or case[2] and case[3]
+            new_default_card = (created_card_ids + updated_card_ids)[1] if swap_default_card else default_card_id
+
+            self.test_cases[case] = (customer_id, created_card_ids, not_changed_card_ids, updated_card_ids,
+                                     deleted_card_ids, we_deleted_card_ids, default_card_id, new_default_card)
+
+            customer_response = self._get_empty_sources_retrive_customer_stripe_response(customer_id)
+            customer_response["default_source"] = new_default_card
+            customer_response["sources"]["total_count"] = len(cards_at_stripe)
+            for card_id in cards_at_stripe:
+                card_response = self._get_retrive_card_stripe_response(card_id, customer_id)
+                customer_response["sources"]["data"].append(card_response)
+
+                if card_id in cards_in_database:
+                    if card_id in updated_card_ids:
+                        old_exp_month = self._exp_month()
+                        old_exp_year = self._exp_year()
+                        self.test_update_cases[case][card_id] = (card_response["exp_month"], card_response["exp_year"])
+                        self._create_card(
+                            stripe_card_id=card_id,
+                            is_default=card_id == default_card_id,
+                            last4=card_response["last4"],
+                            exp_month=old_exp_month,
+                            exp_year=old_exp_year)
+                    else:
+                        self._create_card(
+                            stripe_card_id=card_id,
+                            is_default=card_id == default_card_id,
+                            last4=card_response["last4"],
+                            exp_month=card_response["exp_month"],
+                            exp_year=card_response["exp_year"],
+                            is_deleted=card_id in we_deleted_card_ids)
+
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/customers/{}/sources?object=card".format(customer_id),
+                status_code=200,
+                text=json.dumps(customer_response["sources"]))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/customers/{}".format(customer_id),
+                status_code=200,
+                text=json.dumps(customer_response))
+
+            for card_id in deleted_card_ids:
+                self._create_card(stripe_card_id=card_id)
+                m.register_uri(
+                    "GET",
+                    "https://api.stripe.com/v1/customers/{}/sources/{}".format(customer_id, card_id),
+                    status_code=404,
+                    text=json.dumps(self._get_retrive_card_stripe_response(card_id)))
+
+        m.start()
+        self.addCleanup(m.stop)
+
+    def _get_cards_counts_after_command_call(self, cases):
+        cards_count_in_database_after_command_call = self.all_cards_count_in_db + sum([c[0] for c in cases])
+        cards_not_deleted_count_in_database_after_command_call = self.all_not_deleted_cards_count_in_db + sum(
+            [c[0] + c[4] for c in cases]) - sum([c[3] for c in cases])
+        return (cards_count_in_database_after_command_call, cards_not_deleted_count_in_database_after_command_call)
+
+    def test_sync_all_cards_for_all_customers_command(self):
+        cards_counts_after_command_call = self._get_cards_counts_after_command_call(self.cards_cases)
+
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), self.all_cards_count_in_db)
+        self.assertEqual(StripeCard.objects.count(), self.all_not_deleted_cards_count_in_db)
+        call_command("sync_all_cards_for_all_customers")
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
+        self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
+
+        for case in self.cards_cases:
+            test_case = self.test_cases[case]
+            customer = StripeCustomer.objects.get(stripe_customer_id=test_case[0])
+            # created on stripe
+            if len(test_case[1]):
+                self.assertTrue(StripeCard.objects.filter(customer=customer, stripe_card_id__in=test_case[1]).exists())
+            # not changed
+            self.assertTrue(StripeCard.objects.filter(customer=customer, stripe_card_id__in=test_case[2]).exists())
+            # updated
+            if len(test_case[3]):
+                updated_cards = StripeCard.objects.filter(customer=customer, stripe_card_id__in=test_case[3])
+                self.assertTrue(updated_cards.exists())
+                for update_case_card_id in test_case[3]:
+                    update_case = self.test_update_cases[case][update_case_card_id]
+                    updated_card = updated_cards.get(stripe_card_id=update_case_card_id)
+                    self.assertEqual(updated_card.exp_month, update_case[0])
+                    self.assertEqual(updated_card.exp_year, update_case[1])
+            # deleted on stripe
+            if len(test_case[4]):
+                self.assertTrue(StripeCard.objects.deleted().filter(customer=customer,
+                                                                    stripe_card_id__in=test_case[4]).exists())
+            # we deleted, should be restored
+            if len(test_case[5]):
+                self.assertTrue(StripeCard.objects.filter(customer=customer, stripe_card_id__in=test_case[5]).exists())
+            # changed default card on stripe
+            if test_case[6] != test_case[7]:
+                self.assertEqual(customer.default_card.stripe_card_id, test_case[7])
+            else:
+                self.assertEqual(customer.default_card.stripe_card_id, test_case[6])
+
+    def test_sync_cards_for_customers_command_with_max_argument(self):
+        max_customer_id = max(self.customer_id_case_map) // 2
+        cases_to_run = [self.customer_id_case_map[k] for k in self.customer_id_case_map if k <= max_customer_id]
+        cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
+
+        call_command("sync_all_cards_for_all_customers", max_customer_id=max_customer_id)
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
+        self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
+
+    def test_sync_cards_for_customers_command_with_min_argument(self):
+        min_customer_id = max(self.customer_id_case_map) // 3
+        cases_to_run = [self.customer_id_case_map[k] for k in self.customer_id_case_map if k >= min_customer_id]
+        cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
+
+        call_command("sync_all_cards_for_all_customers", min_customer_id=min_customer_id)
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
+        self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
+
+    def test_sync_cards_for_customers_command_with_min_and_max_argument(self):
+        min_customer_id = max(self.customer_id_case_map) // 4
+        max_customer_id = min_customer_id * 2
+        cases_to_run = [
+            self.customer_id_case_map[k]
+            for k in self.customer_id_case_map
+            if k >= min_customer_id and k <= max_customer_id
+        ]
+        cards_counts_after_command_call = self._get_cards_counts_after_command_call(cases_to_run)
+
+        call_command(
+            "sync_all_cards_for_all_customers", max_customer_id=max_customer_id, min_customer_id=min_customer_id)
+        self.assertEqual(StripeCard.objects.all_with_deleted().count(), cards_counts_after_command_call[0])
+        self.assertEqual(StripeCard.objects.count(), cards_counts_after_command_call[1])
