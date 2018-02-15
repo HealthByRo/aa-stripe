@@ -68,6 +68,10 @@ setup(
     package_data=get_package_data("aa_stripe"),
     zip_safe=False,
     install_requires=required_to_install,
+    # temporary - until the new django-jsonfield is released
+    dependency_links=[
+      "git+http://github.com/dmkoch/django-jsonfield.git@19b62ed3c02674b2ee3d61353312ffa75be373c4#egg=django-jsonfield"
+    ],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Web Environment",

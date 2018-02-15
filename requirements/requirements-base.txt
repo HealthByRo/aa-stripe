@@ -1,4 +1,4 @@
-django-jsonfield>=1.0.1
+django-jsonfield
 stripe>=1.49.0
 djangorestframework>=3.6.0
 simplejson>=3.10.0
