@@ -1,4 +1,5 @@
-django-jsonfield
+# not released yet
+# django-jsonfield>=1.1.0
 stripe>=1.49.0
 djangorestframework>=3.6.0
 simplejson>=3.10.0

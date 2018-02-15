@@ -5,3 +5,5 @@ pytest>=3.1.1
 pytest-cov>=2.5.1
 pytest-django>=3.1.2
 freezegun
+# ugly hack so tox & setup.py works well until django-jsonfield is released
+https://github.com/dmkoch/django-jsonfield/tarball/19b62ed3c02674b2ee3d61353312ffa75be373c4#egg=django-jsonfield
