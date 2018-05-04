@@ -12,11 +12,7 @@ UserModel = get_user_model()
 class TestCreatingUsers(APITestCase):
     def setUp(self):
         self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
-
-    def test_user_create(self):
-        self.assertEqual(StripeCustomer.objects.count(), 0)
-        url = reverse("stripe-customers")
-        stripe_js_response = {
+        self.stripe_js_response = {
             "id": "tok_193mTaHSTEMJ0IPXhhZ5vuTX",
             "object": "customer",
             "client_ip": None,
@@ -48,6 +44,10 @@ class TestCreatingUsers(APITestCase):
                 "metadata": {},
             },
         }
+
+    def test_user_create(self):
+        self.assertEqual(StripeCustomer.objects.count(), 0)
+        url = reverse("stripe-customers")
 
         data = {}
         response = self.client.post(url, format="json")
@@ -104,7 +104,7 @@ class TestCreatingUsers(APITestCase):
 
             # test response error
             stripe_customer_qs = StripeCustomer.objects.filter(is_created_at_stripe=True)
-            data = {"stripe_js_response": stripe_js_response}
+            data = {"stripe_js_response": self.stripe_js_response}
             self.client.force_authenticate(user=self.user)
             response = self.client.post(url, data, format="json")
             self.assertEqual(response.status_code, 400)
@@ -121,6 +121,15 @@ class TestCreatingUsers(APITestCase):
             customer = stripe_customer_qs.first()
             self.assertTrue(customer.is_active)
             self.assertEqual(customer.user, self.user)
-            self.assertEqual(customer.stripe_js_response, stripe_js_response)
+            self.assertEqual(customer.stripe_js_response, self.stripe_js_response)
             self.assertEqual(customer.stripe_customer_id, "cus_9Oop0gQ1R1ATMi")
             self.assertEqual(customer.stripe_response["id"], "cus_9Oop0gQ1R1ATMi")
+
+    def test_change_description(self):
+        customer_id = self.stripe_js_response["id"]
+        customer = StripeCustomer(user=self.user, stripe_customer_id=customer_id)
+        api_url = "https://api.stripe.com/v1/customers/{customer_id}".format(customer_id=customer_id)
+        with requests_mock.Mocker() as m:
+            m.register_uri("GET", api_url, text=json.dumps(self.stripe_js_response))
+            m.register_uri("POST", api_url, text=json.dumps(self.stripe_js_response))
+            customer.change_description("abc")

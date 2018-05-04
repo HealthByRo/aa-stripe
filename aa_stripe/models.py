@@ -67,6 +67,13 @@ class StripeCustomer(StripeBasicModel):
         customer = cls.objects.filter(user_id=user.id, is_active=True).last()
         return customer
 
+    def change_description(self, description):
+        stripe.api_key = stripe_settings.API_KEY
+        customer = stripe.Customer.retrieve(self.stripe_customer_id)
+        customer.description = description
+        customer.save()
+        return customer
+
     class Meta:
         ordering = ["id"]
 
