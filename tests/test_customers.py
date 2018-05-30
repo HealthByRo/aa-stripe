@@ -88,10 +88,10 @@ class TestCreatingUsers(BaseTestCase):
                         "sources": {
                             "object": "list",
                             "data": [
-
+                                {"id": "card_xyz", "object": "card"}
                             ],
                             "has_more": False,
-                            "total_count": 0,
+                            "total_count": 1,
                             "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/sources"
                         },
                         "subscriptions": {
@@ -127,6 +127,7 @@ class TestCreatingUsers(BaseTestCase):
             self.assertEqual(customer.stripe_js_response, self.stripe_js_response)
             self.assertEqual(customer.stripe_customer_id, "cus_9Oop0gQ1R1ATMi")
             self.assertEqual(customer.stripe_response["id"], "cus_9Oop0gQ1R1ATMi")
+            self.assertEqual(customer.sources, [{"id": "card_xyz", "object": "card"}])
 
     def test_change_description(self):
         customer_id = self.stripe_js_response["id"]
