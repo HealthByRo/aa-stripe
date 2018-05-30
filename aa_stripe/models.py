@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import logging
 from decimal import Decimal
 from time import sleep
 
@@ -26,6 +27,8 @@ from aa_stripe.utils import timestamp_to_timezone_aware_date
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 
+logger = logging.getLogger("aa-stripe")
+
 # signals
 webhook_pre_parse = dispatch.Signal(providing_args=["instance", "event_type", "event_model", "event_action"])
 
@@ -45,6 +48,11 @@ class StripeCustomer(StripeBasicModel):
     stripe_customer_id = models.CharField(max_length=255, db_index=True)
     is_active = models.BooleanField(default=True)
     is_created_at_stripe = models.BooleanField(default=False)
+    sources = JSONField(default=[])
+
+    def __init__(self, *args, **kwargs):
+        super(StripeCustomer, self).__init__(*args, **kwargs)
+        self._old_sources = self.sources  # to track changes in post_save
 
     def create_at_stripe(self):
         if self.is_created_at_stripe:
@@ -68,10 +76,22 @@ class StripeCustomer(StripeBasicModel):
         return customer
 
     def change_description(self, description):
-        stripe.api_key = stripe_settings.API_KEY
-        customer = stripe.Customer.retrieve(self.stripe_customer_id)
-        customer.description = description
-        customer.save()
+        customer = self.retrieve_from_stripe()
+        if customer:
+            customer.description = description
+            customer.save()
+        return customer
+
+    def retrieve_from_stripe(self):
+        if self.stripe_customer_id:
+            stripe.api_key = stripe_settings.API_KEY
+            return stripe.Customer.retrieve(self.stripe_customer_id)
+
+    def refresh_from_stripe(self):
+        customer = self.retrieve_from_stripe()
+        if customer:
+            self.sources = customer.sources.data
+            self.save(update_fields=["sources"])
         return customer
 
     class Meta:
@@ -548,6 +568,15 @@ class StripeWebhook(models.Model):
         elif action == "deleted":
             StripeCoupon.objects.filter(coupon_id=coupon_id, created=created).delete()
 
+    def _parse_customer_notification(self, action):
+        customer_id = self.raw_data["data"]["object"]["id"]
+        if action == "updated":
+            try:
+                customer = StripeCustomer.objects.get(stripe_customer_id=customer_id)
+                customer.refresh_from_stripe()
+            except (StripeCustomer.DoesNotExist, stripe.StripeError) as e:
+                logger.warning("[AA-Stripe] cannot parse customer.updated webhook: {}".format(e))
+
     def parse(self, save=False):
         if self.is_parsed:
             raise StripeWebhookAlreadyParsed
@@ -566,6 +595,8 @@ class StripeWebhook(models.Model):
         if event_model:
             if event_model == "coupon":
                 self._parse_coupon_notification(event_action)
+            elif event_model == "customer":
+                self._parse_customer_notification(event_action)
 
         self.is_parsed = True
         if save:

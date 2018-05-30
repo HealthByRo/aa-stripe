@@ -3,14 +3,21 @@ from datetime import datetime
 
 import requests_mock
 import simplejson as json
+from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from stripe.webhook import WebhookSignature
 
-from aa_stripe.models import StripeCoupon
+from aa_stripe.models import StripeCoupon, StripeCustomer
 from aa_stripe.settings import stripe_settings
+
+UserModel = get_user_model()
 
 
 class BaseTestCase(APITestCase):
+    def _create_user(self):
+        self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
+        return self.user
+
     def _create_coupon(self, coupon_id, amount_off=None, duration=StripeCoupon.DURATION_FOREVER, metadata=None):
         with requests_mock.Mocker() as m:
             # create a simple coupon which will be used for tests
@@ -36,6 +43,19 @@ class BaseTestCase(APITestCase):
                 duration=duration,
                 amount_off=amount_off
             )
+
+    def _create_customer(self, is_active=True, is_created_at_stripe=True):
+        if hasattr(self, "user"):
+            user = self.user
+        else:
+            user = self._create_user()
+
+        self.customer = StripeCustomer.objects.create(
+            user=user, is_active=is_active,
+            stripe_customer_id="cus_xyz" if is_created_at_stripe else "",
+            is_created_at_stripe=is_created_at_stripe
+        )
+        return self.customer
 
     def _get_signature_headers(self, payload):
         timestamp = int(time.time())

@@ -189,6 +189,12 @@ Arguments:
 
 Both ``event_model`` and ``event_action`` equal to ``None`` if ``event_type`` is a ``ping`` event.
 
+Updating customer card data
+---------------------------
+StripeCustomer.sources list is updated after receiving Webhook from Stripe about updating the customer object. It is a list of `Stripe source <https://stripe.com/docs/api#sources>`_ objects.
+
+Another way of updating the credit card information is to run the `refresh_customers` management command in cron.
+
 Support
 =======
 * Django 1.11
