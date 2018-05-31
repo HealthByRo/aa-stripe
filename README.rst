@@ -13,6 +13,8 @@ At the moment the library supports:
 * subscriptions
 * webhooks
 
+**Support for Python 2.7 has been dropped since aa-stripe 0.6.0.**
+
 Installation
 ============
 Add ``aa_stripe`` to your app's ``INSTALLED_APPS``, and also set ``STRIPE_API_KEY`` in project settings. After all please migrate the app (``./manage.py migrate aa_stripe``).
@@ -189,10 +191,16 @@ Arguments:
 
 Both ``event_model`` and ``event_action`` equal to ``None`` if ``event_type`` is a ``ping`` event.
 
+Updating customer card data
+---------------------------
+StripeCustomer.sources list is updated after receiving Webhook from Stripe about updating the customer object. It is a list of `Stripe source <https://stripe.com/docs/api#sources>`_ objects.
+
+Another way of updating the credit card information is to run the `refresh_customers` management command in cron.
+
 Support
 =======
 * Django 1.11
-* Python 2.7, 3.4-3.6
+* Python 3.4-3.6
 
 .. |travis| image:: https://secure.travis-ci.org/ArabellaTech/aa-stripe.svg?branch=master
 .. _travis: http://travis-ci.org/ArabellaTech/aa-stripe

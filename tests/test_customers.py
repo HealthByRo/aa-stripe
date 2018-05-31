@@ -1,17 +1,20 @@
+import mock
 import requests_mock
 import simplejson as json
+import stripe
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from rest_framework.reverse import reverse
-from rest_framework.test import APITestCase
+from tests.test_utils import BaseTestCase
 
 from aa_stripe.models import StripeCustomer
 
 UserModel = get_user_model()
 
 
-class TestCreatingUsers(APITestCase):
+class TestCreatingUsers(BaseTestCase):
     def setUp(self):
-        self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
+        self.user = self._create_user()
         self.stripe_js_response = {
             "id": "tok_193mTaHSTEMJ0IPXhhZ5vuTX",
             "object": "customer",
@@ -85,10 +88,10 @@ class TestCreatingUsers(APITestCase):
                         "sources": {
                             "object": "list",
                             "data": [
-
+                                {"id": "card_xyz", "object": "card"}
                             ],
                             "has_more": False,
-                            "total_count": 0,
+                            "total_count": 1,
                             "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/sources"
                         },
                         "subscriptions": {
@@ -124,6 +127,7 @@ class TestCreatingUsers(APITestCase):
             self.assertEqual(customer.stripe_js_response, self.stripe_js_response)
             self.assertEqual(customer.stripe_customer_id, "cus_9Oop0gQ1R1ATMi")
             self.assertEqual(customer.stripe_response["id"], "cus_9Oop0gQ1R1ATMi")
+            self.assertEqual(customer.sources, [{"id": "card_xyz", "object": "card"}])
 
     def test_change_description(self):
         customer_id = self.stripe_js_response["id"]
@@ -133,3 +137,66 @@ class TestCreatingUsers(APITestCase):
             m.register_uri("GET", api_url, text=json.dumps(self.stripe_js_response))
             m.register_uri("POST", api_url, text=json.dumps(self.stripe_js_response))
             customer.change_description("abc")
+
+
+class TestRefreshCustomersCommand(BaseTestCase):
+    def setUp(self):
+        self._create_customer(is_active=False, is_created_at_stripe=False)
+        self._create_customer()
+
+    @mock.patch("aa_stripe.models.StripeCustomer.refresh_from_stripe")
+    def test_command(self, mocked_update):
+        call_command("refresh_customers")
+        mocked_update.assert_called_once()
+
+        # the command should not exit in case of an error during update (for example customer does not exist)
+        mocked_update.side_effect = stripe.APIError
+        call_command("refresh_customers")
+
+    @requests_mock.Mocker()
+    def test_customer_refresh_from_stripe(self, m):
+        self._create_customer(is_created_at_stripe=False)
+        self.customer.refresh_from_stripe()  # API not called (no stripe_customer_id is set)
+
+        self.customer.is_created_at_stripe = True
+        self.customer.stripe_customer_id = "cus_xyz"
+        self.customer.save()
+
+        api_url = "https://api.stripe.com/v1/customers/cus_xyz"
+        api_response = {
+            "id": "cus_xyz",
+            "object": "customer",
+            "account_balance": 0,
+            "created": 1476810921,
+            "currency": "usd",
+            "default_source": None,
+            "delinquent": False,
+            "description": None,
+            "discount": None,
+            "email": None,
+            "livemode": False,
+            "metadata": {
+            },
+            "shipping": None,
+            "sources": {
+                "object": "list",
+                "data": [
+                    {"id": "card_xyz", "object": "card"}
+                ],
+                "has_more": False,
+                "total_count": 1,
+                "url": "/v1/customers/cus_xyz/sources"
+            },
+            "subscriptions": {
+                "object": "list",
+                "data": [
+
+                ],
+                "has_more": False,
+                "total_count": 0,
+                "url": "/v1/customers/cus_xyz/subscriptions"
+            }
+        }
+        m.register_uri("GET", api_url, text=json.dumps(api_response))
+        self.customer.refresh_from_stripe()
+        self.assertEqual(self.customer.sources, [{"id": "card_xyz", "object": "card"}])

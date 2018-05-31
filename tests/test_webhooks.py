@@ -5,6 +5,7 @@ from uuid import uuid4
 import mock
 import requests_mock
 import simplejson as json
+import stripe
 from django.contrib.sites.models import Site
 from django.core import mail
 from django.core.management import call_command
@@ -486,3 +487,81 @@ class TestWebhook(BaseTestCase):
             # make sure the --site parameter works - pass not existing site id - should fail
             with self.assertRaises(Site.DoesNotExist):
                 call_command("check_pending_webhooks", site=-1)
+
+    @requests_mock.Mocker()
+    def test_customer_update(self, m):
+        payload = {
+            "id": "evt_xyz",
+            "object": "event",
+            "api_version": "2018-01-01",
+            "created": 1503477866,
+            "data": {
+                "object": {
+                    "id": "cus_xyz",
+                    "object": "customer",
+                    "sources": [
+                        {"id": "card_xyz"}
+                    ]
+                }
+            },
+            "request": {
+                "id": "req_putcEg4hE9bkUb",
+                "idempotency_key": None
+            },
+            "type": "customer.updated"
+        }
+        customer_api_response = {
+            "id": "cus_xyz",
+            "object": "customer",
+            "account_balance": 0,
+            "created": 1476810921,
+            "currency": "usd",
+            "default_source": None,
+            "delinquent": False,
+            "description": None,
+            "discount": None,
+            "email": None,
+            "livemode": False,
+            "metadata": {
+            },
+            "shipping": None,
+            "sources": {
+                "object": "list",
+                "data": [  # different than in Webhook (data from Webhook is not always up to date!)
+                    {"id": "card_xyz", "object": "card"}
+                ],
+                "has_more": False,
+                "total_count": 1,
+                "url": "/v1/customers/cus_xyz/sources"
+            },
+            "subscriptions": {
+                "object": "list",
+                "data": [
+
+                ],
+                "has_more": False,
+                "total_count": 0,
+                "url": "/v1/customers/cus_xyz/subscriptions"
+            }
+        }
+
+        self._create_customer()
+        m.register_uri("GET", "https://api.stripe.com/v1/customers/cus_xyz", text=json.dumps(customer_api_response))
+        url = reverse("stripe-webhooks")
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(url, data=payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.sources, [{"id": "card_xyz", "object": "card"}])
+
+        # make sure that any Stripe API error will not cause 500 error
+        self.customer.sources = []
+        self.customer.save()
+        payload["id"] = "evt_abc"
+        self.client.credentials(**self._get_signature_headers(payload))
+        with mock.patch("aa_stripe.models.StripeCustomer.refresh_from_stripe") as mocked_refresh:
+            mocked_refresh.side_effect = stripe.APIError("error")
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.customer.refresh_from_db()
+            self.assertEqual(self.customer.sources, [])
