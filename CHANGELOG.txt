@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 ## [0.6.0]
 ### Added
 - updating customer CC information (refresh_customers command and customer.updated webhook)
+### Removed
+- support for Python 2.7
 
 ## [0.5.0]
 ### Added
