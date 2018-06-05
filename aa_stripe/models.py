@@ -569,8 +569,12 @@ class StripeWebhook(models.Model):
         elif action == "deleted":
             StripeCoupon.objects.filter(coupon_id=coupon_id, created=created).delete()
 
-    def _parse_customer_notification(self, action):
-        customer_id = self.raw_data["data"]["object"]["id"]
+    def _parse_customer_notification(self, model, action):
+        if model == "customer.source":
+            customer_id = self.raw_data["data"]["object"]["customer"]
+        else:
+            customer_id = self.raw_data["data"]["object"]["id"]
+
         if action == "updated":
             try:
                 customer = StripeCustomer.objects.get(stripe_customer_id=customer_id)
@@ -596,8 +600,8 @@ class StripeWebhook(models.Model):
         if event_model:
             if event_model == "coupon":
                 self._parse_coupon_notification(event_action)
-            elif event_model == "customer":
-                self._parse_customer_notification(event_action)
+            elif event_model in ["customer", "customer.source"]:
+                self._parse_customer_notification(event_model, event_action)
 
         self.is_parsed = True
         if save:

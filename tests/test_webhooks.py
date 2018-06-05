@@ -554,6 +554,21 @@ class TestWebhook(BaseTestCase):
         self.customer.refresh_from_db()
         self.assertEqual(self.customer.sources, [{"id": "card_xyz", "object": "card"}])
 
+        # customer should also be updated when one of it's sources is updated
+        # (although if a card is removed or added, Stripe will trigger customer.updated webhook)
+        payload["type"] = "customer.source.updated"
+        payload["id"] = "evt_123"
+        payload["data"]["object"] = {
+            "id": "card_1BhOfILoWm2f6pRwe4gkIJc7",
+            "object": "card",
+            "customer": "cus_xyz"
+        }
+        self.client.credentials(**self._get_signature_headers(payload))
+        with mock.patch("aa_stripe.models.StripeCustomer.refresh_from_stripe") as mocked_refresh:
+            response = self.client.post(url, data=payload, format="json")
+            self.assertEqual(response.status_code, 201, response.content)
+            mocked_refresh.assert_called()
+
         # make sure that any Stripe API error will not cause 500 error
         self.customer.sources = []
         self.customer.save()
