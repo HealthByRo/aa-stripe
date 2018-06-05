@@ -1,5 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
+## [0.6.1]
+### Fixed
+- customer data is updated after updating one of its sources (customer.source.updated webhook)
+
 ## [0.6.0]
 ### Added
 - updating customer CC information (refresh_customers command and customer.updated webhook)
