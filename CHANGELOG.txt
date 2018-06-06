@@ -1,5 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
+## [0.6.2]
+### Added
+- missing StripeCustomer.default_source field
+
 ## [0.6.1]
 ### Fixed
 - customer data is updated after updating one of its sources (customer.source.updated webhook)

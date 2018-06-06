@@ -49,6 +49,7 @@ class StripeCustomer(StripeBasicModel):
     is_active = models.BooleanField(default=True)
     is_created_at_stripe = models.BooleanField(default=False)
     sources = JSONField(default=[])
+    default_source = models.CharField(max_length=255, blank=True, help_text="ID of default source from Stripe")
 
     def __init__(self, *args, **kwargs):
         super(StripeCustomer, self).__init__(*args, **kwargs)
@@ -92,8 +93,17 @@ class StripeCustomer(StripeBasicModel):
         customer = self.retrieve_from_stripe()
         if customer:
             self.sources = customer.sources.data
+            self.default_source = customer.default_source
             self.save(update_fields=["sources"])
         return customer
+
+    def get_default_source_data(self):
+        if not self.default_source:
+            return
+
+        for source in self.sources:
+            if source["id"] == self.default_source:
+                return source
 
     class Meta:
         ordering = ["id"]

@@ -169,7 +169,7 @@ class TestRefreshCustomersCommand(BaseTestCase):
             "account_balance": 0,
             "created": 1476810921,
             "currency": "usd",
-            "default_source": None,
+            "default_source": "card_xyz",
             "delinquent": False,
             "description": None,
             "discount": None,
@@ -200,3 +200,14 @@ class TestRefreshCustomersCommand(BaseTestCase):
         m.register_uri("GET", api_url, text=json.dumps(api_response))
         self.customer.refresh_from_stripe()
         self.assertEqual(self.customer.sources, [{"id": "card_xyz", "object": "card"}])
+        self.assertEqual(self.customer.default_source, "card_xyz")
+
+    def test_get_default_source(self):
+        self._create_customer()
+        self.customer.sources = [{"id": "card_abc"}, {"id": "card_xyz"}]
+        self.customer.save()
+
+        self.assertIsNone(self.customer.get_default_source_data())
+        self.customer.default_source = "card_xyz"
+        self.customer.save()
+        self.assertEqual(self.customer.get_default_source_data(), {"id": "card_xyz"})
