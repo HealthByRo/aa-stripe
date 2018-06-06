@@ -93,8 +93,8 @@ class StripeCustomer(StripeBasicModel):
         customer = self.retrieve_from_stripe()
         if customer:
             self.sources = customer.sources.data
-            self.default_source = customer.default_source
-            self.save(update_fields=["sources"])
+            self.default_source = customer.default_source or ""
+            self.save()
         return customer
 
     def get_default_source_data(self):
