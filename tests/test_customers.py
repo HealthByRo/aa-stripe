@@ -76,7 +76,7 @@ class TestCreatingUsers(BaseTestCase):
                         "account_balance": 0,
                         "created": 1476810921,
                         "currency": "usd",
-                        "default_source": None,
+                        "default_source": "card_xyz",
                         "delinquent": False,
                         "description": None,
                         "discount": None,
@@ -128,6 +128,7 @@ class TestCreatingUsers(BaseTestCase):
             self.assertEqual(customer.stripe_customer_id, "cus_9Oop0gQ1R1ATMi")
             self.assertEqual(customer.stripe_response["id"], "cus_9Oop0gQ1R1ATMi")
             self.assertEqual(customer.sources, [{"id": "card_xyz", "object": "card"}])
+            self.assertEqual(customer.default_source, "card_xyz")
 
     def test_change_description(self):
         customer_id = self.stripe_js_response["id"]

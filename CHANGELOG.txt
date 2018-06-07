@@ -1,5 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
+## [0.6.5]
+### Fixed
+- setting StripeCustomer.default_source when creating a new customer from API
+
 ## [0.6.4]
 ### Added
 - refresh_customers command optimization

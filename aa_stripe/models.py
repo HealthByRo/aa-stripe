@@ -67,6 +67,7 @@ class StripeCustomer(StripeBasicModel):
         self.stripe_customer_id = customer["id"]
         self.stripe_response = customer
         self.sources = customer.sources.data
+        self.default_source = customer.default_source
         self.is_created_at_stripe = True
         self.save()
         return self
