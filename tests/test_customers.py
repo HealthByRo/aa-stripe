@@ -156,7 +156,7 @@ class TestRefreshCustomersCommand(BaseTestCase):
                     "data": sources,
                     "has_more": False,
                     "total_count": 1,
-                    "url": f"/v1/customers/{customer_id}/sources"
+                    "url": "/v1/customers/{}/sources".format(customer_id)
                 },
                 "default_source": default_source
             }
@@ -178,7 +178,7 @@ class TestRefreshCustomersCommand(BaseTestCase):
             {"text": "", "status_code": 500},  # make sure the command will try again
             {"text": json.dumps(stripe_response_part2), "status_code": 200}
         ])
-        call_command("refresh_customers")
+        call_command("refresh_customers", verbosity=2)
         self.active_customer.refresh_from_db()
         self.assertEqual(self.active_customer.get_default_source_data(), {"id": "card_1"})
 
