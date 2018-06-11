@@ -147,39 +147,38 @@ class TestRefreshCustomersCommand(BaseTestCase):
 
     @requests_mock.Mocker()
     def test_command(self, m):
-        customer1_data = {
-            "id": "cus_xyz",
-            "object": "customer",
-            "sources": [
-                {"id": "card_1"}
-            ],
-            "default_source": "card_1"
-        }
-        customer2_data = customer1_data.copy()
-        customer2_data["id"] = "cus_2"
-        customer2_data["sources"] = [{"id": "card_2"}]
-        customer2_data["default_source"] = "card_2"
-        customer2_data = customer1_data.copy()
-        customer2_data["id"] = "cus_2"
-        customer2_data["sources"] = []
-        customer2_data["default_source"] = None
+        def get_customer_data(customer_id, sources, default_source=None):
+            return {
+                "id": customer_id,
+                "object": "customer",
+                "sources": {
+                    "object": "list",
+                    "data": sources,
+                    "has_more": False,
+                    "total_count": 1,
+                    "url": "/v1/customers/{}/sources".format(customer_id)
+                },
+                "default_source": default_source
+            }
+
         stripe_response_part1 = {
             "object": "list",
             "url": "/v1/customers",
-            "has_more": False,
-            "data": [
-                customer1_data
-            ]
+            "has_more": True,
+            "data": [get_customer_data("cus_xyz", [{"id": "card_1"}], default_source="card_1")]
         }
-        stripe_response_part2 = stripe_response_part1.copy()
-        stripe_response_part2["has_more"] = False
-        stripe_response_part2["data"] = [customer2_data]
+        stripe_response_part2 = {
+            "object": "list",
+            "url": "/v1/customers",
+            "has_more": False,
+            "data": [get_customer_data("cus_b", [{"id": "card_2"}])]
+        }
         m.register_uri("GET", "https://api.stripe.com/v1/customers", text=json.dumps(stripe_response_part1))
         m.register_uri("GET", "https://api.stripe.com/v1/customers?starting_after=cus_xyz", [
             {"text": "", "status_code": 500},  # make sure the command will try again
-            {"text": json.dumps(stripe_response_part2), "status_code": "200"}
+            {"text": json.dumps(stripe_response_part2), "status_code": 200}
         ])
-        call_command("refresh_customers")
+        call_command("refresh_customers", verbosity=2)
         self.active_customer.refresh_from_db()
         self.assertEqual(self.active_customer.get_default_source_data(), {"id": "card_1"})
 
