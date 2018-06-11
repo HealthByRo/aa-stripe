@@ -32,7 +32,7 @@ class Command(BaseCommand):
 
             for stripe_customer in response["data"]:
                 updated_count += StripeCustomer.objects.filter(stripe_customer_id=stripe_customer["id"]).update(
-                    sources=stripe_customer["sources"], default_source=stripe_customer["default_source"]
+                    sources=stripe_customer["sources"]["data"], default_source=stripe_customer["default_source"]
                 )
 
             if not response["has_more"]:
