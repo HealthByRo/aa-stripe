@@ -140,6 +140,100 @@ class TestCreatingUsers(BaseTestCase):
             customer.change_description("abc")
 
 
+class TestCustomerDetailsAPI(BaseTestCase):
+    def setUp(self):
+        self._create_user()
+        self.second_user = self._create_user(email="second@user.com", set_self=False)
+        self._create_customer(user=self.user, customer_id="cus_xyz", sources=[{"id": "card_1"}],
+                              default_source="card_1")
+        self.url = reverse("stripe-customer-details", args=["cus_xyz"])
+
+    def test_api(self):
+        # other user should not be able to update other user's customer
+        self.client.force_authenticate(user=self.second_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 404)
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {
+            "id": self.customer.id,
+            "user": self.user.id,
+            "stripe_customer_id": "cus_xyz",
+            "is_active": True,
+            "sources": [{"id": "card_1"}],
+            "default_source": "card_1",
+            "default_source_data": {"id": "card_1"}
+        })
+
+        response = self.client.patch(self.url, {}, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {"stripe_js_response": ["This field is required."]})
+
+        # test changing card with incorrect data
+        data = {"stripe_js_response": {"card": {}}}
+        response = self.client.patch(self.url, data, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {"stripe_js_response": [
+            "This field must contain JSON data from Stripe JS."
+        ]})
+
+        # test adding new default card
+        # customer response after update
+        stripe_customer_response = {
+            "id": "cus_xyz",
+            "object": "customer",
+            "created": 1476810921,
+            "default_source": "card_2",
+            "sources": {
+                "object": "list",
+                "data": [
+                    {"id": "card_1", "object": "card"},
+                    {"id": "card_2", "object": "card"}
+                ],
+                "has_more": False,
+                "total_count": 1,
+                "url": "/v1/customers/cus_xyz/sources"
+            }
+        }
+        stripe_js_response = {
+            "id": "tok_193mTaHSTEMJ0IPXhhZ5vuTX",
+            "card": {
+                "id": "card_2",
+                "object": "card",
+                "brand": "Visa",
+                "exp_month": 8,
+                "exp_year": 2017,
+                "last4": "4242",
+            }
+        }
+        data["stripe_js_response"] = stripe_js_response
+        api_url = "https://api.stripe.com/v1/customers/cus_xyz"
+        with requests_mock.Mocker() as m:
+            m.register_uri("GET", api_url, text=json.dumps(stripe_customer_response))
+            m.register_uri("POST", api_url, [
+                {
+                    "status_code": 400,
+                    "text": json.dumps({
+                        "error": {"message": "Some error.", "type": "customer_error", "param": "",
+                                  "code": "error"}
+                    }),
+                },
+                {"status_code": 200, "text": json.dumps(stripe_customer_response)}
+            ])
+            # test in case of error from Stripe
+            response = self.client.patch(self.url, data, format="json")
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.data, {"stripe_error": "Some error."})
+
+            response = self.client.patch(self.url, data, format="json")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(dict(response.data["default_source_data"]), {
+                "id": "card_2", "object": "card"
+            })
+
+
 class TestRefreshCustomersCommand(BaseTestCase):
     def setUp(self):
         self._create_customer(is_active=False, is_created_at_stripe=False)
@@ -180,7 +274,7 @@ class TestRefreshCustomersCommand(BaseTestCase):
         ])
         call_command("refresh_customers", verbosity=2)
         self.active_customer.refresh_from_db()
-        self.assertEqual(self.active_customer.get_default_source_data(), {"id": "card_1"})
+        self.assertEqual(self.active_customer.default_source_data, {"id": "card_1"})
 
         # the command should fail if call to api fails more than 5 times
         with mock.patch("stripe.Customer.list") as mocked_list:
@@ -190,13 +284,7 @@ class TestRefreshCustomersCommand(BaseTestCase):
 
     @requests_mock.Mocker()
     def test_customer_refresh_from_stripe(self, m):
-        self._create_customer(is_created_at_stripe=False)
-        self.customer.refresh_from_stripe()  # API not called (no stripe_customer_id is set)
-
-        self.customer.is_created_at_stripe = True
-        self.customer.stripe_customer_id = "cus_xyz"
-        self.customer.save()
-
+        self._create_customer()
         api_url = "https://api.stripe.com/v1/customers/cus_xyz"
         api_response = {
             "id": "cus_xyz",
@@ -242,7 +330,7 @@ class TestRefreshCustomersCommand(BaseTestCase):
         self.customer.sources = [{"id": "card_abc"}, {"id": "card_xyz"}]
         self.customer.save()
 
-        self.assertIsNone(self.customer.get_default_source_data())
+        self.assertIsNone(self.customer.default_source_data)
         self.customer.default_source = "card_xyz"
         self.customer.save()
-        self.assertEqual(self.customer.get_default_source_data(), {"id": "card_xyz"})
+        self.assertEqual(self.customer.default_source_data, {"id": "card_xyz"})

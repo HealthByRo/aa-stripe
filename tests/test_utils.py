@@ -14,9 +14,11 @@ UserModel = get_user_model()
 
 
 class BaseTestCase(APITestCase):
-    def _create_user(self):
-        self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
-        return self.user
+    def _create_user(self, email="foo@bar.bar", set_self=True):
+        user = UserModel.objects.create(email=email, username=email.split("@")[0], password="dump-password")
+        if set_self:
+            self.user = user
+        return user
 
     def _create_coupon(self, coupon_id, amount_off=None, duration=StripeCoupon.DURATION_FOREVER, metadata=None):
         with requests_mock.Mocker() as m:
@@ -44,16 +46,21 @@ class BaseTestCase(APITestCase):
                 amount_off=amount_off
             )
 
-    def _create_customer(self, is_active=True, is_created_at_stripe=True):
-        if hasattr(self, "user"):
-            user = self.user
-        else:
-            user = self._create_user()
+    def _create_customer(self, user=None, customer_id="cus_xyz", sources=None, default_source="", is_active=True,
+                         is_created_at_stripe=True):
+        if not user:
+            if hasattr(self, "user"):
+                user = self.user
+            else:
+                user = self._create_user()
 
+        sources = sources or []
         self.customer = StripeCustomer.objects.create(
             user=user, is_active=is_active,
-            stripe_customer_id="cus_xyz" if is_created_at_stripe else "",
-            is_created_at_stripe=is_created_at_stripe
+            stripe_customer_id=customer_id if is_created_at_stripe else "",
+            is_created_at_stripe=is_created_at_stripe,
+            sources=sources,
+            default_source=default_source
         )
         return self.customer
 
