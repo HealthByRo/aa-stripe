@@ -1,5 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
+## [0.7.0]
+### Added
+- CustomerDetailsAPI endpoint to add new payment sources for a customer
+## Removed
+- StripeCustomer.get_default_source_data method
+## Added
+- StripeCustomer.default_source_data property
+
 ## [0.6.6]
 ### Fixed
 - refresh_customers command

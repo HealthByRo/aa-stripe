@@ -80,25 +80,39 @@ class StripeCustomer(StripeBasicModel):
 
     def change_description(self, description):
         customer = self.retrieve_from_stripe()
-        if customer:
-            customer.description = description
-            customer.save()
+        customer.description = description
+        customer.save()
         return customer
 
     def retrieve_from_stripe(self):
-        if self.stripe_customer_id:
-            stripe.api_key = stripe_settings.API_KEY
-            return stripe.Customer.retrieve(self.stripe_customer_id)
+        stripe.api_key = stripe_settings.API_KEY
+        return stripe.Customer.retrieve(self.stripe_customer_id)
+
+    def _update_from_stripe_object(self, stripe_customer):
+        self.sources = stripe_customer.sources.data
+        self.default_source = stripe_customer.default_source or ""
+        self.save()
 
     def refresh_from_stripe(self):
         customer = self.retrieve_from_stripe()
-        if customer:
-            self.sources = customer.sources.data
-            self.default_source = customer.default_source or ""
-            self.save()
+        self._update_from_stripe_object(customer)
         return customer
 
-    def get_default_source_data(self):
+    def add_new_source(self, source_token, stripe_js_response=None):
+        """Add new source (for example: a new card) to the customer
+
+        The new source will be automatically set as customer's default payment source.
+        Passing stripe_js_response is optional. If set, StripeCustomer.stripe_js_response will be updated.
+        """
+        customer = self.retrieve_from_stripe()
+        customer.source = source_token
+        customer.save()
+        if stripe_js_response:
+            self.stripe_js_response = stripe_js_response
+        self._update_from_stripe_object(customer)
+
+    @property
+    def default_source_data(self):
         if not self.default_source:
             return
 
