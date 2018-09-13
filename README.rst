@@ -51,13 +51,15 @@ First of all, make sure to obtain Stripe user token from the Stripe API, and the
   customer = stripe.Customer.create(source=data["id"]) # data is the response dictionary from Stripe API (in front-end)
   token = StripeToken.objects.create(user=request.user, content=data,
                                      customer_id=customer["id"])
-  
+
 To charge users, create an instance of ``aa_stripe.models.StripeCharge`` model and then call the ``charge()`` method:
 ::
 
   c = StripeCharge.objects.create(user=user, token=token, amount=500,  # in cents
                                   description="Charge for stuff",  # sent to Stripe
-                                  comment="Comment for internal information")
+                                  comment="Comment for internal information",
+                                  statement_descriptor="My Company" # sent to Stripe
+  )
   c.charge()
 
 Upon successfull charge also sends signal, ``stripe_charge_succeeded`` with instance as single parameter.
@@ -95,7 +97,7 @@ Utility functions for subscriptions
 * subscription.refresh_from_stripe() - gets updated subscription data from Stripe. Example usage: parsing webhooks - when webhook altering subscription is received it is good practice to verify the subscription at Stripe before making any actions.
 * subscription.cancel() - cancels subscription at Stripe.
 * StripeSubscription.get_subcriptions_for_cancel() - returns all subscriptions that should be canceled. Stripe does not support end date for subscription so it is up the user to implement expiration mechanism. Subscription has end_date that can be used for that.
-* StripeSubscription.end_subscriptions() - cancels all subscriptions on Stripe that has passed end date. Use with caution, check internal comments. 
+* StripeSubscription.end_subscriptions() - cancels all subscriptions on Stripe that has passed end date. Use with caution, check internal comments.
 * management command: end_subscription.py. Terminates outdated subscriptions in a safe way. In case of error returns it at the end, using Sentry if available or in console. Should be used in cron script. By default sets at_period_end=True.
 
 Subscription Plans

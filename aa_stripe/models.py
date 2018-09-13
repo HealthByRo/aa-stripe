@@ -342,6 +342,7 @@ class StripeCharge(StripeBasicModel):
     content_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField(null=True, db_index=True)
     source = generic.GenericForeignKey('content_type', 'object_id')
+    statement_descriptor = models.CharField(max_length=22, blank=True)
 
     def charge(self):
         self.refresh_from_db()  # to minimize the chance of double charging
@@ -353,13 +354,17 @@ class StripeCharge(StripeBasicModel):
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         self.customer = customer
         if customer:
+            params = {
+                "amount": self.amount,
+                "currency": "usd",
+                "customer": customer.stripe_customer_id,
+                "description": self.description
+            }
+            if self.statement_descriptor:
+                params["statement_descriptor"] = self.statement_descriptor
+
             try:
-                stripe_charge = stripe.Charge.create(
-                    amount=self.amount,
-                    currency="usd",
-                    customer=customer.stripe_customer_id,
-                    description=self.description
-                )
+                stripe_charge = stripe.Charge.create(**params)
             except stripe.error.CardError as e:
                 self.charge_attempt_failed = True
                 self.is_charged = False
