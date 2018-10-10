@@ -29,4 +29,4 @@ def pytest_configure():
     )
     django.setup()
     call_command("migrate")
-    call_command("makemigrations", "--check")
+    call_command("makemigrations", "--dry-run", "--check")
