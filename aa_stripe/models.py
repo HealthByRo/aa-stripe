@@ -206,8 +206,10 @@ class StripeCoupon(StripeBasicModel):
     max_redemptions = models.PositiveIntegerField(
         blank=True, null=True,
         help_text=_("Maximum number of times this coupon can be redeemed, in total, before it is no longer valid."))
-    metadata = JSONField(help_text=_("Set of key/value pairs that you can attach to an object. It can be useful for "
-                                     "storing additional information about the object in a structured format."))
+    metadata = JSONField(
+        blank=True, null=False, default={},
+        help_text=_("Set of key/value pairs that you can attach to an object. It can be useful for "
+                    "storing additional information about the object in a structured format."))
     percent_off = models.PositiveIntegerField(
         blank=True, null=True,
         help_text=_("Percent that will be taken off the subtotal of any invoicesfor this customer for the duration of "
