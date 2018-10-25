@@ -26,7 +26,7 @@ class Command(BaseCommand):
             try:
                 c.charge()
                 sleep(0.25)  # 4 requests per second tops
-            except Exception as e:
+            except Exception:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 try:
                     if client.is_enabled():
