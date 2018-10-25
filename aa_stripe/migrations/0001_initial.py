@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 
 import django.db.models.deletion
-import jsonfield.fields
+import django_extensions.db.fields.json
 from django.conf import settings
 from django.db import migrations, models
 
@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created', models.DateField(auto_now_add=True)),
                 ('updated', models.DateTimeField(auto_now=True)),
-                ('content', jsonfield.fields.JSONField(default=dict)),
+                ('content', django_extensions.db.fields.json.JSONField(default=dict)),
                 ('customer_id', models.CharField(max_length=255)),
                 ('is_active', models.BooleanField(default=True)),
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=USER_MODEL)),

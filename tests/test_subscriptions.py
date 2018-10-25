@@ -19,7 +19,7 @@ class TestSubscriptions(TestCase):
     def setUp(self):
         self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
         self.customer = StripeCustomer.objects.create(
-            user=self.user, stripe_customer_id="example", stripe_js_response="foo")
+            user=self.user, stripe_customer_id="example", stripe_js_response='"foo"')
         self.plan = StripeSubscriptionPlan.objects.create(
             amount=100,
             is_created_at_stripe=True,
