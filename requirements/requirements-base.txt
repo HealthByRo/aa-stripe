@@ -1,5 +1,5 @@
 django-jsonfield>=1.0.1
-stripe>=2.10,<2.11
+stripe>=2.11,<2.12
 djangorestframework>=3.6.0
 simplejson>=3.10.0
 six>=1.10.0
