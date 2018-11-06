@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.8.0]
+### Improvemets
+- replaced django-jsonfield with a more supported implementation from django_extensions
+
 ## [0.7.1]
 ### Added
 - statement_descriptor in charge
