@@ -17,7 +17,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import dateformat, timezone
 from django.utils.translation import ugettext_lazy as _
-from jsonfield import JSONField
+from django_extensions.db.fields.json import JSONField
 
 from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeMethodNotAllowed, StripeWebhookAlreadyParsed,
                                   StripeWebhookParseError)
@@ -36,7 +36,7 @@ webhook_pre_parse = dispatch.Signal(providing_args=["instance", "event_type", "e
 class StripeBasicModel(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    stripe_response = JSONField()
+    stripe_response = JSONField(blank=True)
 
     class Meta:
         abstract = True
@@ -44,11 +44,11 @@ class StripeBasicModel(models.Model):
 
 class StripeCustomer(StripeBasicModel):
     user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name='stripe_customers')
-    stripe_js_response = JSONField()
+    stripe_js_response = JSONField(blank=True)
     stripe_customer_id = models.CharField(max_length=255, db_index=True)
     is_active = models.BooleanField(default=True)
     is_created_at_stripe = models.BooleanField(default=False)
-    sources = JSONField(default=[])
+    sources = JSONField(blank=True, default=[])
     default_source = models.CharField(max_length=255, blank=True, help_text="ID of default source from Stripe")
 
     def __init__(self, *args, **kwargs):
@@ -206,8 +206,9 @@ class StripeCoupon(StripeBasicModel):
     max_redemptions = models.PositiveIntegerField(
         blank=True, null=True,
         help_text=_("Maximum number of times this coupon can be redeemed, in total, before it is no longer valid."))
-    metadata = JSONField(help_text=_("Set of key/value pairs that you can attach to an object. It can be useful for "
-                                     "storing additional information about the object in a structured format."))
+    metadata = JSONField(
+        blank=True, help_text=_("Set of key/value pairs that you can attach to an object. It can be useful for "
+                                "storing additional information about the object in a structured format."))
     percent_off = models.PositiveIntegerField(
         blank=True, null=True,
         help_text=_("Percent that will be taken off the subtotal of any invoicesfor this customer for the duration of "
@@ -423,8 +424,10 @@ class StripeSubscriptionPlan(StripeBasicModel):
         max_length=10, help_text=_("Specifies billing frequency. Either day, week, month or year."),
         choices=INTERVAL_CHOICES)
     interval_count = models.IntegerField(default=1, validators=[MinValueValidator(1)])
-    metadata = JSONField(help_text=_("A set of key/value pairs that you can attach to a plan object. It can be useful"
-                         " for storing additional information about the plan in a structured format."))
+    metadata = JSONField(
+        blank=True,
+        help_text=_("A set of key/value pairs that you can attach to a plan object. It can be useful"
+                    " for storing additional information about the plan in a structured format."))
     statement_descriptor = models.CharField(
         max_length=22, help_text=_("An arbitrary string to be displayed on your customer’s credit card statement."),
         blank=True)
@@ -484,7 +487,7 @@ class StripeSubscription(StripeBasicModel):
     status = models.CharField(
         max_length=255, help_text="https://stripe.com/docs/api/python#subscription_object-status, "
         "empty if not sent created at stripe", blank=True, choices=STATUS_CHOICES)
-    metadata = JSONField(help_text="https://stripe.com/docs/api/python#create_subscription-metadata")
+    metadata = JSONField(blank=True, help_text="https://stripe.com/docs/api/python#create_subscription-metadata")
     tax_percent = models.DecimalField(
         default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], decimal_places=2, max_digits=3,
         help_text="https://stripe.com/docs/api/python#subscription_object-tax_percent")
@@ -571,7 +574,7 @@ class StripeWebhook(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     is_parsed = models.BooleanField(default=False)
-    raw_data = JSONField()
+    raw_data = JSONField(blank=True)
     parse_error = models.TextField(blank=True)
 
     def _parse_coupon_notification(self, action):

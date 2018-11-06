@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 import django.core.validators
 import django.db.models.deletion
-import jsonfield.fields
+import django_extensions.db.fields.json
 from django.conf import settings
 from django.db import migrations, models
 
@@ -28,8 +28,8 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created', models.DateField(auto_now_add=True)),
                 ('updated', models.DateTimeField(auto_now=True)),
-                ('stripe_response', jsonfield.fields.JSONField(default=dict)),
-                ('stripe_js_response', jsonfield.fields.JSONField(default=dict)),
+                ('stripe_response', django_extensions.db.fields.json.JSONField(default=dict)),
+                ('stripe_js_response', django_extensions.db.fields.json.JSONField(default=dict)),
                 ('stripe_customer_id', models.CharField(max_length=255)),
                 ('is_active', models.BooleanField(default=True)),
                 ('is_created_at_stripe', models.BooleanField(default=False)),
@@ -46,11 +46,11 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created', models.DateField(auto_now_add=True)),
                 ('updated', models.DateTimeField(auto_now=True)),
-                ('stripe_response', jsonfield.fields.JSONField(default=dict)),
+                ('stripe_response', django_extensions.db.fields.json.JSONField(default=dict)),
                 ('stripe_subscription_id', models.CharField(blank=True, max_length=255)),
                 ('is_created_at_stripe', models.BooleanField(default=False)),
                 ('status', models.CharField(blank=True, choices=[('trialing', 'trialing'), ('active', 'active'), ('past_due', 'past_due'), ('canceled', 'canceled'), ('unpaid', 'unpaid')], help_text='https://stripe.com/docs/api/python#subscription_object-status, empty if not sent created at stripe', max_length=255)),
-                ('metadata', jsonfield.fields.JSONField(default=dict, help_text='https://stripe.com/docs/api/python#create_subscription-metadata')),
+                ('metadata', django_extensions.db.fields.json.JSONField(default=dict, help_text='https://stripe.com/docs/api/python#create_subscription-metadata')),
                 ('tax_percent', models.DecimalField(decimal_places=2, default=0, help_text='https://stripe.com/docs/api/python#subscription_object-tax_percent', max_digits=3, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),
                 ('application_fee_percent', models.DecimalField(decimal_places=2, default=0, help_text='https://stripe.com/docs/api/python#create_subscription-application_fee_percent', max_digits=3, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),
                 ('coupon', models.CharField(blank=True, help_text='https://stripe.com/docs/api/python#create_subscription-coupon', max_length=255)),
@@ -66,15 +66,15 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created', models.DateField(auto_now_add=True)),
                 ('updated', models.DateTimeField(auto_now=True)),
-                ('stripe_response', jsonfield.fields.JSONField(default=dict)),
+                ('stripe_response', django_extensions.db.fields.json.JSONField(default=dict)),
                 ('is_created_at_stripe', models.BooleanField(default=False)),
-                ('source', jsonfield.fields.JSONField(blank=True, default=dict, help_text='Source of the plan, ie: {"prescription": 1}')),
+                ('source', django_extensions.db.fields.json.JSONField(blank=True, default=dict, help_text='Source of the plan, ie: {"prescription": 1}')),
                 ('amount', models.IntegerField(help_text='In cents. More: https://stripe.com/docs/api#create_plan-amount')),
                 ('currency', models.CharField(default='USD', help_text='3 letter ISO code, default USD, , https://stripe.com/docs/api#create_plan-currency', max_length=3)),
                 ('name', models.CharField(help_text='Name of the plan, to be displayed on invoices and in the web interface.', max_length=255)),
                 ('interval', models.CharField(choices=[('day', 'day'), ('week', 'week'), ('month', 'month'), ('year', 'year')], help_text='Specifies billing frequency. Either day, week, month or year.', max_length=10)),
                 ('interval_count', models.IntegerField(default=1, validators=[django.core.validators.MinValueValidator(1)])),
-                ('metadata', jsonfield.fields.JSONField(default=dict, help_text='A set of key/value pairs that you can attach to a plan object. It can be useful for storing additional information about the plan in a structured format.')),
+                ('metadata', django_extensions.db.fields.json.JSONField(default=dict, help_text='A set of key/value pairs that you can attach to a plan object. It can be useful for storing additional information about the plan in a structured format.')),
                 ('statement_descriptor', models.CharField(blank=True, help_text='An arbitrary string to be displayed on your customer’s credit card statement.', max_length=22)),
                 ('trial_period_days', models.IntegerField(default=0, help_text='Specifies a trial period in (an integer number of) days. If you include a trial period, the customer won’t be billed for the first time until the trial period ends. If the customer cancels before the trial period is over, she’ll never be billed at all.', validators=[django.core.validators.MinValueValidator(0)])),
             ],
@@ -89,7 +89,7 @@ class Migration(migrations.Migration):
                 ('created', models.DateField(auto_now_add=True)),
                 ('updated', models.DateTimeField(auto_now=True)),
                 ('is_parsed', models.BooleanField(default=False)),
-                ('raw_data', jsonfield.fields.JSONField(default=dict)),
+                ('raw_data', django_extensions.db.fields.json.JSONField(default=dict)),
             ],
         ),
         migrations.RemoveField(
@@ -103,7 +103,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='stripecharge',
             name='stripe_response',
-            field=jsonfield.fields.JSONField(default=dict),
+            field=django_extensions.db.fields.json.JSONField(default=dict),
         ),
         migrations.DeleteModel(
             name='StripeToken',

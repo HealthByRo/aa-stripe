@@ -41,12 +41,12 @@ class TestCharges(TestCase):
 
         charge_create_mocked.return_value = stripe.Charge(id="AA1")
         StripeCustomer.objects.create(
-            user=self.user, stripe_customer_id="bum", stripe_js_response="aa")
+            user=self.user, stripe_customer_id="bum", stripe_js_response='"aa"')
 
         StripeCustomer.objects.create(
-            user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
+            user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response='"foo"')
         customer = StripeCustomer.objects.create(
-            user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
+            user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response='"foo"')
         self.assertTrue(customer, StripeCustomer.get_latest_active_customer_for_user(self.user))
 
         charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], customer=customer,
@@ -106,7 +106,7 @@ class TestCharges(TestCase):
         refund_create_mocked.return_value = stripe.Refund(id="R1")
 
         customer = StripeCustomer.objects.create(
-            user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response="foo")
+            user=self.user, stripe_customer_id=data["customer_id"], stripe_js_response='"foo"')
         self.assertTrue(customer, StripeCustomer.get_latest_active_customer_for_user(self.user))
         charge = StripeCharge.objects.create(user=self.user, amount=data["amount"], customer=customer,
                                              description=data["description"])
