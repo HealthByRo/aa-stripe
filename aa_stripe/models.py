@@ -55,14 +55,17 @@ class StripeCustomer(StripeBasicModel):
         super(StripeCustomer, self).__init__(*args, **kwargs)
         self._old_sources = self.sources  # to track changes in post_save
 
-    def create_at_stripe(self):
+    def create_at_stripe(self, description=None):
         if self.is_created_at_stripe:
             raise StripeMethodNotAllowed()
+
+        if description is None:
+            description = "{user} id: {user.id}".format(user=self.user)
 
         stripe.api_key = stripe_settings.API_KEY
         customer = stripe.Customer.create(
             source=self.stripe_js_response["id"],
-            description="{user} id: {user.id}".format(user=self.user)
+            description=description
         )
         self.stripe_customer_id = customer["id"]
         self.stripe_response = customer

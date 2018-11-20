@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.8.1]
+### Added
+- Add option for custom customer description
+
 ## [0.8.0]
 ### Improvemets
 - replaced django-jsonfield with a more supported implementation from django_extensions
