@@ -1,5 +1,8 @@
 # Change Log
 All notable changes to this project will be documented in this file.
+## [0.8.2]
+### Added
+- Signal "stripe_charge_refunded" on refund
 
 ## [0.8.1]
 ### Added

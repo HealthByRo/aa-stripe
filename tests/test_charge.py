@@ -123,10 +123,12 @@ class TestCharges(TestCase):
         charge.save()
 
         # refund - passes
-        charge.refund()
-        refund_create_mocked.assert_called_with(charge=charge.stripe_charge_id)
-        self.assertTrue(charge.is_refunded)
-        self.assertEqual(charge.stripe_refund_id, "R1")
+        with mock.patch("aa_stripe.signals.stripe_charge_refunded.send") as refund_signal_send:
+            charge.refund()
+            refund_create_mocked.assert_called_with(charge=charge.stripe_charge_id)
+            self.assertTrue(charge.is_refunded)
+            self.assertEqual(charge.stripe_refund_id, "R1")
+            refund_signal_send.assert_called_with(sender=StripeCharge, instance=charge)
 
         # refund - error: already refunded
         with self.assertRaises(StripeMethodNotAllowed):
