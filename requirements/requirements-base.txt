@@ -1,5 +1,5 @@
 django-extensions>=2.1.3
-stripe>=1.49.0,<2.0.0
+stripe>=2.29,<2.30
 djangorestframework>=3.6.0
 simplejson>=3.10.0
 six>=1.10.0
