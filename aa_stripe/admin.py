@@ -44,7 +44,9 @@ class StripeCustomerAdmin(ReadOnly):
 
 
 class StripeChargeAdmin(ReadOnly):
-    list_display = ("id", "user", "customer", "created", "updated", "object_id", "is_charged", "amount")
+    search_fields = ("user__email",)
+    list_display = ("id", "user", "created", "updated", "object_id", "is_charged", "amount")
+    list_filter = ("created", "updated", "is_charged")
     ordering = ("-created",)
 
 
