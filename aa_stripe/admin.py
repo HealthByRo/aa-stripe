@@ -44,10 +44,14 @@ class StripeCustomerAdmin(ReadOnly):
 
 
 class StripeChargeAdmin(ReadOnly):
-    search_fields = ("user__email",)
-    list_display = ("id", "user", "created", "updated", "object_id", "is_charged", "amount")
+    search_fields = ("user__email", "customer__stripe_customer_id")
+    list_display = ("id", "user", "stripe_customer_id", "created", "updated", "object_id", "is_charged", "amount")
     list_filter = ("created", "updated", "is_charged")
     ordering = ("-created",)
+
+    def stripe_customer_id(self, obj):
+        if obj.customer:
+            return obj.customer.stripe_customer_id
 
 
 class StripeCouponAdmin(admin.ModelAdmin):
