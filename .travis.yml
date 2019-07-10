@@ -1,11 +1,15 @@
-sudo: false
-
 language: python
-
-python:
-  - "3.4"
-  - "3.5"
-  - "3.6"
+matrix:
+    include:
+        - python: 3.5
+          dist: trusty
+          sudo: false
+        - python: 3.6
+          dist: trusty
+          sudo: false
+        - python: 3.7
+          dist: xenial
+          sudo: true
 
 install:
   - pip install tox tox-travis coverage coveralls
@@ -16,8 +20,3 @@ script:
 after_success:
   - coverage report -m
   - coveralls
-
-notifications:
-  email:
-    recipients:
-      - team@arabel.la
