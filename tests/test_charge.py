@@ -56,7 +56,15 @@ class TestCharges(TestCase):
         self.assertFalse(charge.is_charged)
 
         # test in case of an API error
-        charge_create_mocked.side_effect = StripeError()
+        stripe_error_json_body = {
+            'error': {'code': 'resource_missing',
+                      'doc_url': 'https://stripe.com/docs/error-codes/resource-missing',
+                      'message': 'No such customer: cus_ESrgXHlDA3E7mQ',
+                      'param': 'customer',
+                      'type': 'invalid_request_error'
+                      }
+        }
+        charge_create_mocked.side_effect = StripeError(json_body=stripe_error_json_body)
         with self.assertRaises(SystemExit):
             out = StringIO()
             sys.stdout = out
@@ -64,16 +72,28 @@ class TestCharges(TestCase):
             self.assertFalse(self.success_signal_was_called)
             charge.refresh_from_db()
             self.assertFalse(charge.is_charged)
+            self.assertDictEqual(charge.stripe_response, stripe_error_json_body)
             self.assertIn('Exception happened', out.getvalue())
 
         charge_create_mocked.reset_mock()
-        charge_create_mocked.side_effect = CardError(message="a", param="b", code="c")
+        card_error_json_body = {
+            'error': {'charge': 'ch_1F5C8nBszOVoiLmgPWC36cnI',
+                      'code': 'card_declined',
+                      'decline_code': 'generic_decline',
+                      'doc_url': 'https://stripe.com/docs/error-codes/card-declined',
+                      'message': 'Your card was declined.',
+                      'type': 'card_error'
+                      }
+        }
+        charge_create_mocked.side_effect = CardError(message="a", param="b", code="c", json_body=card_error_json_body)
         # test regular case
         call_command("charge_stripe")
         self.assertTrue(self.exception_signal_was_called)
         charge.refresh_from_db()
         self.assertFalse(charge.is_charged)
         self.assertTrue(charge.charge_attempt_failed)
+        self.assertDictEqual(charge.stripe_response, card_error_json_body)
+        self.assertEqual(charge.stripe_charge_id, "ch_1F5C8nBszOVoiLmgPWC36cnI")
 
         charge_create_mocked.reset_mock()
         charge_create_mocked.side_effect = None
