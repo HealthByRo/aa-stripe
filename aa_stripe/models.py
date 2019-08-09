@@ -372,11 +372,14 @@ class StripeCharge(StripeBasicModel):
             except stripe.error.CardError as e:
                 self.charge_attempt_failed = True
                 self.is_charged = False
+                self.stripe_charge_id = e.json_body.get('error', {}).get('charge', '')
+                self.stripe_response = e.json_body
                 self.save()
                 stripe_charge_card_exception.send(sender=StripeCharge, instance=self, exception=e)
                 return  # just exit.
-            except stripe.error.StripeError:
+            except stripe.error.StripeError as e:
                 self.is_charged = False
+                self.stripe_response = e.json_body
                 self.save()
                 raise
 
