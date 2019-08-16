@@ -57,6 +57,26 @@ class TestCharges(TestCase):
 
         # test in case of an API error
         stripe_error_json_body = {
+            'error': {'type': 'api_error'}
+        }
+        charge_create_mocked.side_effect = StripeError(json_body=stripe_error_json_body)
+        with self.assertRaises(SystemExit):
+            out = StringIO()
+            sys.stdout = out
+            self.success_signal_was_called = False
+            self.exception_signal_was_called = False
+            call_command('charge_stripe')
+            self.assertFalse(self.success_signal_was_called)
+            self.assertFalse(self.exception_signal_was_called)
+            charge.refresh_from_db()
+            self.assertFalse(charge.is_charged)
+            self.assertFalse(charge.charge_attempt_failed)
+            self.assertDictEqual(charge.stripe_response, stripe_error_json_body)
+            self.assertIn('Exception happened', out.getvalue())
+
+        # test in case of an hard API error
+        charge_create_mocked.reset_mock()
+        stripe_error_json_body = {
             'error': {'code': 'resource_missing',
                       'doc_url': 'https://stripe.com/docs/error-codes/resource-missing',
                       'message': 'No such customer: cus_ESrgXHlDA3E7mQ',
@@ -65,16 +85,17 @@ class TestCharges(TestCase):
                       }
         }
         charge_create_mocked.side_effect = StripeError(json_body=stripe_error_json_body)
-        with self.assertRaises(SystemExit):
-            out = StringIO()
-            sys.stdout = out
-            call_command('charge_stripe')
-            self.assertFalse(self.success_signal_was_called)
-            charge.refresh_from_db()
-            self.assertFalse(charge.is_charged)
-            self.assertDictEqual(charge.stripe_response, stripe_error_json_body)
-            self.assertIn('Exception happened', out.getvalue())
+        self.success_signal_was_called = False
+        self.exception_signal_was_called = False
+        call_command('charge_stripe')
+        self.assertFalse(self.success_signal_was_called)
+        self.assertTrue(self.exception_signal_was_called)
+        charge.refresh_from_db()
+        self.assertFalse(charge.is_charged)
+        self.assertTrue(charge.charge_attempt_failed)
+        self.assertDictEqual(charge.stripe_response, stripe_error_json_body)
 
+        # test regular case
         charge_create_mocked.reset_mock()
         card_error_json_body = {
             'error': {'charge': 'ch_1F5C8nBszOVoiLmgPWC36cnI',
@@ -86,8 +107,12 @@ class TestCharges(TestCase):
                       }
         }
         charge_create_mocked.side_effect = CardError(message="a", param="b", code="c", json_body=card_error_json_body)
-        # test regular case
+        self.success_signal_was_called = False
+        self.exception_signal_was_called = False
+        charge.charge_attempt_failed = False
+        charge.save()
         call_command("charge_stripe")
+        self.assertFalse(self.success_signal_was_called)
         self.assertTrue(self.exception_signal_was_called)
         charge.refresh_from_db()
         self.assertFalse(charge.is_charged)
@@ -95,14 +120,17 @@ class TestCharges(TestCase):
         self.assertDictEqual(charge.stripe_response, card_error_json_body)
         self.assertEqual(charge.stripe_charge_id, "ch_1F5C8nBszOVoiLmgPWC36cnI")
 
+        # test regular charge case
         charge_create_mocked.reset_mock()
         charge_create_mocked.side_effect = None
-        # test regular case
         # reset charge
         charge.charge_attempt_failed = False
         charge.save()
+        self.success_signal_was_called = False
+        self.exception_signal_was_called = False
         call_command("charge_stripe")
         self.assertTrue(self.success_signal_was_called)
+        self.assertFalse(self.exception_signal_was_called)
         charge.refresh_from_db()
         self.assertTrue(charge.is_charged)
         manual_charge.refresh_from_db()

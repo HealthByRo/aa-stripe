@@ -380,6 +380,15 @@ class StripeCharge(StripeBasicModel):
             except stripe.error.StripeError as e:
                 self.is_charged = False
                 self.stripe_response = e.json_body
+                try:
+                    # hard error
+                    if self.stripe_response["error"]["type"] == "invalid_request_error":
+                        self.charge_attempt_failed = True
+                        self.save()
+                        stripe_charge_card_exception.send(sender=StripeCharge, instance=self, exception=e)
+                        return  # just exit.
+                except KeyError:
+                    pass
                 self.save()
                 raise
 

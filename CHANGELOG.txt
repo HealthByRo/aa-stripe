@@ -1,5 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
+
+## [0.8.5]
+### Fixed
+- Finish charge flow on hard exception
+- Updated owner
+
 ## [0.8.4]
 ### Added
 - Add saving charge id and stripe response body in case of error
