@@ -69,9 +69,10 @@ class TestCharges(TestCase):
             out = StringIO()
             sys.stdout = out
             call_command('charge_stripe')
-            self.assertFalse(self.success_signal_was_called)
+            self.assertTrue(self.success_signal_was_called)
             charge.refresh_from_db()
             self.assertFalse(charge.is_charged)
+            self.assertTrue(charge.charge_attempt_failed)
             self.assertDictEqual(charge.stripe_response, stripe_error_json_body)
             self.assertIn('Exception happened', out.getvalue())
 
