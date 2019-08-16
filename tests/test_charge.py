@@ -69,7 +69,8 @@ class TestCharges(TestCase):
             out = StringIO()
             sys.stdout = out
             call_command('charge_stripe')
-            self.assertTrue(self.success_signal_was_called)
+            self.False(self.success_signal_was_called)
+            self.assertTrue(self.exception_signal_was_called)
             charge.refresh_from_db()
             self.assertFalse(charge.is_charged)
             self.assertTrue(charge.charge_attempt_failed)
