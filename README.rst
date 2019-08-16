@@ -1,7 +1,7 @@
 =========
 aa-stripe
 =========
-|travis|_ |pypi|_ |coveralls|_ |requiresio|_
+|travis|_ |pypi|_ |coveralls|_
 
 Stripe integration for Django-based projects
 
@@ -202,16 +202,13 @@ Another way of updating the credit card information is to run the `refresh_custo
 Support
 =======
 * Django 1.11
-* Python 3.4-3.6
+* Python 3.5-3.6
 
-.. |travis| image:: https://secure.travis-ci.org/ArabellaTech/aa-stripe.svg?branch=master
-.. _travis: http://travis-ci.org/ArabellaTech/aa-stripe
+.. |travis| image:: https://secure.travis-ci.org/HealthByRo/aa-stripe.svg?branch=master
+.. _travis: http://travis-ci.org/HealthByRo/aa-stripe
 
 .. |pypi| image:: https://img.shields.io/pypi/v/aa-stripe.svg
 .. _pypi: https://pypi.python.org/pypi/aa-stripe
 
-.. |coveralls| image:: https://coveralls.io/repos/github/ArabellaTech/aa-stripe/badge.svg?branch=master
-.. _coveralls: https://coveralls.io/github/ArabellaTech/aa-stripe
-
-.. |requiresio| image:: https://requires.io/github/ArabellaTech/aa-stripe/requirements.svg?branch=master
-.. _requiresio: https://requires.io/github/ArabellaTech/aa-stripe/requirements/
+.. |coveralls| image:: https://coveralls.io/repos/github/HealthByRo/aa-stripe/badge.svg?branch=master
+.. _coveralls: https://coveralls.io/github/HealthByRo/aa-stripe

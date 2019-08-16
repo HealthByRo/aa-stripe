@@ -89,6 +89,7 @@ class TestCharges(TestCase):
         charge_create_mocked.side_effect = CardError(message="a", param="b", code="c", json_body=card_error_json_body)
         # test regular case
         call_command("charge_stripe")
+        self.assertFalse(self.success_signal_was_called)
         self.assertTrue(self.exception_signal_was_called)
         charge.refresh_from_db()
         self.assertFalse(charge.is_charged)
@@ -103,7 +104,8 @@ class TestCharges(TestCase):
         charge.charge_attempt_failed = False
         charge.save()
         call_command("charge_stripe")
-        self.assertTrue(self.success_signal_was_called)
+        self.assertFalse(self.success_signal_was_called)
+        self.assertTrue(self.exception_signal_was_called)
         charge.refresh_from_db()
         self.assertTrue(charge.is_charged)
         manual_charge.refresh_from_db()
