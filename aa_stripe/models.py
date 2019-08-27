@@ -362,7 +362,12 @@ class StripeCharge(StripeBasicModel):
                 "amount": self.amount,
                 "currency": "usd",
                 "customer": customer.stripe_customer_id,
-                "description": self.description
+                "description": self.description,
+                "capture": False,
+                "metadata": {
+                    "object_id": self.object_id,
+                    "content_type_id": self.content_type_id
+                }
             }
             if self.statement_descriptor:
                 params["statement_descriptor"] = self.statement_descriptor
@@ -394,10 +399,19 @@ class StripeCharge(StripeBasicModel):
 
             self.stripe_charge_id = stripe_charge["id"]
             self.stripe_response = stripe_charge
-            self.is_charged = True
+            self.__capture_charge(self.stripe_charge_id)
             self.save()
-            stripe_charge_succeeded.send(sender=StripeCharge, instance=self)
             return stripe_charge
+
+    def __capture_charge(self, charge_id):
+        try:
+            # will always succeed, unless the charge is already refunded, expired, captured...
+            stripe.Charge.capture(charge_id)
+            self.is_charged = True
+            stripe_charge_succeeded.send(sender=StripeCharge, instance=self)
+        except stripe.error.StripeError:
+            # ... so we can safely ignore that error
+            pass
 
     def refund(self):
         stripe.api_key = stripe_settings.API_KEY
