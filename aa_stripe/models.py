@@ -358,16 +358,20 @@ class StripeCharge(StripeBasicModel):
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         self.customer = customer
         if customer:
+            metadata = {
+                "object_id": self.object_id,
+                "content_type_id": self.content_type_id
+            }
+            existing_charge = self.__lookup_double_charge(customer.stripe_customer_id, metadata)
+            if existing_charge is not None:
+                raise UserWarning("Attempt to double charge detected")
+
             params = {
                 "amount": self.amount,
                 "currency": "usd",
                 "customer": customer.stripe_customer_id,
                 "description": self.description,
-                "capture": False,
-                "metadata": {
-                    "object_id": self.object_id,
-                    "content_type_id": self.content_type_id
-                }
+                "metadata": metadata
             }
             if self.statement_descriptor:
                 params["statement_descriptor"] = self.statement_descriptor
@@ -396,22 +400,30 @@ class StripeCharge(StripeBasicModel):
                     pass
                 self.save()
                 raise
+            except UserWarning:
+                stripe_charge = existing_charge
 
             self.stripe_charge_id = stripe_charge["id"]
             self.stripe_response = stripe_charge
-            self.__capture_charge(self.stripe_charge_id)
+            self.is_charged = True
             self.save()
+            stripe_charge_succeeded.send(sender=StripeCharge, instance=self)
             return stripe_charge
 
-    def __capture_charge(self, charge_id):
+    def __lookup_double_charge(self, customer, metadata):
+        data = []
+        while True:
+            try:
+                page = stripe.Charge.list(customer=customer, limit=100)
+            except stripe.error.StripeError:
+                return None
+            data += page.data
+            if not page.has_more:
+                break
         try:
-            # will always succeed, unless the charge is already refunded, expired, captured...
-            stripe.Charge.capture(charge_id)
-            self.is_charged = True
-            stripe_charge_succeeded.send(sender=StripeCharge, instance=self)
-        except stripe.error.StripeError:
-            # ... so we can safely ignore that error
-            pass
+            return next(charge for charge in data if charge["captured"] and charge["metadata"] == metadata)
+        except StopIteration:
+            return None
 
     def refund(self):
         stripe.api_key = stripe_settings.API_KEY

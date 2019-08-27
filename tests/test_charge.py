@@ -19,9 +19,9 @@ class TestCharges(TestCase):
     def setUp(self):
         self.user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
 
-    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.capture")
+    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.list")
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.create")
-    def test_charges(self, charge_create_mocked, charge_capture_mocked):
+    def test_charges(self, charge_create_mocked, charge_list_mocked):
         self.success_signal_was_called = False
         self.exception_signal_was_called = False
 
@@ -41,7 +41,9 @@ class TestCharges(TestCase):
         }
 
         charge_create_mocked.return_value = stripe.Charge(id="AA1")
-        charge_capture_mocked.return_value = stripe.Charge(id="AA2")
+        charge_list_mocked.return_value = stripe.ListObject.construct_from(
+            {"has_more": False, "data": [{"captured": True, "metadata": {"object_id": "a", "content_type_id": "b"}}]}, "mykey"
+        )
 
         StripeCustomer.objects.create(
             user=self.user, stripe_customer_id="bum", stripe_js_response='"aa"')
@@ -141,7 +143,7 @@ class TestCharges(TestCase):
         self.assertEqual(charge.stripe_response["id"], "AA1")
         charge_create_mocked.assert_called_with(amount=charge.amount, currency=data["currency"],
                                                 customer=data["customer_id"], description=data["description"],
-                                                capture=False, metadata={'object_id': None, 'content_type_id': None})
+                                                metadata={'object_id': None, 'content_type_id': None})
 
         # manual call
         manual_charge.charge()
