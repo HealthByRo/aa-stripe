@@ -149,13 +149,14 @@ class TestCharges(TestCase):
         manual_charge.charge()
         self.assertTrue(manual_charge.is_charged)
 
-        charge_list_mocked.return_value = stripe.ListObject.construct_from(
-            {"has_more": False, "data": [{"id": "match", "captured": True, "metadata": {"object_id": 3, "content_type_id": 8}}]}, "mykey"
-        )
+        # double charge case
         charge_create_mocked.reset_mock()
         charge.source = customer
         charge.is_charged = False
         charge.save()
+        charge_list_mocked.return_value = stripe.ListObject.construct_from(
+            {"has_more": False, "data": [{"id": "match", "captured": True, "metadata": {"object_id": charge.object_id, "content_type_id": charge.content_type_id}}]}, "mykey"
+        )
         charge.charge()
         self.assertTrue(charge.is_charged)
         self.assertTrue(self.success_signal_was_called)
