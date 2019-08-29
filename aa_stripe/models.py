@@ -411,19 +411,14 @@ class StripeCharge(StripeBasicModel):
             return stripe_charge
 
     def __lookup_double_charge(self, customer, metadata):
-        data = []
-        while True:
-            try:
-                page = stripe.Charge.list(customer=customer, limit=100)
-            except stripe.error.StripeError:
-                return None
-            data += page.data
-            if not page.has_more:
-                break
         try:
-            return next(charge for charge in data if charge["captured"] and charge["metadata"] == metadata)
-        except StopIteration:
-            return None
+            charges = stripe.Charge.list(customer=customer, limit=100)
+            for charge in charges.auto_paging_iter():
+                if charge["captured"] and charge["metadata"] == metadata:
+                    return charge
+        except stripe.error.StripeError:
+            pass # do nothing
+        return None
 
     def refund(self):
         stripe.api_key = stripe_settings.API_KEY
