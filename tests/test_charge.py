@@ -151,6 +151,8 @@ class TestCharges(TestCase):
 
         # double charge case
         charge_create_mocked.reset_mock()
+        self.success_signal_was_called = False
+        self.exception_signal_was_called = False
         charge.source = customer
         charge.is_charged = False
         charge.save()
@@ -162,6 +164,16 @@ class TestCharges(TestCase):
         self.assertTrue(self.success_signal_was_called)
         self.assertFalse(self.exception_signal_was_called)
         self.assertEqual(charge.stripe_response["id"], "match")
+        charge_create_mocked.assert_not_called()
+        # with api error
+        charge_list_mocked.side_effect = StripeError(json_body=stripe_error_json_body)
+        charge.is_charged = False
+        charge.save()
+        self.success_signal_was_called = False
+        self.exception_signal_was_called = False
+        charge.charge()
+        self.assertFalse(self.success_signal_was_called)
+        self.assertTrue(self.exception_signal_was_called)
         charge_create_mocked.assert_not_called()
 
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create")

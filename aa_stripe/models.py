@@ -362,7 +362,6 @@ class StripeCharge(StripeBasicModel):
                 "object_id": self.object_id,
                 "content_type_id": self.content_type_id
             }
-            existing_charge = self._lookup_double_charge(customer.stripe_customer_id, metadata)
 
             params = {
                 "amount": self.amount,
@@ -375,6 +374,7 @@ class StripeCharge(StripeBasicModel):
                 params["statement_descriptor"] = self.statement_descriptor
 
             try:
+                existing_charge = self._lookup_double_charge(customer.stripe_customer_id, metadata)
                 if existing_charge is not None:
                     raise UserWarning("Attempt to double charge detected")
                 stripe_charge = stripe.Charge.create(**params)
@@ -411,13 +411,10 @@ class StripeCharge(StripeBasicModel):
             return stripe_charge
 
     def _lookup_double_charge(self, customer, metadata):
-        try:
-            charges = stripe.Charge.list(customer=customer, limit=100)
-            for charge in charges.auto_paging_iter():
-                if charge["captured"] and charge["metadata"] == metadata:
-                    return charge
-        except stripe.error.StripeError:
-            pass  # do nothing
+        charges = stripe.Charge.list(customer=customer, limit=100)
+        for charge in charges.auto_paging_iter():
+            if charge["captured"] and charge["metadata"] == metadata:
+                return charge
         return None
 
     def refund(self):
