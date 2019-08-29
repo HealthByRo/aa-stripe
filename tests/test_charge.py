@@ -149,6 +149,21 @@ class TestCharges(TestCase):
         manual_charge.charge()
         self.assertTrue(manual_charge.is_charged)
 
+        charge_list_mocked.return_value = stripe.ListObject.construct_from(
+            {"has_more": False, "data": [{"id": "match", "captured": True, "metadata": {"object_id": 3, "content_type_id": 8}}]}, "mykey"
+        )
+        charge_create_mocked.reset_mock()
+        charge.source = customer
+        charge.is_charged = False
+        charge.save()
+        charge.charge()
+        self.assertTrue(charge.is_charged)
+        self.assertTrue(self.success_signal_was_called)
+        self.assertFalse(self.exception_signal_was_called)
+        self.assertEqual(charge.stripe_response["id"], "match")
+        charge_create_mocked.assert_not_called()
+
+
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create")
     def test_refund(self, refund_create_mocked):
         data = {

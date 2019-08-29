@@ -363,8 +363,6 @@ class StripeCharge(StripeBasicModel):
                 "content_type_id": self.content_type_id
             }
             existing_charge = self._lookup_double_charge(customer.stripe_customer_id, metadata)
-            if existing_charge is not None:
-                raise UserWarning("Attempt to double charge detected")
 
             params = {
                 "amount": self.amount,
@@ -377,6 +375,8 @@ class StripeCharge(StripeBasicModel):
                 params["statement_descriptor"] = self.statement_descriptor
 
             try:
+                if existing_charge is not None:
+                    raise UserWarning("Attempt to double charge detected")
                 stripe_charge = stripe.Charge.create(**params)
             except stripe.error.CardError as e:
                 self.charge_attempt_failed = True
