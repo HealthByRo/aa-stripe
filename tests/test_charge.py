@@ -163,7 +163,6 @@ class TestCharges(TestCase):
         self.assertEqual(charge.stripe_response["id"], "match")
         charge_create_mocked.assert_not_called()
 
-
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create")
     def test_refund(self, refund_create_mocked):
         data = {
