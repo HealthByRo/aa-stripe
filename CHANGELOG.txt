@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.8.6]
+### Fixed:
+- double-charge problem when process was preempted while waiting for "charge" stripe response
+
 ## [0.8.5]
 ### Fixed
 - Finish charge flow on hard exception

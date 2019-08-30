@@ -358,16 +358,25 @@ class StripeCharge(StripeBasicModel):
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         self.customer = customer
         if customer:
+            metadata = {
+                "object_id": self.object_id,
+                "content_type_id": self.content_type_id
+            }
+
             params = {
                 "amount": self.amount,
                 "currency": "usd",
                 "customer": customer.stripe_customer_id,
-                "description": self.description
+                "description": self.description,
+                "metadata": metadata
             }
             if self.statement_descriptor:
                 params["statement_descriptor"] = self.statement_descriptor
 
             try:
+                existing_charge = self._lookup_double_charge(customer.stripe_customer_id, metadata)
+                if existing_charge is not None:
+                    raise UserWarning("Attempt to double charge detected")
                 stripe_charge = stripe.Charge.create(**params)
             except stripe.error.CardError as e:
                 self.charge_attempt_failed = True
@@ -391,6 +400,8 @@ class StripeCharge(StripeBasicModel):
                     pass
                 self.save()
                 raise
+            except UserWarning:
+                stripe_charge = existing_charge
 
             self.stripe_charge_id = stripe_charge["id"]
             self.stripe_response = stripe_charge
@@ -398,6 +409,13 @@ class StripeCharge(StripeBasicModel):
             self.save()
             stripe_charge_succeeded.send(sender=StripeCharge, instance=self)
             return stripe_charge
+
+    def _lookup_double_charge(self, customer, metadata):
+        charges = stripe.Charge.list(customer=customer, limit=100)
+        for charge in charges.auto_paging_iter():
+            if charge["captured"] and charge["metadata"] == metadata:
+                return charge
+        return None
 
     def refund(self):
         stripe.api_key = stripe_settings.API_KEY
