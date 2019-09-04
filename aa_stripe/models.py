@@ -646,7 +646,7 @@ class StripeWebhook(models.Model):
             try:
                 customer = StripeCustomer.objects.get(stripe_customer_id=customer_id)
                 customer.refresh_from_stripe()
-            except (StripeCustomer.DoesNotExist, stripe.StripeError) as e:
+            except (StripeCustomer.DoesNotExist, stripe.error.StripeError) as e:
                 logger.warning("[AA-Stripe] cannot parse customer.updated webhook: {}".format(e))
 
     def parse(self, save=False):

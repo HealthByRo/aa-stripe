@@ -35,7 +35,7 @@ class StripeCustomerSerializer(ModelSerializer):
                 instance = StripeCustomer.objects.create(
                     user=user, stripe_js_response=stripe_js_response)
                 instance.create_at_stripe()
-            except stripe.StripeError as e:
+            except stripe.error.StripeError as e:
                 logging.error(
                     "[AA-Stripe] creating customer failed for user {user.id}: {error}".format(user=user, error=e)
                 )
@@ -68,7 +68,7 @@ class StripeCustomerDetailsSerializer(ModelSerializer):
         new_source_token = stripe_js_response["id"]
         try:
             instance.add_new_source(new_source_token, stripe_js_response)
-        except stripe.StripeError as e:
+        except stripe.error.StripeError as e:
             logging.error(
                 "[AA-Stripe] adding new source to customer failed for user {user.id}: {error}".format(
                     user=self.context["request"].user, error=e)

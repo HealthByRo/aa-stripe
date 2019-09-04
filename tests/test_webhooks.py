@@ -575,7 +575,7 @@ class TestWebhook(BaseTestCase):
         payload["id"] = "evt_abc"
         self.client.credentials(**self._get_signature_headers(payload))
         with mock.patch("aa_stripe.models.StripeCustomer.refresh_from_stripe") as mocked_refresh:
-            mocked_refresh.side_effect = stripe.APIError("error")
+            mocked_refresh.side_effect = stripe.error.APIError("error")
             response = self.client.post(url, data=payload, format="json")
             self.assertEqual(response.status_code, 201)
             self.customer.refresh_from_db()

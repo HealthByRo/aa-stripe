@@ -25,7 +25,7 @@ class Command(BaseCommand):
         while True:
             try:
                 response = stripe.Customer.list(limit=100, starting_after=last_customer)
-            except stripe.StripeError:
+            except stripe.error.StripeError:
                 if retry_count > 5:
                     raise
                 retry_count += 1
