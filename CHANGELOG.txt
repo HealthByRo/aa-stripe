@@ -2,8 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [0.9.0]
-### Improvemets
-- support for stripe 2.X
+### Changed
+- added support for stripe 2.X and dropped support for 1.X
 
 ## [0.8.6]
 ### Fixed:
