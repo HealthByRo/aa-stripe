@@ -278,8 +278,8 @@ class TestRefreshCustomersCommand(BaseTestCase):
 
         # the command should fail if call to api fails more than 5 times
         with mock.patch("stripe.Customer.list") as mocked_list:
-            mocked_list.side_effect = stripe.APIError()
-            with self.assertRaises(stripe.APIError):
+            mocked_list.side_effect = stripe.error.APIError()
+            with self.assertRaises(stripe.error.APIError):
                 call_command("refresh_customers")
 
     @requests_mock.Mocker()
