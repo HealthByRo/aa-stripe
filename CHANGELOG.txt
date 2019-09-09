@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.9.1]
+### Fixed
+- fixed migrations
+
 ## [0.9.0]
 ### Changed
 - added support for stripe 2.X and dropped support for 1.X
