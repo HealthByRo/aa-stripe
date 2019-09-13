@@ -166,6 +166,7 @@ class StripeCoupon(StripeBasicModel):
     )
 
     # choices must be lowercase, because that is how Stripe API returns currency
+    # fmt: off
     CURRENCY_CHOICES = (
         ('usd', 'USD'), ('aed', 'AED'), ('afn', 'AFN'), ('all', 'ALL'), ('amd', 'AMD'), ('ang', 'ANG'), ('aoa', 'AOA'),
         ('ars', 'ARS'), ('aud', 'AUD'), ('awg', 'AWG'), ('azn', 'AZN'), ('bam', 'BAM'), ('bbd', 'BBD'), ('bdt', 'BDT'),
@@ -188,6 +189,7 @@ class StripeCoupon(StripeBasicModel):
         ('vnd', 'VND'), ('vuv', 'VUV'), ('wst', 'WST'), ('xaf', 'XAF'), ('xcd', 'XCD'), ('xof', 'XOF'), ('xpf', 'XPF'),
         ('yer', 'YER'), ('zar', 'ZAR'), ('zmw', 'ZMW')
     )
+    # fmt: on
 
     coupon_id = models.CharField(max_length=255, help_text=_("Identifier for the coupon"))
     amount_off = models.DecimalField(
@@ -334,6 +336,7 @@ class StripeCharge(StripeBasicModel):
     user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name='stripe_charges')
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField(null=True, help_text=_("in cents"))
+    amount_refunded = models.IntegerField(null=True, help_text=_("in cents"), default=0)
     is_charged = models.BooleanField(default=False)
     is_refunded = models.BooleanField(default=False)
     # if True, it will not be triggered through stripe_charge command
@@ -417,7 +420,7 @@ class StripeCharge(StripeBasicModel):
                 return charge
         return None
 
-    def refund(self):
+    def refund(self, amount_to_refund=None):
         stripe.api_key = stripe_settings.API_KEY
 
         if not self.is_charged:
@@ -426,8 +429,18 @@ class StripeCharge(StripeBasicModel):
         if self.is_refunded:
             raise StripeMethodNotAllowed("Already refunded.")
 
-        stripe_refund = stripe.Refund.create(charge=self.stripe_charge_id)
-        self.is_refunded = True
+        if amount_to_refund is None:
+            # refund all remaining amount
+            amount_to_refund = self.amount - self.amount_refunded
+        else:
+            amount_to_refund = abs(amount_to_refund)
+
+        if (amount_to_refund + self.amount_refunded) > self.amount:
+            raise StripeMethodNotAllowed("Refund exceeds charge")
+
+        stripe_refund = stripe.Refund.create(charge=self.stripe_charge_id, amount=amount_to_refund)
+        self.is_refunded = (amount_to_refund + self.amount_refunded) == self.amount
+        self.amount_refunded += amount_to_refund
         self.stripe_refund_id = stripe_refund["id"]
         self.save()
         stripe_charge_refunded.send(sender=StripeCharge, instance=self)
