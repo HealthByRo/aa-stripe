@@ -19,12 +19,8 @@ from django.utils import dateformat, timezone
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields.json import JSONField
 
-from aa_stripe.exceptions import (
-    StripeCouponAlreadyExists,
-    StripeMethodNotAllowed,
-    StripeWebhookAlreadyParsed,
-    StripeWebhookParseError,
-)
+from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeMethodNotAllowed, StripeWebhookAlreadyParsed,
+                                  StripeWebhookParseError)
 from aa_stripe.settings import stripe_settings
 from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_refunded, stripe_charge_succeeded
 from aa_stripe.utils import timestamp_to_timezone_aware_date
