@@ -19,8 +19,12 @@ from django.utils import dateformat, timezone
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields.json import JSONField
 
-from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeMethodNotAllowed, StripeWebhookAlreadyParsed,
-                                  StripeWebhookParseError)
+from aa_stripe.exceptions import (
+    StripeCouponAlreadyExists,
+    StripeMethodNotAllowed,
+    StripeWebhookAlreadyParsed,
+    StripeWebhookParseError,
+)
 from aa_stripe.settings import stripe_settings
 from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_refunded, stripe_charge_succeeded
 from aa_stripe.utils import timestamp_to_timezone_aware_date
@@ -43,7 +47,7 @@ class StripeBasicModel(models.Model):
 
 
 class StripeCustomer(StripeBasicModel):
-    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name='stripe_customers')
+    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name="stripe_customers")
     stripe_js_response = JSONField(blank=True)
     stripe_customer_id = models.CharField(max_length=255, db_index=True)
     is_active = models.BooleanField(default=True)
@@ -63,10 +67,7 @@ class StripeCustomer(StripeBasicModel):
             description = "{user} id: {user.id}".format(user=self.user)
 
         stripe.api_key = stripe_settings.API_KEY
-        customer = stripe.Customer.create(
-            source=self.stripe_js_response["id"],
-            description=description
-        )
+        customer = stripe.Customer.create(source=self.stripe_js_response["id"], description=description)
         self.stripe_customer_id = customer["id"]
         self.stripe_response = customer
         self.sources = customer.sources.data
@@ -152,8 +153,18 @@ class StripeCouponManager(models.Manager):
 class StripeCoupon(StripeBasicModel):
     # fields that are fetched from Stripe API
     STRIPE_FIELDS = {
-        "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
-        "percent_off", "redeem_by", "times_redeemed", "valid", "metadata", "created"
+        "amount_off",
+        "currency",
+        "duration",
+        "duration_in_months",
+        "livemode",
+        "max_redemptions",
+        "percent_off",
+        "redeem_by",
+        "times_redeemed",
+        "valid",
+        "metadata",
+        "created",
     }
 
     DURATION_FOREVER = "forever"
@@ -162,7 +173,7 @@ class StripeCoupon(StripeBasicModel):
     DURATION_CHOICES = (
         (DURATION_FOREVER, DURATION_FOREVER),
         (DURATION_ONCE, DURATION_ONCE),
-        (DURATION_REPEATING, DURATION_REPEATING)
+        (DURATION_REPEATING, DURATION_REPEATING),
     )
 
     # choices must be lowercase, because that is how Stripe API returns currency
@@ -193,38 +204,70 @@ class StripeCoupon(StripeBasicModel):
 
     coupon_id = models.CharField(max_length=255, help_text=_("Identifier for the coupon"))
     amount_off = models.DecimalField(
-        blank=True, null=True, decimal_places=2, max_digits=10,
-        help_text=_("Amount (in the currency specified) that will be taken off the subtotal of any invoices for this"
-                    "customer."))
+        blank=True,
+        null=True,
+        decimal_places=2,
+        max_digits=10,
+        help_text=_(
+            "Amount (in the currency specified) that will be taken off the subtotal of any invoices for this"
+            "customer."
+        ),
+    )
     currency = models.CharField(
-        max_length=3, choices=CURRENCY_CHOICES, blank=True, null=True,
-        help_text=_("If amount_off has been set, the three-letter ISO code for the currency of the amount to take "
-                    "off."))
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        blank=True,
+        null=True,
+        help_text=_(
+            "If amount_off has been set, the three-letter ISO code for the currency of the amount to take " "off."
+        ),
+    )
     duration = models.CharField(
-        max_length=255, choices=DURATION_CHOICES,
-        help_text=_("Describes how long a customer who applies this coupon will get the discount."))
+        max_length=255,
+        choices=DURATION_CHOICES,
+        help_text=_("Describes how long a customer who applies this coupon will get the discount."),
+    )
     duration_in_months = models.PositiveIntegerField(
-        blank=True, null=True, help_text=_("If duration is repeating, the number of months the coupon applies. "
-                                           "Null if coupon duration is forever or once."))
+        blank=True,
+        null=True,
+        help_text=_(
+            "If duration is repeating, the number of months the coupon applies. "
+            "Null if coupon duration is forever or once."
+        ),
+    )
     livemode = models.BooleanField(
-        default=False, help_text=_("Flag indicating whether the object exists in live mode or test mode."))
+        default=False, help_text=_("Flag indicating whether the object exists in live mode or test mode.")
+    )
     max_redemptions = models.PositiveIntegerField(
-        blank=True, null=True,
-        help_text=_("Maximum number of times this coupon can be redeemed, in total, before it is no longer valid."))
+        blank=True,
+        null=True,
+        help_text=_("Maximum number of times this coupon can be redeemed, in total, before it is no longer valid."),
+    )
     metadata = JSONField(
-        blank=True, help_text=_("Set of key/value pairs that you can attach to an object. It can be useful for "
-                                "storing additional information about the object in a structured format."))
+        blank=True,
+        help_text=_(
+            "Set of key/value pairs that you can attach to an object. It can be useful for "
+            "storing additional information about the object in a structured format."
+        ),
+    )
     percent_off = models.PositiveIntegerField(
-        blank=True, null=True,
-        help_text=_("Percent that will be taken off the subtotal of any invoicesfor this customer for the duration of "
-                    "the coupon. For example, a coupon with percent_off of 50 will make a $100 invoice $50 instead."))
+        blank=True,
+        null=True,
+        help_text=_(
+            "Percent that will be taken off the subtotal of any invoicesfor this customer for the duration of "
+            "the coupon. For example, a coupon with percent_off of 50 will make a $100 invoice $50 instead."
+        ),
+    )
     redeem_by = models.DateTimeField(
-        blank=True, null=True, help_text=_("Date after which the coupon can no longer be redeemed."))
+        blank=True, null=True, help_text=_("Date after which the coupon can no longer be redeemed.")
+    )
     times_redeemed = models.PositiveIntegerField(
-        default=0, help_text=_("Number of times this coupon has been applied to a customer."))
+        default=0, help_text=_("Number of times this coupon has been applied to a customer.")
+    )
     valid = models.BooleanField(
         default=False,
-        help_text=_("Taking account of the above properties, whether this coupon can still be applied to a customer."))
+        help_text=_("Taking account of the above properties, whether this coupon can still be applied to a customer."),
+    )
     created = models.DateTimeField()
     is_deleted = models.BooleanField(default=False)
     is_created_at_stripe = models.BooleanField(default=False)
@@ -315,7 +358,7 @@ class StripeCoupon(StripeBasicModel):
                 max_redemptions=self.max_redemptions,
                 metadata=self.metadata,
                 percent_off=self.percent_off,
-                redeem_by=int(dateformat.format(self.redeem_by, "U")) if self.redeem_by else None
+                redeem_by=int(dateformat.format(self.redeem_by, "U")) if self.redeem_by else None,
             )
             # stripe will generate coupon_id if none was specified in the request
             if not self.coupon_id:
@@ -333,7 +376,7 @@ class StripeCoupon(StripeBasicModel):
 
 
 class StripeCharge(StripeBasicModel):
-    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name='stripe_charges')
+    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name="stripe_charges")
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField(null=True, help_text=_("in cents"))
     amount_refunded = models.IntegerField(null=True, help_text=_("in cents"), default=0)
@@ -348,7 +391,7 @@ class StripeCharge(StripeBasicModel):
     comment = models.CharField(max_length=255, help_text=_("Comment for internal information"))
     content_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField(null=True, db_index=True)
-    source = generic.GenericForeignKey('content_type', 'object_id')
+    source = generic.GenericForeignKey("content_type", "object_id")
     statement_descriptor = models.CharField(max_length=22, blank=True)
 
     def charge(self):
@@ -361,17 +404,14 @@ class StripeCharge(StripeBasicModel):
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         self.customer = customer
         if customer:
-            metadata = {
-                "object_id": self.object_id,
-                "content_type_id": self.content_type_id
-            }
+            metadata = {"object_id": self.object_id, "content_type_id": self.content_type_id}
 
             params = {
                 "amount": self.amount,
                 "currency": "usd",
                 "customer": customer.stripe_customer_id,
                 "description": self.description,
-                "metadata": metadata
+                "metadata": metadata,
             }
             if self.statement_descriptor:
                 params["statement_descriptor"] = self.statement_descriptor
@@ -384,7 +424,7 @@ class StripeCharge(StripeBasicModel):
             except stripe.error.CardError as e:
                 self.charge_attempt_failed = True
                 self.is_charged = False
-                self.stripe_charge_id = e.json_body.get('error', {}).get('charge', '')
+                self.stripe_charge_id = e.json_body.get("error", {}).get("charge", "")
                 self.stripe_response = e.json_body
                 self.save()
                 stripe_charge_card_exception.send(sender=StripeCharge, instance=self, exception=e)
@@ -461,29 +501,43 @@ class StripeSubscriptionPlan(StripeBasicModel):
     )
 
     is_created_at_stripe = models.BooleanField(default=False)
-    source = JSONField(blank=True, help_text=_("Source of the plan, ie: {\"prescription\": 1}"))
+    source = JSONField(blank=True, help_text=_('Source of the plan, ie: {"prescription": 1}'))
     amount = models.BigIntegerField(help_text=_("In cents. More: https://stripe.com/docs/api#create_plan-amount"))
     currency = models.CharField(
-        max_length=3, help_text=_("3 letter ISO code, default USD, https://stripe.com/docs/api#create_plan-currency"),
-        default="USD")
+        max_length=3,
+        help_text=_("3 letter ISO code, default USD, https://stripe.com/docs/api#create_plan-currency"),
+        default="USD",
+    )
     name = models.CharField(
-        max_length=255, help_text=_("Name of the plan, to be displayed on invoices and in the web interface."))
+        max_length=255, help_text=_("Name of the plan, to be displayed on invoices and in the web interface.")
+    )
     interval = models.CharField(
-        max_length=10, help_text=_("Specifies billing frequency. Either day, week, month or year."),
-        choices=INTERVAL_CHOICES)
+        max_length=10,
+        help_text=_("Specifies billing frequency. Either day, week, month or year."),
+        choices=INTERVAL_CHOICES,
+    )
     interval_count = models.IntegerField(default=1, validators=[MinValueValidator(1)])
     metadata = JSONField(
         blank=True,
-        help_text=_("A set of key/value pairs that you can attach to a plan object. It can be useful"
-                    " for storing additional information about the plan in a structured format."))
+        help_text=_(
+            "A set of key/value pairs that you can attach to a plan object. It can be useful"
+            " for storing additional information about the plan in a structured format."
+        ),
+    )
     statement_descriptor = models.CharField(
-        max_length=22, help_text=_("An arbitrary string to be displayed on your customer’s credit card statement."),
-        blank=True)
+        max_length=22,
+        help_text=_("An arbitrary string to be displayed on your customer’s credit card statement."),
+        blank=True,
+    )
     trial_period_days = models.IntegerField(
-        default=0, validators=[MinValueValidator(0)],
-        help_text=_("Specifies a trial period in (an integer number of) days. If you include a trial period,"
-                    " the customer won’t be billed for the first time until the trial period ends. If the customer "
-                    "cancels before the trial period is over, she’ll never be billed at all."))
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text=_(
+            "Specifies a trial period in (an integer number of) days. If you include a trial period,"
+            " the customer won’t be billed for the first time until the trial period ends. If the customer "
+            "cancels before the trial period is over, she’ll never be billed at all."
+        ),
+    )
 
     def create_at_stripe(self):
         if self.is_created_at_stripe:
@@ -500,7 +554,7 @@ class StripeSubscriptionPlan(StripeBasicModel):
                 name=self.name,
                 metadata=self.metadata,
                 statement_descriptor=self.statement_descriptor,
-                trial_period_days=self.trial_period_days
+                trial_period_days=self.trial_period_days,
             )
         except stripe.error.StripeError:
             self.is_created_at_stripe = False
@@ -533,18 +587,30 @@ class StripeSubscription(StripeBasicModel):
     user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name="stripe_subscriptions")
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     status = models.CharField(
-        max_length=255, help_text="https://stripe.com/docs/api/python#subscription_object-status, "
-        "empty if not sent created at stripe", blank=True, choices=STATUS_CHOICES)
+        max_length=255,
+        help_text="https://stripe.com/docs/api/python#subscription_object-status, "
+        "empty if not sent created at stripe",
+        blank=True,
+        choices=STATUS_CHOICES,
+    )
     metadata = JSONField(blank=True, help_text="https://stripe.com/docs/api/python#create_subscription-metadata")
     tax_percent = models.DecimalField(
-        default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], decimal_places=2, max_digits=3,
-        help_text="https://stripe.com/docs/api/python#subscription_object-tax_percent")
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        decimal_places=2,
+        max_digits=3,
+        help_text="https://stripe.com/docs/api/python#subscription_object-tax_percent",
+    )
     # application_fee_percent = models.DecimalField(
     #     default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], decimal_places=2, max_digits=3,
     #     help_text="https://stripe.com/docs/api/python#create_subscription-application_fee_percent")
     coupon = models.ForeignKey(
-        StripeCoupon, blank=True, null=True, on_delete=models.SET_NULL,
-        help_text="https://stripe.com/docs/api/python#create_subscription-coupon")
+        StripeCoupon,
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        help_text="https://stripe.com/docs/api/python#create_subscription-coupon",
+    )
     end_date = models.DateField(null=True, blank=True, db_index=True)
     canceled_at = models.DateTimeField(null=True, blank=True, db_index=True)
     at_period_end = models.BooleanField(default=False)
@@ -605,8 +671,7 @@ class StripeSubscription(StripeBasicModel):
     @classmethod
     def get_subcriptions_for_cancel(cls):
         today = timezone.localtime(timezone.now() + relativedelta(hours=1)).date()
-        return cls.objects.filter(
-            end_date__lte=today, status=cls.STATUS_ACTIVE)
+        return cls.objects.filter(end_date__lte=today, status=cls.STATUS_ACTIVE)
 
     @classmethod
     def end_subscriptions(cls, at_period_end=False):
@@ -664,7 +729,7 @@ class StripeWebhook(models.Model):
                 logger.warning("[AA-Stripe] cannot parse customer.updated webhook: {}".format(e))
 
     def _parse_dispute_notification(self, action):
-        logger.info(f"[AA-Stripe] New dispute for charge {self.raw_data['data']['object']['charge']}")
+        logger.info("[AA-Stripe] New dispute for charge {}".format(self.raw_data["data"]["object"]["charge"]))
 
     def parse(self, save=False):
         if self.is_parsed:
@@ -677,8 +742,12 @@ class StripeWebhook(models.Model):
             event_model, event_action = None, None
 
         webhook_pre_parse.send(
-            sender=self.__class__, instance=self, event_type=event_type, event_model=event_model,
-            event_action=event_action)
+            sender=self.__class__,
+            instance=self,
+            event_type=event_type,
+            event_model=event_model,
+            event_action=event_action,
+        )
 
         # parse
         if event_model:
