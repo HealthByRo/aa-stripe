@@ -488,6 +488,37 @@ class TestWebhook(BaseTestCase):
             with self.assertRaises(Site.DoesNotExist):
                 call_command("check_pending_webhooks", site=-1)
 
+    def test_dispute(self):
+        self.assertEqual(StripeWebhook.objects.count(), 0)
+        payload = {
+          "object": "event",
+          "type": "charge.dispute.created",
+          "id": "evt_123",
+          "api_version": "2018-01-01",
+          "created": 1503477866,
+          "data": {
+              "object": {
+                  "id": "dp_ANSJH7zPDQPGqPEw0Cxq",
+                  "object": "dispute",
+                  "charge": "ch_5Q4BjL06oPWwho",
+                  "evidence": {
+                      "customer_name": "Jane Austen",
+                      "customer_purchase_ip": "127.0.0.1",
+                      "product_description": "An Awesome product",
+                      "shipping_tracking_number": "Z01234567890",
+                      "uncategorized_text": "Additional notes and comments"
+                  },
+                  "evidence_details": {
+                      "due_by": 1403047735,
+                      "submission_count": 1
+                  }
+              }
+          }
+        }
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(reverse("stripe-webhooks"), data=payload, format="json")
+        self.assertEqual(201, response.status_code)
+
     @requests_mock.Mocker()
     def test_customer_update(self, m):
         payload = {

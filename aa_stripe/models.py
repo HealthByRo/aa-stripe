@@ -433,10 +433,11 @@ class StripeCharge(StripeBasicModel):
             # refund all remaining amount
             amount_to_refund = self.amount - self.amount_refunded
         else:
+            # just to make sure
             amount_to_refund = abs(amount_to_refund)
 
         if (amount_to_refund + self.amount_refunded) > self.amount:
-            raise StripeMethodNotAllowed("Refund exceeds charge")
+            raise StripeMethodNotAllowed("Refunds exceed charge")
 
         stripe_refund = stripe.Refund.create(charge=self.stripe_charge_id, amount=amount_to_refund)
         self.is_refunded = (amount_to_refund + self.amount_refunded) == self.amount
@@ -662,6 +663,9 @@ class StripeWebhook(models.Model):
             except (StripeCustomer.DoesNotExist, stripe.error.StripeError) as e:
                 logger.warning("[AA-Stripe] cannot parse customer.updated webhook: {}".format(e))
 
+    def _parse_dispute_notification(self, action):
+        logger.info(f"[AA-Stripe] New dispute for charge {self.raw_data['data']['object']['charge']}")
+
     def parse(self, save=False):
         if self.is_parsed:
             raise StripeWebhookAlreadyParsed
@@ -682,6 +686,8 @@ class StripeWebhook(models.Model):
                 self._parse_coupon_notification(event_action)
             elif event_model in ["customer", "customer.source"]:
                 self._parse_customer_notification(event_model, event_action)
+            elif event_model == "charge.dispute":
+                self._parse_dispute_notification(event_action)
 
         self.is_parsed = True
         if save:
