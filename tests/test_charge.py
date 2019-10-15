@@ -192,6 +192,10 @@ class TestCharges(TestCase):
             description=data["description"],
             metadata={"object_id": charge.object_id, "content_type_id": charge.content_type_id},
         )
+        # charge on already charged
+        with self.assertRaises(StripeMethodNotAllowed) as ctx:
+            charge.charge()
+            self.assertEqual(ctx.exception.args[0], "Already charged.")
 
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create")
     def test_refund(self, refund_create_mocked):
