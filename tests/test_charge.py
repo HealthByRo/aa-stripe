@@ -217,6 +217,7 @@ class TestCharges(TestCase):
             customer=customer,
             description=data["description"],
         )
+        charge.source = customer
 
         self.assertFalse(charge.is_refunded)
 
@@ -228,13 +229,15 @@ class TestCharges(TestCase):
         charge.is_charged = True
         charge.stripe_charge_id = "abc"
         charge.save()
+        idempotency_key_prefix = "{}-{}-{}".format(customer.id, charge.content_type_id, 0)
 
         # partial refund
         with mock.patch("aa_stripe.signals.stripe_charge_refunded.send") as refund_signal_send:
             to_refund = charge.amount - 1
             charge.refund(to_refund)
             refund_create_mocked.assert_called_with(
-                charge=charge.stripe_charge_id, amount=to_refund
+                charge=charge.stripe_charge_id, amount=to_refund,
+                idempotency_key="{}-{}".format(idempotency_key_prefix, to_refund)
             )
             self.assertFalse(charge.is_refunded)
             refund_signal_send.assert_called_with(sender=StripeCharge, instance=charge)
@@ -251,7 +254,8 @@ class TestCharges(TestCase):
         with mock.patch("aa_stripe.signals.stripe_charge_refunded.send") as refund_signal_send:
             charge.refund()
             refund_create_mocked.assert_called_with(
-                charge=charge.stripe_charge_id, amount=charge.amount
+                charge=charge.stripe_charge_id, amount=charge.amount,
+                idempotency_key="{}-{}".format(idempotency_key_prefix, charge.amount)
             )
             self.assertTrue(charge.is_refunded)
             self.assertEqual(charge.stripe_refund_id, "R1")

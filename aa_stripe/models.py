@@ -464,7 +464,10 @@ class StripeCharge(StripeBasicModel):
         if (amount_to_refund + self.amount_refunded) > self.amount:
             raise StripeMethodNotAllowed("Refunds exceed charge")
 
-        stripe_refund = stripe.Refund.create(charge=self.stripe_charge_id, amount=amount_to_refund)
+        idempotency_key = "{}-{}-{}-{}".format(self.object_id, self.content_type_id,
+                                               self.amount_refunded, amount_to_refund)
+        stripe_refund = stripe.Refund.create(idempotency_key=idempotency_key,
+                                             charge=self.stripe_charge_id, amount=amount_to_refund)
         self.is_refunded = (amount_to_refund + self.amount_refunded) == self.amount
         self.amount_refunded += amount_to_refund
         self.stripe_refund_id = stripe_refund["id"]
