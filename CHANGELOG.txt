@@ -1,6 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.9.3]
+### Added
+- Use idempotent charge request
+- Use idempotent refund request
+- Test already charged exception
+- Allow to use external idempotency key postfix for charges
+
 ## [0.9.2]
 ### Added
 - partial refunds
