@@ -401,6 +401,7 @@ class StripeCharge(StripeBasicModel):
         self.customer = customer
         if customer:
             metadata = {"object_id": self.object_id, "content_type_id": self.content_type_id}
+            idempotency_key = "{}-{}".format(metadata["object_id"], metadata["content_type_id"])
 
             params = {
                 "amount": self.amount,
@@ -413,10 +414,7 @@ class StripeCharge(StripeBasicModel):
                 params["statement_descriptor"] = self.statement_descriptor
 
             try:
-                existing_charge = self._lookup_double_charge(customer.stripe_customer_id, metadata)
-                if existing_charge is not None:
-                    raise UserWarning("Attempt to double charge detected")
-                stripe_charge = stripe.Charge.create(**params)
+                stripe_charge = stripe.Charge.create(idempotency_key=idempotency_key, **params)
             except stripe.error.CardError as e:
                 self.charge_attempt_failed = True
                 self.is_charged = False
@@ -439,8 +437,6 @@ class StripeCharge(StripeBasicModel):
                     pass
                 self.save()
                 raise
-            except UserWarning:
-                stripe_charge = existing_charge
 
             self.stripe_charge_id = stripe_charge["id"]
             self.stripe_response = stripe_charge
@@ -448,13 +444,6 @@ class StripeCharge(StripeBasicModel):
             self.save()
             stripe_charge_succeeded.send(sender=StripeCharge, instance=self)
             return stripe_charge
-
-    def _lookup_double_charge(self, customer, metadata):
-        charges = stripe.Charge.list(customer=customer, limit=100)
-        for charge in charges.auto_paging_iter():
-            if charge["captured"] and charge["metadata"] == metadata:
-                return charge
-        return None
 
     def refund(self, amount_to_refund=None):
         stripe.api_key = stripe_settings.API_KEY

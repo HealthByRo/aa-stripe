@@ -21,9 +21,8 @@ class TestCharges(TestCase):
             email="foo@bar.bar", username="foo", password="dump-password"
         )
 
-    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.list")
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.create")
-    def test_charges(self, charge_create_mocked, charge_list_mocked):
+    def test_charges(self, charge_create_mocked):
         self.success_signal_was_called = False
         self.exception_signal_was_called = False
 
@@ -44,18 +43,6 @@ class TestCharges(TestCase):
         }
 
         charge_create_mocked.return_value = stripe.Charge(id="AA1")
-        charge_list_mocked.return_value = stripe.ListObject.construct_from(
-            {
-                "has_more": False,
-                "data": [
-                    {
-                        "captured": True,
-                        "metadata": {"object_id": "a", "content_type_id": "b"},
-                    }
-                ],
-            },
-            "mykey",
-        )
 
         StripeCustomer.objects.create(
             user=self.user, stripe_customer_id="bum", stripe_js_response='"aa"'
@@ -173,6 +160,7 @@ class TestCharges(TestCase):
         self.assertFalse(manual_charge.is_charged)
         self.assertEqual(charge.stripe_response["id"], "AA1")
         charge_create_mocked.assert_called_with(
+            idempotency_key="None-None",
             amount=charge.amount,
             currency=data["currency"],
             customer=data["customer_id"],
@@ -191,38 +179,19 @@ class TestCharges(TestCase):
         charge.source = customer
         charge.is_charged = False
         charge.save()
-        charge_list_mocked.return_value = stripe.ListObject.construct_from(
-            {
-                "has_more": False,
-                "data": [
-                    {
-                        "id": "match",
-                        "captured": True,
-                        "metadata": {
-                            "object_id": charge.object_id,
-                            "content_type_id": charge.content_type_id,
-                        },
-                    }
-                ],
-            },
-            "mykey",
-        )
         charge.charge()
         self.assertTrue(charge.is_charged)
         self.assertTrue(self.success_signal_was_called)
         self.assertFalse(self.exception_signal_was_called)
-        self.assertEqual(charge.stripe_response["id"], "match")
-        charge_create_mocked.assert_not_called()
-        # with api error
-        charge_list_mocked.side_effect = StripeError(json_body=stripe_error_json_body)
-        charge.is_charged = False
-        charge.save()
-        self.success_signal_was_called = False
-        self.exception_signal_was_called = False
-        charge.charge()
-        self.assertFalse(self.success_signal_was_called)
-        self.assertTrue(self.exception_signal_was_called)
-        charge_create_mocked.assert_not_called()
+        self.assertEqual(charge.stripe_response["id"], "AA1")
+        charge_create_mocked.assert_called_with(
+            idempotency_key="{}-{}".format(charge.object_id, charge.content_type_id),
+            amount=charge.amount,
+            currency=data["currency"],
+            customer=data["customer_id"],
+            description=data["description"],
+            metadata={"object_id": charge.object_id, "content_type_id": charge.content_type_id},
+        )
 
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create")
     def test_refund(self, refund_create_mocked):
