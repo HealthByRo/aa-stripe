@@ -160,7 +160,7 @@ class TestCharges(TestCase):
         self.assertFalse(manual_charge.is_charged)
         self.assertEqual(charge.stripe_response["id"], "AA1")
         charge_create_mocked.assert_called_with(
-            idempotency_key="None-None",
+            idempotency_key="None-None-None",
             amount=charge.amount,
             currency=data["currency"],
             customer=data["customer_id"],
@@ -179,13 +179,13 @@ class TestCharges(TestCase):
         charge.source = customer
         charge.is_charged = False
         charge.save()
-        charge.charge()
+        charge.charge("idempotency_key")
         self.assertTrue(charge.is_charged)
         self.assertTrue(self.success_signal_was_called)
         self.assertFalse(self.exception_signal_was_called)
         self.assertEqual(charge.stripe_response["id"], "AA1")
         charge_create_mocked.assert_called_with(
-            idempotency_key="{}-{}".format(charge.object_id, charge.content_type_id),
+            idempotency_key="{}-{}-{}".format(charge.object_id, charge.content_type_id, "idempotency_key"),
             amount=charge.amount,
             currency=data["currency"],
             customer=data["customer_id"],
