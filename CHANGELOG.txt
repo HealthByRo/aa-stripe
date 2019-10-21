@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.9.4]
+### Added
+- Internal stripe api errors handling
+
 ## [0.9.3]
 ### Added
 - Use idempotent charge request
