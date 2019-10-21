@@ -423,6 +423,12 @@ class StripeCharge(StripeBasicModel):
                 self.save()
                 stripe_charge_card_exception.send(sender=StripeCharge, instance=self, exception=e)
                 return  # just exit.
+            except stripe.error.APIError as e:
+                self.is_charged = False
+                self.stripe_response = e.json_body
+                logger.error("Temporary Stripe API error")
+                self.save()
+                return
             except stripe.error.StripeError as e:
                 self.is_charged = False
                 self.stripe_response = e.json_body
@@ -437,12 +443,6 @@ class StripeCharge(StripeBasicModel):
                     pass
                 self.save()
                 raise
-            except stripe.error.StripeError as e:
-                self.is_charged = False
-                self.stripe_response = e.json_body
-                logger.error("Temporary Stripe API error")
-                self.save()
-                return
             self.stripe_charge_id = stripe_charge["id"]
             self.stripe_response = stripe_charge
             self.is_charged = True

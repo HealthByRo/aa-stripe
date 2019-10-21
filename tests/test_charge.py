@@ -167,6 +167,21 @@ class TestCharges(TestCase):
             self.charge.charge()
             self.assertEqual(ctx.exception.args[0], "Already charged.")
 
+    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.create")
+    def test_stripe_api_error(self, charge_create_mocked):
+        charge_create_mocked.side_effect = stripe.error.APIError(
+            message="An unknown error occurred",
+            json_body={
+                "error": {
+                    "message": "An unknown error occurred",
+                    "type": "api_error"
+                }
+            }
+        )
+        self.charge.charge()
+        self.assertFalse(self.success_signal_was_called)
+        self.assertFalse(self.charge.is_charged)
+
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create")
     def test_refund(self, refund_create_mocked):
         data = {
