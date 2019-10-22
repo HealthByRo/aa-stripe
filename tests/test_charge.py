@@ -10,7 +10,7 @@ from django.utils.six import StringIO
 from stripe.error import CardError, StripeError
 
 from aa_stripe.models import StripeCharge, StripeCustomer, StripeMethodNotAllowed
-from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_succeeded, stripe_charge_refunded
+from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_refunded, stripe_charge_succeeded
 
 UserModel = get_user_model()
 
