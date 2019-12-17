@@ -724,6 +724,11 @@ class StripeWebhook(models.Model):
     def _parse_dispute_notification(self, action):
         logger.info("[AA-Stripe] New dispute for charge {}".format(self.raw_data["data"]["object"]["charge"]))
 
+    def _parse_charge_notification(self, action):
+        if action == "refunded":
+            logger.info("[AA-Stripe] New refund for charge {}".format(self.raw_data["data"]["object"]["id"]))
+            stripe_charge_refunded.send(sender=self.__class__, instance=self)
+
     def parse(self, save=False):
         if self.is_parsed:
             raise StripeWebhookAlreadyParsed
@@ -750,6 +755,8 @@ class StripeWebhook(models.Model):
                 self._parse_customer_notification(event_model, event_action)
             elif event_model == "charge.dispute":
                 self._parse_dispute_notification(event_action)
+            elif event_model == "charge":
+                self._parse_charge_notification(event_action)
 
         self.is_parsed = True
         if save:

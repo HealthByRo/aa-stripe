@@ -11,6 +11,8 @@ from django.core import mail
 from django.core.management import call_command
 from django.test import override_settings
 from rest_framework.reverse import reverse
+
+from aa_stripe.signals import stripe_charge_refunded
 from tests.test_utils import BaseTestCase
 
 from aa_stripe.exceptions import StripeWebhookAlreadyParsed
@@ -20,6 +22,12 @@ from aa_stripe.settings import stripe_settings
 
 
 class TestWebhook(BaseTestCase):
+    def setUp(self):
+        self.charge_refunded_signal_was_called = False
+
+    def _charge_refunded_handler(self, sender, instance, **kwargs):
+        self.charge_refunded_signal_was_called = True
+
     def _create_ping_webhook(self):
         payload = json.loads(
             """{
@@ -547,6 +555,30 @@ class TestWebhook(BaseTestCase):
         self.client.credentials(**self._get_signature_headers(payload))
         response = self.client.post(reverse("stripe-webhooks"), data=payload, format="json")
         self.assertEqual(201, response.status_code)
+
+    def test_refund(self):
+        self.assertEqual(StripeWebhook.objects.count(), 0)
+        self.assertFalse(self.charge_refunded_signal_was_called)
+        stripe_charge_refunded.connect(self._charge_refunded_handler)
+        payload = {
+            "object": "event",
+            "type": "charge.refunded",
+            "id": "evt_123",
+            "api_version": "2018-01-01",
+            "created": 1503477866,
+            "data": {
+                "object": {
+                    "id": "dp_ANSJH7zPDQPGqPEw0Cxq",
+                    "object": "charge",
+                    "amount": 100,
+                    "amount_refunded": 0,
+                }
+            },
+        }
+        self.client.credentials(**self._get_signature_headers(payload))
+        response = self.client.post(reverse("stripe-webhooks"), data=payload, format="json")
+        self.assertEqual(201, response.status_code)
+        self.assertTrue(self.charge_refunded_signal_was_called)
 
     @requests_mock.Mocker()
     def test_customer_update(self, m):
