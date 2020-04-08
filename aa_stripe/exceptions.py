@@ -15,3 +15,7 @@ class StripeWebhookParseError(Exception):
 
 class StripeCouponAlreadyExists(Exception):
     details = _("Coupon with this coupon_id and creation date already exists")
+
+
+class StripeInternalError(Exception):
+    details = _("Temporary Stripe API error")

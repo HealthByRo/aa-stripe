@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.utils.six import StringIO
 from stripe.error import CardError, StripeError
 
+from aa_stripe.exceptions import StripeInternalError
 from aa_stripe.models import StripeCharge, StripeCustomer, StripeMethodNotAllowed
 from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_refunded, stripe_charge_succeeded
 
@@ -139,13 +140,17 @@ class TestCharges(TestCase):
 
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.create")
     def test_stripe_api_error(self, charge_create_mocked):
+        error_json = {"error": {"message": "An unknown error occurred", "type": "api_error"}}
         charge_create_mocked.side_effect = stripe.error.APIError(
             message="An unknown error occurred",
-            json_body={"error": {"message": "An unknown error occurred", "type": "api_error"}},
+            json_body=error_json,
         )
-        self.charge.charge()
-        self.assertFalse(self.success_signal_was_called)
-        self.assertFalse(self.charge.is_charged)
+        with self.assertRaises(StripeInternalError):
+            self.charge.charge()
+            assert not self.success_signal_was_called
+            assert not self.charge.is_charged
+            assert self.charge.charge_attempt_failed
+            assert self.charge.stripe_response == error_json
 
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create")
     def test_refund_on_not_charged(self, refund_create_mocked):
