@@ -19,8 +19,8 @@ from django.utils import dateformat, timezone
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields.json import JSONField
 
-from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeMethodNotAllowed, StripeWebhookAlreadyParsed,
-                                  StripeWebhookParseError)
+from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeInternalError, StripeMethodNotAllowed,
+                                  StripeWebhookAlreadyParsed, StripeWebhookParseError)
 from aa_stripe.settings import stripe_settings
 from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_refunded, stripe_charge_succeeded
 from aa_stripe.utils import timestamp_to_timezone_aware_date
@@ -424,11 +424,12 @@ class StripeCharge(StripeBasicModel):
                 stripe_charge_card_exception.send(sender=StripeCharge, instance=self, exception=e)
                 return  # just exit.
             except stripe.error.APIError as e:
+                self.charge_attempt_failed = True
                 self.is_charged = False
                 self.stripe_response = e.json_body
                 logger.error("Temporary Stripe API error")
                 self.save()
-                return
+                raise StripeInternalError
             except stripe.error.StripeError as e:
                 self.is_charged = False
                 self.stripe_response = e.json_body
