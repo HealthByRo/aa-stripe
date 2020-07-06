@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+##[0.9.6]
+### Changed
+- Ignore specific error "charge_already_refunded" when attempting to create a refund
+
 ## [0.9.5]
 ### Added
 - Custom exception class for internal stripe api errors
