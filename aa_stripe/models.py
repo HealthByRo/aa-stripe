@@ -472,11 +472,20 @@ class StripeCharge(StripeBasicModel):
 
         idempotency_key = "{}-{}-{}-{}".format(self.object_id, self.content_type_id,
                                                self.amount_refunded, amount_to_refund)
-        stripe_refund = stripe.Refund.create(idempotency_key=idempotency_key,
-                                             charge=self.stripe_charge_id, amount=amount_to_refund)
+
+        refund_id = ""
+        try:
+            stripe_refund = stripe.Refund.create(idempotency_key=idempotency_key,
+                                                 charge=self.stripe_charge_id, amount=amount_to_refund)
+            refund_id = stripe_refund["id"]
+        except stripe.error.InvalidRequestError as e:
+            # explicitly ignore charges already refunded
+            if e.code != "charge_already_refunded":
+                raise e
+
         self.is_refunded = (amount_to_refund + self.amount_refunded) == self.amount
         self.amount_refunded += amount_to_refund
-        self.stripe_refund_id = stripe_refund["id"]
+        self.stripe_refund_id = refund_id
         self.save()
         stripe_charge_refunded.send(sender=StripeCharge, instance=self)
 
