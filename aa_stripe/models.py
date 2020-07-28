@@ -451,7 +451,7 @@ class StripeCharge(StripeBasicModel):
             stripe_charge_succeeded.send(sender=StripeCharge, instance=self)
             return stripe_charge
 
-    def refund(self, amount_to_refund=None):
+    def refund(self, amount_to_refund=None, retry_on_error=True):
         stripe.api_key = stripe_settings.API_KEY
 
         if not self.is_charged:
@@ -479,6 +479,18 @@ class StripeCharge(StripeBasicModel):
                                                  charge=self.stripe_charge_id, amount=amount_to_refund)
             refund_id = stripe_refund["id"]
         except stripe.error.InvalidRequestError as e:
+            # it is possible some of the charge was refunded manually, refresh and try again
+            if e.code == "amount_too_large":
+                stripe_charge = stripe.Charge.retrieve(self.stripe_charge_id)
+                if stripe_charge.amount_refunded != self.amount_refunded:
+                    self.amount_refunded = stripe_charge.amount_refunded
+
+                # retry if we're not already retrying (prevent infinite loop)
+                if retry_on_error:
+                    return self.refund(amount_to_refund=None, retry_on_error=False)
+                else:
+                    raise e
+
             # explicitly ignore charges already refunded
             if e.code != "charge_already_refunded":
                 raise e
