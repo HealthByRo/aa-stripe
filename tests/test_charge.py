@@ -16,6 +16,20 @@ from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_refund
 UserModel = get_user_model()
 
 
+def build_small_manual_refunded_charge():
+    # can't find a way to make this inline - stripe.Charge(amount_refunded=10) does not work
+    sc = stripe.Charge(id='AA1')
+    sc.amount_refunded = 10
+    return sc
+
+
+def build_full_manual_refunded_charge():
+    # can't find a way to make this inline - stripe.Charge(amount_refunded=10) does not work
+    sc = stripe.Charge(id='AA1')
+    sc.amount_refunded = 100
+    return sc
+
+
 class TestCharges(TestCase):
     def _success_handler(self, sender, instance, **kwargs):
         self.success_signal_was_called = True
@@ -248,3 +262,21 @@ class TestCharges(TestCase):
         self.assertEqual(ctx.exception.args[0], "Refunds exceed charge")
         self.assertFalse(self.charge.is_refunded)
         self.assertFalse(self.charge_refunded_signal_was_called)
+
+    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create", side_effect=[stripe.error.InvalidRequestError("message", "param"), stripe.Refund(id="R1")])
+    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.retrieve", return_value=build_small_manual_refunded_charge())
+    def test_refund_after_partial_manual_refund(self, refund_create_mocked, charge_retrieve_mocked):
+        self.charge.is_charged = True
+        self.charge.stripe_charge_id = "AA1"
+        self.charge.refund(100)
+
+        self.assertEqual(self.charge.amount_refunded, 100)
+
+    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create", side_effect=stripe.error.InvalidRequestError("message", "param", code="charge_already_refunded"))
+    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.retrieve", return_value=build_full_manual_refunded_charge())
+    def test_already_manually_refunded(self, refund_create_mocked, charge_retrieve_mocked):
+        self.charge.is_charged = True
+        self.charge.stripe_charge_id = "AA1"
+        self.charge.refund(100)
+
+        self.assertEqual(self.charge.amount_refunded, 100)
