@@ -6,7 +6,6 @@ from decimal import Decimal
 from time import sleep
 
 import simplejson as json
-import six
 import stripe
 from dateutil.relativedelta import relativedelta
 from django import dispatch
@@ -19,10 +18,19 @@ from django.utils import dateformat, timezone
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields.json import JSONField
 
-from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeInternalError, StripeMethodNotAllowed,
-                                  StripeWebhookAlreadyParsed, StripeWebhookParseError)
+from aa_stripe.exceptions import (
+    StripeCouponAlreadyExists,
+    StripeInternalError,
+    StripeMethodNotAllowed,
+    StripeWebhookAlreadyParsed,
+    StripeWebhookParseError,
+)
 from aa_stripe.settings import stripe_settings
-from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_refunded, stripe_charge_succeeded
+from aa_stripe.signals import (
+    stripe_charge_card_exception,
+    stripe_charge_refunded,
+    stripe_charge_succeeded,
+)
 from aa_stripe.utils import timestamp_to_timezone_aware_date
 
 USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
@@ -30,7 +38,9 @@ USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 logger = logging.getLogger("aa-stripe")
 
 # signals
-webhook_pre_parse = dispatch.Signal(providing_args=["instance", "event_type", "event_model", "event_action"])
+webhook_pre_parse = dispatch.Signal(
+    providing_args=["instance", "event_type", "event_model", "event_action"]
+)
 
 
 class StripeBasicModel(models.Model):
@@ -43,13 +53,17 @@ class StripeBasicModel(models.Model):
 
 
 class StripeCustomer(StripeBasicModel):
-    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name="stripe_customers")
+    user = models.ForeignKey(
+        USER_MODEL, on_delete=models.CASCADE, related_name="stripe_customers"
+    )
     stripe_js_response = JSONField(blank=True)
     stripe_customer_id = models.CharField(max_length=255, db_index=True)
     is_active = models.BooleanField(default=True)
     is_created_at_stripe = models.BooleanField(default=False)
     sources = JSONField(blank=True, default=[])
-    default_source = models.CharField(max_length=255, blank=True, help_text="ID of default source from Stripe")
+    default_source = models.CharField(
+        max_length=255, blank=True, help_text="ID of default source from Stripe"
+    )
 
     def __init__(self, *args, **kwargs):
         super(StripeCustomer, self).__init__(*args, **kwargs)
@@ -63,7 +77,9 @@ class StripeCustomer(StripeBasicModel):
             description = "{user} id: {user.id}".format(user=self.user)
 
         stripe.api_key = stripe_settings.API_KEY
-        customer = stripe.Customer.create(source=self.stripe_js_response["id"], description=description)
+        customer = stripe.Customer.create(
+            source=self.stripe_js_response["id"], description=description
+        )
         self.stripe_customer_id = customer["id"]
         self.stripe_response = customer
         self.sources = customer.sources.data
@@ -198,7 +214,9 @@ class StripeCoupon(StripeBasicModel):
     )
     # fmt: on
 
-    coupon_id = models.CharField(max_length=255, help_text=_("Identifier for the coupon"))
+    coupon_id = models.CharField(
+        max_length=255, help_text=_("Identifier for the coupon")
+    )
     amount_off = models.DecimalField(
         blank=True,
         null=True,
@@ -215,13 +233,16 @@ class StripeCoupon(StripeBasicModel):
         blank=True,
         null=True,
         help_text=_(
-            "If amount_off has been set, the three-letter ISO code for the currency of the amount to take " "off."
+            "If amount_off has been set, the three-letter ISO code for the currency of the amount to take "
+            "off."
         ),
     )
     duration = models.CharField(
         max_length=255,
         choices=DURATION_CHOICES,
-        help_text=_("Describes how long a customer who applies this coupon will get the discount."),
+        help_text=_(
+            "Describes how long a customer who applies this coupon will get the discount."
+        ),
     )
     duration_in_months = models.PositiveIntegerField(
         blank=True,
@@ -232,12 +253,17 @@ class StripeCoupon(StripeBasicModel):
         ),
     )
     livemode = models.BooleanField(
-        default=False, help_text=_("Flag indicating whether the object exists in live mode or test mode.")
+        default=False,
+        help_text=_(
+            "Flag indicating whether the object exists in live mode or test mode."
+        ),
     )
     max_redemptions = models.PositiveIntegerField(
         blank=True,
         null=True,
-        help_text=_("Maximum number of times this coupon can be redeemed, in total, before it is no longer valid."),
+        help_text=_(
+            "Maximum number of times this coupon can be redeemed, in total, before it is no longer valid."
+        ),
     )
     metadata = JSONField(
         blank=True,
@@ -255,14 +281,19 @@ class StripeCoupon(StripeBasicModel):
         ),
     )
     redeem_by = models.DateTimeField(
-        blank=True, null=True, help_text=_("Date after which the coupon can no longer be redeemed.")
+        blank=True,
+        null=True,
+        help_text=_("Date after which the coupon can no longer be redeemed."),
     )
     times_redeemed = models.PositiveIntegerField(
-        default=0, help_text=_("Number of times this coupon has been applied to a customer.")
+        default=0,
+        help_text=_("Number of times this coupon has been applied to a customer."),
     )
     valid = models.BooleanField(
         default=False,
-        help_text=_("Taking account of the above properties, whether this coupon can still be applied to a customer."),
+        help_text=_(
+            "Taking account of the above properties, whether this coupon can still be applied to a customer."
+        ),
     )
     created = models.DateTimeField()
     is_deleted = models.BooleanField(default=False)
@@ -288,13 +319,15 @@ class StripeCoupon(StripeBasicModel):
         update_data = {key: stripe_coupon[key] for key in fields_to_update}
         for field in ["created", "redeem_by"]:
             if update_data.get(field):
-                update_data[field] = timestamp_to_timezone_aware_date(update_data[field])
+                update_data[field] = timestamp_to_timezone_aware_date(
+                    update_data[field]
+                )
 
         if update_data.get("amount_off"):
             update_data["amount_off"] = Decimal(update_data["amount_off"]) / 100
 
         # also make sure the object is up to date (without the need to call database)
-        for key, value in six.iteritems(update_data):
+        for key, value in update_data.items():
             setattr(self, key, value)
 
         if commit:
@@ -311,7 +344,9 @@ class StripeCoupon(StripeBasicModel):
             try:
                 stripe_coupon = stripe.Coupon.retrieve(self.coupon_id)
                 # make sure to delete correct coupon
-                if self.created == timestamp_to_timezone_aware_date(stripe_coupon["created"]):
+                if self.created == timestamp_to_timezone_aware_date(
+                    stripe_coupon["created"]
+                ):
                     stripe_coupon.delete()
             except stripe.error.InvalidRequestError:
                 # means that the coupon has already been removed from stripe
@@ -329,15 +364,24 @@ class StripeCoupon(StripeBasicModel):
                 if force_retrieve:
                     # make sure we are not creating a duplicate
                     coupon_qs = StripeCoupon.objects.filter(coupon_id=self.coupon_id)
-                    if coupon_qs.filter(created=timestamp_to_timezone_aware_date(stripe_coupon["created"])).exists():
+                    if coupon_qs.filter(
+                        created=timestamp_to_timezone_aware_date(
+                            stripe_coupon["created"]
+                        )
+                    ).exists():
                         raise StripeCouponAlreadyExists
 
                     # all old coupons should be deleted
                     for coupon in coupon_qs:
                         coupon.is_deleted = True
-                        super(StripeCoupon, coupon).save()  # use super save() to call pre/post save signals
+                        super(
+                            StripeCoupon, coupon
+                        ).save()  # use super save() to call pre/post save signals
                 # update all fields in the local object in case someone tried to change them
-                self.update_from_stripe_data(stripe_coupon, exclude_fields=["metadata"] if not force_retrieve else [])
+                self.update_from_stripe_data(
+                    stripe_coupon,
+                    exclude_fields=["metadata"] if not force_retrieve else [],
+                )
                 self.stripe_response = stripe_coupon
             except stripe.error.InvalidRequestError:
                 if force_retrieve:
@@ -354,7 +398,9 @@ class StripeCoupon(StripeBasicModel):
                 max_redemptions=self.max_redemptions,
                 metadata=self.metadata,
                 percent_off=self.percent_off,
-                redeem_by=int(dateformat.format(self.redeem_by, "U")) if self.redeem_by else None,
+                redeem_by=int(dateformat.format(self.redeem_by, "U"))
+                if self.redeem_by
+                else None,
             )
             # stripe will generate coupon_id if none was specified in the request
             if not self.coupon_id:
@@ -372,7 +418,9 @@ class StripeCoupon(StripeBasicModel):
 
 
 class StripeCharge(StripeBasicModel):
-    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name="stripe_charges")
+    user = models.ForeignKey(
+        USER_MODEL, on_delete=models.CASCADE, related_name="stripe_charges"
+    )
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField(null=True, help_text=_("in cents"))
     amount_refunded = models.IntegerField(null=True, help_text=_("in cents"), default=0)
@@ -383,8 +431,12 @@ class StripeCharge(StripeBasicModel):
     charge_attempt_failed = models.BooleanField(default=False)
     stripe_charge_id = models.CharField(max_length=255, blank=True, db_index=True)
     stripe_refund_id = models.CharField(max_length=255, blank=True, db_index=True)
-    description = models.CharField(max_length=255, help_text=_("Description sent to Stripe"))
-    comment = models.CharField(max_length=255, help_text=_("Comment for internal information"))
+    description = models.CharField(
+        max_length=255, help_text=_("Description sent to Stripe")
+    )
+    comment = models.CharField(
+        max_length=255, help_text=_("Comment for internal information")
+    )
     content_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField(null=True, db_index=True)
     source = generic.GenericForeignKey("content_type", "object_id")
@@ -400,8 +452,13 @@ class StripeCharge(StripeBasicModel):
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         self.customer = customer
         if customer:
-            metadata = {"object_id": self.object_id, "content_type_id": self.content_type_id}
-            idempotency_key = "{}-{}-{}".format(metadata["object_id"], metadata["content_type_id"], idempotency_key)
+            metadata = {
+                "object_id": self.object_id,
+                "content_type_id": self.content_type_id,
+            }
+            idempotency_key = "{}-{}-{}".format(
+                metadata["object_id"], metadata["content_type_id"], idempotency_key
+            )
 
             params = {
                 "amount": self.amount,
@@ -414,14 +471,18 @@ class StripeCharge(StripeBasicModel):
                 params["statement_descriptor"] = self.statement_descriptor
 
             try:
-                stripe_charge = stripe.Charge.create(idempotency_key=idempotency_key, **params)
+                stripe_charge = stripe.Charge.create(
+                    idempotency_key=idempotency_key, **params
+                )
             except stripe.error.CardError as e:
                 self.charge_attempt_failed = True
                 self.is_charged = False
                 self.stripe_charge_id = e.json_body.get("error", {}).get("charge", "")
                 self.stripe_response = e.json_body
                 self.save()
-                stripe_charge_card_exception.send(sender=StripeCharge, instance=self, exception=e)
+                stripe_charge_card_exception.send(
+                    sender=StripeCharge, instance=self, exception=e
+                )
                 return  # just exit.
             except stripe.error.APIError as e:
                 self.charge_attempt_failed = True
@@ -438,7 +499,9 @@ class StripeCharge(StripeBasicModel):
                     if self.stripe_response["error"]["type"] == "invalid_request_error":
                         self.charge_attempt_failed = True
                         self.save()
-                        stripe_charge_card_exception.send(sender=StripeCharge, instance=self, exception=e)
+                        stripe_charge_card_exception.send(
+                            sender=StripeCharge, instance=self, exception=e
+                        )
                         return  # just exit.
                 except KeyError:
                     pass
@@ -470,13 +533,17 @@ class StripeCharge(StripeBasicModel):
         if (amount_to_refund + self.amount_refunded) > self.amount:
             raise StripeMethodNotAllowed("Refunds exceed charge")
 
-        idempotency_key = "{}-{}-{}-{}".format(self.object_id, self.content_type_id,
-                                               self.amount_refunded, amount_to_refund)
+        idempotency_key = "{}-{}-{}-{}".format(
+            self.object_id, self.content_type_id, self.amount_refunded, amount_to_refund
+        )
 
         refund_id = ""
         try:
-            stripe_refund = stripe.Refund.create(idempotency_key=idempotency_key,
-                                                 charge=self.stripe_charge_id, amount=amount_to_refund)
+            stripe_refund = stripe.Refund.create(
+                idempotency_key=idempotency_key,
+                charge=self.stripe_charge_id,
+                amount=amount_to_refund,
+            )
             refund_id = stripe_refund["id"]
         except stripe.error.InvalidRequestError as e:
             # retry if we're not already retrying (prevent infinite loop)
@@ -488,7 +555,10 @@ class StripeCharge(StripeBasicModel):
                 pass
             else:
                 stripe_charge = stripe.Charge.retrieve(self.stripe_charge_id)
-                if stripe_charge.amount_refunded != self.amount_refunded and e.code != "charge_already_refunded":
+                if (
+                    stripe_charge.amount_refunded != self.amount_refunded
+                    and e.code != "charge_already_refunded"
+                ):
                     # refresh data and retry
                     self.amount_refunded = stripe_charge.amount_refunded
                     # set amount_to_refund to None to request maximum refund
@@ -515,15 +585,24 @@ class StripeSubscriptionPlan(StripeBasicModel):
     )
 
     is_created_at_stripe = models.BooleanField(default=False)
-    source = JSONField(blank=True, help_text=_('Source of the plan, ie: {"prescription": 1}'))
-    amount = models.BigIntegerField(help_text=_("In cents. More: https://stripe.com/docs/api#create_plan-amount"))
+    source = JSONField(
+        blank=True, help_text=_('Source of the plan, ie: {"prescription": 1}')
+    )
+    amount = models.BigIntegerField(
+        help_text=_("In cents. More: https://stripe.com/docs/api#create_plan-amount")
+    )
     currency = models.CharField(
         max_length=3,
-        help_text=_("3 letter ISO code, default USD, https://stripe.com/docs/api#create_plan-currency"),
+        help_text=_(
+            "3 letter ISO code, default USD, https://stripe.com/docs/api#create_plan-currency"
+        ),
         default="USD",
     )
     name = models.CharField(
-        max_length=255, help_text=_("Name of the plan, to be displayed on invoices and in the web interface.")
+        max_length=255,
+        help_text=_(
+            "Name of the plan, to be displayed on invoices and in the web interface."
+        ),
     )
     interval = models.CharField(
         max_length=10,
@@ -540,7 +619,9 @@ class StripeSubscriptionPlan(StripeBasicModel):
     )
     statement_descriptor = models.CharField(
         max_length=22,
-        help_text=_("An arbitrary string to be displayed on your customer’s credit card statement."),
+        help_text=_(
+            "An arbitrary string to be displayed on your customer’s credit card statement."
+        ),
         blank=True,
     )
     trial_period_days = models.IntegerField(
@@ -598,7 +679,9 @@ class StripeSubscription(StripeBasicModel):
     stripe_subscription_id = models.CharField(max_length=255, blank=True, db_index=True)
     is_created_at_stripe = models.BooleanField(default=False)
     plan = models.ForeignKey(StripeSubscriptionPlan, on_delete=models.CASCADE)
-    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name="stripe_subscriptions")
+    user = models.ForeignKey(
+        USER_MODEL, on_delete=models.CASCADE, related_name="stripe_subscriptions"
+    )
     customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
     status = models.CharField(
         max_length=255,
@@ -607,7 +690,10 @@ class StripeSubscription(StripeBasicModel):
         blank=True,
         choices=STATUS_CHOICES,
     )
-    metadata = JSONField(blank=True, help_text="https://stripe.com/docs/api/python#create_subscription-metadata")
+    metadata = JSONField(
+        blank=True,
+        help_text="https://stripe.com/docs/api/python#create_subscription-metadata",
+    )
     tax_percent = models.DecimalField(
         default=0,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
@@ -697,7 +783,9 @@ class StripeSubscription(StripeBasicModel):
 
 
 class StripeWebhook(models.Model):
-    id = models.CharField(primary_key=True, max_length=255)  # id from stripe. This will prevent subsequent calls.
+    id = models.CharField(
+        primary_key=True, max_length=255
+    )  # id from stripe. This will prevent subsequent calls.
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     is_parsed = models.BooleanField(default=False)
@@ -706,15 +794,21 @@ class StripeWebhook(models.Model):
 
     def _parse_coupon_notification(self, action):
         coupon_id = self.raw_data["data"]["object"]["id"]
-        created = timestamp_to_timezone_aware_date(self.raw_data["data"]["object"]["created"])
+        created = timestamp_to_timezone_aware_date(
+            self.raw_data["data"]["object"]["created"]
+        )
         if action == "created":
             try:
-                StripeCoupon.objects.all_with_deleted().get(coupon_id=coupon_id, created=created)
+                StripeCoupon.objects.all_with_deleted().get(
+                    coupon_id=coupon_id, created=created
+                )
             except StripeCoupon.DoesNotExist:
                 try:
                     StripeCoupon(coupon_id=coupon_id).save(force_retrieve=True)
                 except stripe.error.InvalidRequestError:
-                    raise StripeWebhookParseError(_("Coupon with this coupon_id does not exists at Stripe API"))
+                    raise StripeWebhookParseError(
+                        _("Coupon with this coupon_id does not exists at Stripe API")
+                    )
                 except StripeCouponAlreadyExists as e:
                     raise StripeWebhookParseError(e.details)
             else:
@@ -723,7 +817,9 @@ class StripeWebhook(models.Model):
             try:
                 coupon = StripeCoupon.objects.get(coupon_id=coupon_id, created=created)
                 coupon.metadata = self.raw_data["data"]["object"]["metadata"]
-                super(StripeCoupon, coupon).save()  # use the super method not to call Stripe API
+                super(
+                    StripeCoupon, coupon
+                ).save()  # use the super method not to call Stripe API
             except StripeCoupon.DoesNotExist:
                 pass  # do not update if does not exist
         elif action == "deleted":
@@ -740,10 +836,16 @@ class StripeWebhook(models.Model):
                 customer = StripeCustomer.objects.get(stripe_customer_id=customer_id)
                 customer.refresh_from_stripe()
             except (StripeCustomer.DoesNotExist, stripe.error.StripeError) as e:
-                logger.warning("[AA-Stripe] cannot parse customer.updated webhook: {}".format(e))
+                logger.warning(
+                    "[AA-Stripe] cannot parse customer.updated webhook: {}".format(e)
+                )
 
     def _parse_dispute_notification(self, action):
-        logger.info("[AA-Stripe] New dispute for charge {}".format(self.raw_data["data"]["object"]["charge"]))
+        logger.info(
+            "[AA-Stripe] New dispute for charge {}".format(
+                self.raw_data["data"]["object"]["charge"]
+            )
+        )
 
     def parse(self, save=False):
         if self.is_parsed:
