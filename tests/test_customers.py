@@ -5,9 +5,9 @@ import stripe
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from rest_framework.reverse import reverse
-from tests.test_utils import BaseTestCase
 
 from aa_stripe.models import StripeCustomer
+from tests.test_utils import BaseTestCase
 
 UserModel = get_user_model()
 

@@ -1,1 +1,1 @@
-isort --recursive -p aa_stripe -sd THIRDPARTY -m 0 -w 120 -y -s venv -s .tox
+isort . --recursive -p aa_stripe -sd THIRDPARTY -m 0 -w 120 -s venv -s .tox

@@ -11,14 +11,12 @@ from django.core import mail
 from django.core.management import call_command
 from django.test import override_settings
 from rest_framework.reverse import reverse
-from tests.test_utils import BaseTestCase
 
 from aa_stripe.exceptions import StripeWebhookAlreadyParsed
-from aa_stripe.management.commands.check_pending_webhooks import (
-    StripePendingWebooksLimitExceeded,
-)
+from aa_stripe.management.commands.check_pending_webhooks import StripePendingWebooksLimitExceeded
 from aa_stripe.models import StripeCoupon, StripeWebhook
 from aa_stripe.settings import stripe_settings
+from tests.test_utils import BaseTestCase
 
 
 class TestWebhook(BaseTestCase):

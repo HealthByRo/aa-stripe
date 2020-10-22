@@ -1,21 +1,17 @@
 """Test charging users through the StripeCharge model"""
 import sys
+from io import StringIO
 
 import mock
 import stripe
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
-from io import StringIO
 from stripe.error import CardError, StripeError
 
 from aa_stripe.exceptions import StripeInternalError
 from aa_stripe.models import StripeCharge, StripeCustomer, StripeMethodNotAllowed
-from aa_stripe.signals import (
-    stripe_charge_card_exception,
-    stripe_charge_refunded,
-    stripe_charge_succeeded,
-)
+from aa_stripe.signals import stripe_charge_card_exception, stripe_charge_refunded, stripe_charge_succeeded
 
 UserModel = get_user_model()
 

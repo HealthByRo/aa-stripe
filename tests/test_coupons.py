@@ -9,11 +9,11 @@ from django.core.management import call_command
 from django.utils import dateformat, timezone
 from freezegun import freeze_time
 from rest_framework.reverse import reverse
-from tests.test_utils import BaseTestCase
 
 from aa_stripe.forms import StripeCouponForm
 from aa_stripe.models import StripeCoupon
 from aa_stripe.utils import timestamp_to_timezone_aware_date
+from tests.test_utils import BaseTestCase
 
 UserModel = get_user_model()
 
