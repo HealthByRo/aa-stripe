@@ -201,8 +201,8 @@ Another way of updating the credit card information is to run the `refresh_custo
 
 Support
 =======
-* Django 1.11, Django 2.2
-* Python 3.5-3.7
+* Django 2.2-3.1
+* Python 3.6-3.8
 
 .. |travis| image:: https://secure.travis-ci.org/HealthByRo/aa-stripe.svg?branch=master
 .. _travis: http://travis-ci.org/HealthByRo/aa-stripe
