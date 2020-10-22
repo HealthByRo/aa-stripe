@@ -1,15 +1,13 @@
 language: python
-matrix:
-    include:
-        - python: 3.6
-          dist: xenial
-          sudo: false
-        - python: 3.7
-        - python: 3.8
-        - python: 3.9
+cache: pip
+python:
+    - "3.6"
+    - "3.7"
+    - "3.8"
+    - "3.9"
 
 install:
-  - pip install tox tox-travis coverage coveralls
+  - pip install tox-travis coverage coveralls
 
 script:
   - tox
