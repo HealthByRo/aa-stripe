@@ -54,9 +54,7 @@ def isort_main():
     )
 
     if ret:
-        print(
-            "isort failed: Some modules have incorrectly ordered imports. Fix by running `./run_isort`"
-        )
+        print("isort failed: Some modules have incorrectly ordered imports. Fix by running `./run_isort`")
     else:
         print("isort passed")
 

@@ -222,19 +222,13 @@ class TestWebhook(BaseTestCase):
             payload["request"]["id"] = ["req_blahblah"]
             payload["data"]["object"]["id"] = "doesnotexist"
             self.client.credentials(**self._get_signature_headers(payload))
-            self.assertEqual(
-                StripeCoupon.objects.filter(coupon_id="doesnotexist").count(), 0
-            )
+            self.assertEqual(StripeCoupon.objects.filter(coupon_id="doesnotexist").count(), 0)
             response = self.client.post(url, data=payload, format="json")
             self.assertEqual(response.status_code, 201)
-            self.assertEqual(
-                StripeCoupon.objects.filter(coupon_id="doesnotexist").count(), 0
-            )
+            self.assertEqual(StripeCoupon.objects.filter(coupon_id="doesnotexist").count(), 0)
 
             # test receiving coupon.created to a coupon that already exists in our database
-            coupon_qs = StripeCoupon.objects.all_with_deleted().filter(
-                coupon_id="nicecoupon"
-            )
+            coupon_qs = StripeCoupon.objects.all_with_deleted().filter(coupon_id="nicecoupon")
             payload["id"] = "evt_1"
             payload["request"]["id"] = "req_1"
             payload["data"]["object"]["id"] = "nicecoupon"
@@ -362,9 +356,7 @@ class TestWebhook(BaseTestCase):
 
     @requests_mock.Mocker()
     def test_coupon_delete(self, m):
-        coupon = self._create_coupon(
-            "nicecoupon", amount_off=100, duration=StripeCoupon.DURATION_ONCE
-        )
+        coupon = self._create_coupon("nicecoupon", amount_off=100, duration=StripeCoupon.DURATION_ONCE)
         self.assertFalse(coupon.is_deleted)
         payload = json.loads(
             """{
@@ -413,9 +405,7 @@ class TestWebhook(BaseTestCase):
         with mock.patch("aa_stripe.models.webhook_pre_parse.send") as mocked_signal:
             response = self.client.post(url, data=payload, format="json")
             self.assertEqual(response.status_code, 201)
-            self.assertTrue(
-                StripeCoupon.objects.deleted().filter(pk=coupon.pk).exists()
-            )
+            self.assertTrue(StripeCoupon.objects.deleted().filter(pk=coupon.pk).exists())
             webhook = StripeWebhook.objects.first()
             self.assertTrue(webhook.is_parsed)
             mocked_signal.assert_called_with(
@@ -460,9 +450,7 @@ class TestWebhook(BaseTestCase):
         )
         self.client.credentials(**self._get_signature_headers(payload))
         with mock.patch("aa_stripe.models.webhook_pre_parse.send") as mocked_signal:
-            response = self.client.post(
-                reverse("stripe-webhooks"), data=payload, format="json"
-            )
+            response = self.client.post(reverse("stripe-webhooks"), data=payload, format="json")
             self.assertEqual(response.status_code, 201)
             mocked_signal.assert_called_with(
                 event_action=None,
@@ -509,25 +497,19 @@ class TestWebhook(BaseTestCase):
                     {"text": json.dumps(last_webhook.raw_data)},
                     {"text": json.dumps(last_webhook.raw_data)},
                     {
-                        "text": json.dumps(
-                            {"error": {"type": "invalid_request_error"}}
-                        ),
+                        "text": json.dumps({"error": {"type": "invalid_request_error"}}),
                         "status_code": 404,
                     },
                 ],
             )
             m.register_uri(
                 "GET",
-                "https://api.stripe.com/v1/events?ending_before={}&limit=100".format(
-                    last_webhook.id
-                ),
+                "https://api.stripe.com/v1/events?ending_before={}&limit=100".format(last_webhook.id),
                 text=json.dumps(stripe_response_part1),
             )
             m.register_uri(
                 "GET",
-                "https://api.stripe.com/v1/events?ending_before={}&limit=100".format(
-                    event1_data["id"]
-                ),
+                "https://api.stripe.com/v1/events?ending_before={}&limit=100".format(event1_data["id"]),
                 text=json.dumps(stripe_response_part2),
             )
 
@@ -585,9 +567,7 @@ class TestWebhook(BaseTestCase):
             },
         }
         self.client.credentials(**self._get_signature_headers(payload))
-        response = self.client.post(
-            reverse("stripe-webhooks"), data=payload, format="json"
-        )
+        response = self.client.post(reverse("stripe-webhooks"), data=payload, format="json")
         self.assertEqual(201, response.status_code)
 
     @requests_mock.Mocker()
@@ -662,9 +642,7 @@ class TestWebhook(BaseTestCase):
             "customer": "cus_xyz",
         }
         self.client.credentials(**self._get_signature_headers(payload))
-        with mock.patch(
-            "aa_stripe.models.StripeCustomer.refresh_from_stripe"
-        ) as mocked_refresh:
+        with mock.patch("aa_stripe.models.StripeCustomer.refresh_from_stripe") as mocked_refresh:
             response = self.client.post(url, data=payload, format="json")
             self.assertEqual(response.status_code, 201, response.content)
             mocked_refresh.assert_called()
@@ -674,9 +652,7 @@ class TestWebhook(BaseTestCase):
         self.customer.save()
         payload["id"] = "evt_abc"
         self.client.credentials(**self._get_signature_headers(payload))
-        with mock.patch(
-            "aa_stripe.models.StripeCustomer.refresh_from_stripe"
-        ) as mocked_refresh:
+        with mock.patch("aa_stripe.models.StripeCustomer.refresh_from_stripe") as mocked_refresh:
             mocked_refresh.side_effect = stripe.error.APIError("error")
             response = self.client.post(url, data=payload, format="json")
             self.assertEqual(response.status_code, 201)

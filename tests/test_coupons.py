@@ -92,9 +92,7 @@ class TestCoupons(BaseTestCase):
                 "times_redeemed": 0,
                 "valid": True,
             }
-            coupon = self._create_coupon(
-                coupon_id="25OFF", duration=StripeCoupon.DURATION_FOREVER, amount_off=1
-            )
+            coupon = self._create_coupon(coupon_id="25OFF", duration=StripeCoupon.DURATION_FOREVER, amount_off=1)
             self.assertFalse(coupon.is_deleted)
 
             # try accessing coupon that does not exist - should delete the coupon from our database
@@ -106,9 +104,7 @@ class TestCoupons(BaseTestCase):
             )
             coupon.metadata = {"yes": "no"}
             coupon.save()
-            self.assertTrue(
-                StripeCoupon.objects.deleted().filter(pk=coupon.pk).exists()
-            )
+            self.assertTrue(StripeCoupon.objects.deleted().filter(pk=coupon.pk).exists())
 
             # try changing other Stripe data than coupon's metadata
             m.register_uri(
@@ -121,9 +117,7 @@ class TestCoupons(BaseTestCase):
                 "https://api.stripe.com/v1/coupons/25OFF",
                 text=json.dumps(stripe_response),
             )
-            coupon = self._create_coupon(
-                coupon_id="25OFF", duration=StripeCoupon.DURATION_FOREVER, amount_off=1
-            )
+            coupon = self._create_coupon(coupon_id="25OFF", duration=StripeCoupon.DURATION_FOREVER, amount_off=1)
             coupon.duration = StripeCoupon.DURATION_ONCE
             coupon.save()
             coupon.refresh_from_db()
@@ -134,9 +128,7 @@ class TestCoupons(BaseTestCase):
             )
 
     def test_delete(self):
-        coupon = self._create_coupon(
-            coupon_id="CPON", amount_off=1, duration=StripeCoupon.DURATION_FOREVER
-        )
+        coupon = self._create_coupon(coupon_id="CPON", amount_off=1, duration=StripeCoupon.DURATION_FOREVER)
         self.assertEqual(StripeCoupon.objects.deleted().count(), 0)
         stripe_response = {
             "id": "CPON",
@@ -169,9 +161,7 @@ class TestCoupons(BaseTestCase):
             coupon2 = self._create_coupon(coupon_id="CPON2")
             coupon3 = self._create_coupon(coupon_id="CPON3")
             self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 2)
-            delete_result = StripeCoupon.objects.filter(
-                pk__in=[coupon2.pk, coupon3.pk]
-            ).delete()
+            delete_result = StripeCoupon.objects.filter(pk__in=[coupon2.pk, coupon3.pk]).delete()
             self.assertEqual(delete_result, (2, {"aa_stripe.StripeCoupon": 2}))
             self.assertEqual(StripeCoupon.objects.deleted().count(), 3)
             self.assertEqual(StripeCoupon.objects.filter(is_deleted=False).count(), 0)
@@ -240,11 +230,7 @@ class TestCoupons(BaseTestCase):
             coupon = self._create_coupon(data["coupon_id"], amount_off=1)
 
             # test creating a new coupon, when there is one that is not deleted
-            self.assertTrue(
-                StripeCoupon.objects.filter(
-                    coupon_id=data["coupon_id"], is_deleted=False
-                ).exists()
-            )
+            self.assertTrue(StripeCoupon.objects.filter(coupon_id=data["coupon_id"], is_deleted=False).exists())
             self.assertFalse(StripeCouponForm(data=data).is_valid())
 
             # delete and try again
@@ -258,9 +244,7 @@ class TestCoupons(BaseTestCase):
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 403)
 
-        user = UserModel.objects.create(
-            email="foo@bar.bar", username="foo", password="dump-password"
-        )
+        user = UserModel.objects.create(email="foo@bar.bar", username="foo", password="dump-password")
         self.client.force_authenticate(user=user)
         # test accessing coupon that does not exist
         response = self.client.get(url, format="json")
@@ -329,9 +313,7 @@ class TestCoupons(BaseTestCase):
         new_coupon_stripe_response = coupons["1A"].stripe_response.copy()
         new_coupon_stripe_response["id"] = "1B"
         stripe_response_part2 = stripe_response_part1.copy()
-        stripe_response_part2.update(
-            {"has_more": False, "data": [new_coupon_stripe_response]}
-        )
+        stripe_response_part2.update({"has_more": False, "data": [new_coupon_stripe_response]})
         with requests_mock.Mocker() as m:
             m.register_uri(
                 "GET",
@@ -363,13 +345,9 @@ class TestCoupons(BaseTestCase):
             )
 
             call_command("refresh_coupons")
-            self.assertEqual(
-                StripeCoupon.objects.all_with_deleted().count(), 7
-            )  # 4 + 3 were created
+            self.assertEqual(StripeCoupon.objects.all_with_deleted().count(), 7)  # 4 + 3 were created
             for coupon_id, coupon in coupons.items():
-                coupons[coupon_id] = StripeCoupon.objects.all_with_deleted().get(
-                    pk=coupon.pk
-                )
+                coupons[coupon_id] = StripeCoupon.objects.all_with_deleted().get(pk=coupon.pk)
 
             self.assertEqual(coupons["1A"].metadata, coupon_1a_new_response["metadata"])
             self.assertTrue(coupons["2A"].is_deleted)
@@ -382,6 +360,4 @@ class TestCoupons(BaseTestCase):
                 new_4a_coupon.amount_off,
                 Decimal(coupon_4a_new_response["amount_off"]) / 100,
             )
-            self.assertTrue(
-                StripeCoupon.objects.filter(coupon_id="1B", is_deleted=False).exists
-            )
+            self.assertTrue(StripeCoupon.objects.filter(coupon_id="1B", is_deleted=False).exists)
