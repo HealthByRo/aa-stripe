@@ -4,17 +4,16 @@ from decimal import Decimal
 
 import requests_mock
 import simplejson as json
-import six
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.utils import dateformat, timezone
 from freezegun import freeze_time
 from rest_framework.reverse import reverse
-from tests.test_utils import BaseTestCase
 
 from aa_stripe.forms import StripeCouponForm
 from aa_stripe.models import StripeCoupon
 from aa_stripe.utils import timestamp_to_timezone_aware_date
+from tests.test_utils import BaseTestCase
 
 UserModel = get_user_model()
 
@@ -38,26 +37,39 @@ class TestCoupons(BaseTestCase):
             "percent_off": 25,
             "redeem_by": created + 60,
             "times_redeemed": 0,
-            "valid": True
+            "valid": True,
         }
         with requests_mock.Mocker() as m:
-            m.register_uri("POST", "https://api.stripe.com/v1/coupons", text=json.dumps(stripe_response))
+            m.register_uri(
+                "POST",
+                "https://api.stripe.com/v1/coupons",
+                text=json.dumps(stripe_response),
+            )
             coupon = StripeCoupon.objects.create(
                 duration=StripeCoupon.DURATION_FOREVER,
                 percent_off=25,
-                redeem_by=timezone.now() + timedelta(seconds=60)
+                redeem_by=timezone.now() + timedelta(seconds=60),
             )
             self.assertEqual(coupon.coupon_id, stripe_response["id"])
-            self.assertEqual(coupon.created, timestamp_to_timezone_aware_date(stripe_response["created"]))
+            self.assertEqual(
+                coupon.created,
+                timestamp_to_timezone_aware_date(stripe_response["created"]),
+            )
             self.assertEqual(coupon.stripe_response, stripe_response)
-            self.assertIn("redeem_by={}".format(dateformat.format(coupon.redeem_by, "U")), m.last_request.body)
+            self.assertIn(
+                "redeem_by={}".format(dateformat.format(coupon.redeem_by, "U")),
+                m.last_request.body,
+            )
 
             # test creating coupon with coupon_id
             stripe_response["id"] = "YOLO1"
-            m.register_uri("POST", "https://api.stripe.com/v1/coupons", text=json.dumps(stripe_response))
+            m.register_uri(
+                "POST",
+                "https://api.stripe.com/v1/coupons",
+                text=json.dumps(stripe_response),
+            )
             coupon = StripeCoupon.objects.create(
-                coupon_id=stripe_response["id"],
-                duration=StripeCoupon.DURATION_FOREVER
+                coupon_id=stripe_response["id"], duration=StripeCoupon.DURATION_FOREVER
             )
             self.assertEqual(coupon.coupon_id, stripe_response["id"])
 
@@ -78,30 +90,42 @@ class TestCoupons(BaseTestCase):
                 "percent_off": 25,
                 "redeem_by": created + 60,
                 "times_redeemed": 0,
-                "valid": True
+                "valid": True,
             }
             coupon = self._create_coupon(coupon_id="25OFF", duration=StripeCoupon.DURATION_FOREVER, amount_off=1)
             self.assertFalse(coupon.is_deleted)
 
             # try accessing coupon that does not exist - should delete the coupon from our database
-            m.register_uri("GET", "https://api.stripe.com/v1/coupons/25OFF", status_code=404, text=json.dumps({
-                "error": {
-                    "type": "invalid_request_error"
-                }
-            }))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/coupons/25OFF",
+                status_code=404,
+                text=json.dumps({"error": {"type": "invalid_request_error"}}),
+            )
             coupon.metadata = {"yes": "no"}
             coupon.save()
             self.assertTrue(StripeCoupon.objects.deleted().filter(pk=coupon.pk).exists())
 
             # try changing other Stripe data than coupon's metadata
-            m.register_uri("GET", "https://api.stripe.com/v1/coupons/25OFF", text=json.dumps(stripe_response))
-            m.register_uri("POST", "https://api.stripe.com/v1/coupons/25OFF", text=json.dumps(stripe_response))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/coupons/25OFF",
+                text=json.dumps(stripe_response),
+            )
+            m.register_uri(
+                "POST",
+                "https://api.stripe.com/v1/coupons/25OFF",
+                text=json.dumps(stripe_response),
+            )
             coupon = self._create_coupon(coupon_id="25OFF", duration=StripeCoupon.DURATION_FOREVER, amount_off=1)
             coupon.duration = StripeCoupon.DURATION_ONCE
             coupon.save()
             coupon.refresh_from_db()
             self.assertNotEqual(coupon.duration, StripeCoupon.DURATION_ONCE)
-            self.assertEqual(coupon.redeem_by, timestamp_to_timezone_aware_date(stripe_response["redeem_by"]))
+            self.assertEqual(
+                coupon.redeem_by,
+                timestamp_to_timezone_aware_date(stripe_response["redeem_by"]),
+            )
 
     def test_delete(self):
         coupon = self._create_coupon(coupon_id="CPON", amount_off=1, duration=StripeCoupon.DURATION_FOREVER)
@@ -120,13 +144,16 @@ class TestCoupons(BaseTestCase):
             "percent_off": 25,
             "redeem_by": None,
             "times_redeemed": 0,
-            "valid": True
+            "valid": True,
         }
         with requests_mock.Mocker() as m:
             for coupon_name in ["CPON", "CPON2", "CPON3"]:
                 for method in ["GET", "DELETE"]:
-                    m.register_uri(method, "https://api.stripe.com/v1/coupons/{}".format(coupon_name),
-                                   text=json.dumps(stripe_response))
+                    m.register_uri(
+                        method,
+                        "https://api.stripe.com/v1/coupons/{}".format(coupon_name),
+                        text=json.dumps(stripe_response),
+                    )
             coupon.delete()
             self.assertEqual(StripeCoupon.objects.deleted().count(), 1)
 
@@ -148,7 +175,7 @@ class TestCoupons(BaseTestCase):
             "duration": StripeCoupon.DURATION_ONCE,
             "metadata": {},
             "times_redeemed": 0,
-            "valid": True
+            "valid": True,
         }
         self.assertTrue(StripeCouponForm(data=data).is_valid())
 
@@ -191,11 +218,15 @@ class TestCoupons(BaseTestCase):
             "percent_off": 25,
             "redeem_by": None,
             "times_redeemed": 0,
-            "valid": True
+            "valid": True,
         }
         with requests_mock.Mocker() as m:
             for method in ["GET", "POST", "DELETE"]:
-                m.register_uri(method, "https://api.stripe.com/v1/coupons/25OFF", text=json.dumps(stripe_response))
+                m.register_uri(
+                    method,
+                    "https://api.stripe.com/v1/coupons/25OFF",
+                    text=json.dumps(stripe_response),
+                )
             coupon = self._create_coupon(data["coupon_id"], amount_off=1)
 
             # test creating a new coupon, when there is one that is not deleted
@@ -224,11 +255,27 @@ class TestCoupons(BaseTestCase):
         url = reverse("stripe-coupon-details", kwargs={"coupon_id": coupon.coupon_id})
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(set(response.data.keys()), {
-            "coupon_id", "amount_off", "currency", "duration", "duration_in_months", "livemode", "max_redemptions",
-            "metadata", "percent_off", "redeem_by", "times_redeemed", "valid", "is_created_at_stripe", "created",
-            "updated", "is_deleted"
-        })
+        self.assertEqual(
+            set(response.data.keys()),
+            {
+                "coupon_id",
+                "amount_off",
+                "currency",
+                "duration",
+                "duration_in_months",
+                "livemode",
+                "max_redemptions",
+                "metadata",
+                "percent_off",
+                "redeem_by",
+                "times_redeemed",
+                "valid",
+                "is_created_at_stripe",
+                "created",
+                "updated",
+                "is_deleted",
+            },
+        )
 
         # test accessing coupon that has already been deleted
         # update does not call object's .save(), so we do not need to mock Stripe API
@@ -241,7 +288,7 @@ class TestCoupons(BaseTestCase):
             "1A": self._create_coupon("1A"),
             "2A": self._create_coupon("2A"),
             "3A": self._create_coupon("3A"),
-            "4A": self._create_coupon("4A", amount_off=100)
+            "4A": self._create_coupon("4A", amount_off=100),
         }
         self.assertEqual(StripeCoupon.objects.count(), 4)
         # fake deleted coupon, this coupon should be recreated in the database
@@ -261,30 +308,45 @@ class TestCoupons(BaseTestCase):
                 coupon_1a_new_response,  # 1A will be updated, # 2A will be deleted
                 coupons["3A"].stripe_response,  # 3A will be recreated
                 coupon_4a_new_response,  # 4A will be deleted and recreated with the same name
-            ]
+            ],
         }
         new_coupon_stripe_response = coupons["1A"].stripe_response.copy()
         new_coupon_stripe_response["id"] = "1B"
         stripe_response_part2 = stripe_response_part1.copy()
-        stripe_response_part2.update({
-            "has_more": False,
-            "data": [new_coupon_stripe_response]
-        })
+        stripe_response_part2.update({"has_more": False, "data": [new_coupon_stripe_response]})
         with requests_mock.Mocker() as m:
-            m.register_uri("GET", "https://api.stripe.com/v1/coupons", text=json.dumps(stripe_response_part1))
-            m.register_uri("GET", "https://api.stripe.com/v1/coupons?starting_after=4A",
-                           text=json.dumps(stripe_response_part2))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/coupons",
+                text=json.dumps(stripe_response_part1),
+            )
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/coupons?starting_after=4A",
+                text=json.dumps(stripe_response_part2),
+            )
             # 3A will be recreated
-            m.register_uri("GET", "https://api.stripe.com/v1/coupons/3A",
-                           text=json.dumps(coupons["3A"].stripe_response))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/coupons/3A",
+                text=json.dumps(coupons["3A"].stripe_response),
+            )
             # 4A will be recreated with new data
-            m.register_uri("GET", "https://api.stripe.com/v1/coupons/4A", text=json.dumps(coupon_4a_new_response))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/coupons/4A",
+                text=json.dumps(coupon_4a_new_response),
+            )
             # 1B will be created
-            m.register_uri("GET", "https://api.stripe.com/v1/coupons/1B", text=json.dumps(new_coupon_stripe_response))
+            m.register_uri(
+                "GET",
+                "https://api.stripe.com/v1/coupons/1B",
+                text=json.dumps(new_coupon_stripe_response),
+            )
 
             call_command("refresh_coupons")
             self.assertEqual(StripeCoupon.objects.all_with_deleted().count(), 7)  # 4 + 3 were created
-            for coupon_id, coupon in six.iteritems(coupons):
+            for coupon_id, coupon in coupons.items():
                 coupons[coupon_id] = StripeCoupon.objects.all_with_deleted().get(pk=coupon.pk)
 
             self.assertEqual(coupons["1A"].metadata, coupon_1a_new_response["metadata"])
@@ -294,5 +356,8 @@ class TestCoupons(BaseTestCase):
             self.assertTrue(coupons["4A"].is_deleted)
             new_4a_coupon = StripeCoupon.objects.get(coupon_id="4A", is_deleted=False)
             self.assertNotEqual(new_4a_coupon.pk, coupons["4A"].pk)
-            self.assertEqual(new_4a_coupon.amount_off, Decimal(coupon_4a_new_response["amount_off"]) / 100)
+            self.assertEqual(
+                new_4a_coupon.amount_off,
+                Decimal(coupon_4a_new_response["amount_off"]) / 100,
+            )
             self.assertTrue(StripeCoupon.objects.filter(coupon_id="1B", is_deleted=False).exists)

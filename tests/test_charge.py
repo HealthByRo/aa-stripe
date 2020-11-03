@@ -1,12 +1,12 @@
 """Test charging users through the StripeCharge model"""
 import sys
+from io import StringIO
 
 import mock
 import stripe
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
-from django.utils.six import StringIO
 from stripe.error import CardError, StripeError
 
 from aa_stripe.exceptions import StripeInternalError
@@ -18,14 +18,14 @@ UserModel = get_user_model()
 
 def build_small_manual_refunded_charge():
     # can't find a way to make this inline - stripe.Charge(amount_refunded=10) does not work
-    sc = stripe.Charge(id='AA1')
+    sc = stripe.Charge(id="AA1")
     sc.amount_refunded = 10
     return sc
 
 
 def build_full_manual_refunded_charge():
     # can't find a way to make this inline - stripe.Charge(amount_refunded=10) does not work
-    sc = stripe.Charge(id='AA1')
+    sc = stripe.Charge(id="AA1")
     sc.amount_refunded = 100
     return sc
 
@@ -51,9 +51,16 @@ class TestCharges(TestCase):
         stripe_charge_succeeded.connect(self._success_handler)
         stripe_charge_card_exception.connect(self._exception_handler)
         stripe_charge_refunded.connect(self._charge_refunded_handler)
-        self.data = {"customer_id": "cus_AlSWz1ZQw7qG2z", "currency": "usd", "amount": 100, "description": "ABC"}
+        self.data = {
+            "customer_id": "cus_AlSWz1ZQw7qG2z",
+            "currency": "usd",
+            "amount": 100,
+            "description": "ABC",
+        }
         self.customer = StripeCustomer.objects.create(
-            user=self.user, stripe_customer_id=self.data["customer_id"], stripe_js_response='"foo"'
+            user=self.user,
+            stripe_customer_id=self.data["customer_id"],
+            stripe_js_response='"foo"',
         )
         self.charge = StripeCharge.objects.create(
             user=self.user,
@@ -134,7 +141,10 @@ class TestCharges(TestCase):
             currency=self.data["currency"],
             customer=self.data["customer_id"],
             description=self.data["description"],
-            metadata={"object_id": self.charge.object_id, "content_type_id": self.charge.content_type_id},
+            metadata={
+                "object_id": self.charge.object_id,
+                "content_type_id": self.charge.content_type_id,
+            },
         )
 
     @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.create")
@@ -220,7 +230,9 @@ class TestCharges(TestCase):
             refund_create_mocked.assert_called_with(
                 charge=self.charge.stripe_charge_id,
                 amount=to_refund,
-                idempotency_key="{}-{}-{}-{}".format(self.charge.object_id, self.charge.content_type_id, 30, to_refund),
+                idempotency_key="{}-{}-{}-{}".format(
+                    self.charge.object_id, self.charge.content_type_id, 30, to_refund
+                ),
             )
             self.assertFalse(self.charge.is_refunded)
             refund_signal_send.assert_called_with(sender=StripeCharge, instance=self.charge)
@@ -247,7 +259,9 @@ class TestCharges(TestCase):
             refund_create_mocked.assert_called_with(
                 charge=self.charge.stripe_charge_id,
                 amount=to_refund,
-                idempotency_key="{}-{}-{}-{}".format(self.charge.object_id, self.charge.content_type_id, 50, to_refund),
+                idempotency_key="{}-{}-{}-{}".format(
+                    self.charge.object_id, self.charge.content_type_id, 50, to_refund
+                ),
             )
             self.assertTrue(self.charge.is_refunded)
             refund_signal_send.assert_called_with(sender=StripeCharge, instance=self.charge)
@@ -263,8 +277,17 @@ class TestCharges(TestCase):
         self.assertFalse(self.charge.is_refunded)
         self.assertFalse(self.charge_refunded_signal_was_called)
 
-    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create", side_effect=[stripe.error.InvalidRequestError("message", "param"), stripe.Refund(id="R1")])
-    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.retrieve", return_value=build_small_manual_refunded_charge())
+    @mock.patch(
+        "aa_stripe.management.commands.charge_stripe.stripe.Refund.create",
+        side_effect=[
+            stripe.error.InvalidRequestError("message", "param"),
+            stripe.Refund(id="R1"),
+        ],
+    )
+    @mock.patch(
+        "aa_stripe.management.commands.charge_stripe.stripe.Charge.retrieve",
+        return_value=build_small_manual_refunded_charge(),
+    )
     def test_refund_after_partial_manual_refund(self, refund_create_mocked, charge_retrieve_mocked):
         self.charge.is_charged = True
         self.charge.stripe_charge_id = "AA1"
@@ -272,8 +295,14 @@ class TestCharges(TestCase):
 
         self.assertEqual(self.charge.amount_refunded, 100)
 
-    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Refund.create", side_effect=stripe.error.InvalidRequestError("message", "param", code="charge_already_refunded"))
-    @mock.patch("aa_stripe.management.commands.charge_stripe.stripe.Charge.retrieve", return_value=build_full_manual_refunded_charge())
+    @mock.patch(
+        "aa_stripe.management.commands.charge_stripe.stripe.Refund.create",
+        side_effect=stripe.error.InvalidRequestError("message", "param", code="charge_already_refunded"),
+    )
+    @mock.patch(
+        "aa_stripe.management.commands.charge_stripe.stripe.Charge.retrieve",
+        return_value=build_full_manual_refunded_charge(),
+    )
     def test_already_manually_refunded(self, refund_create_mocked, charge_retrieve_mocked):
         self.charge.is_charged = True
         self.charge.stripe_charge_id = "AA1"

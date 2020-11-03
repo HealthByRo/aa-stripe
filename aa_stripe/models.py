@@ -6,7 +6,6 @@ from decimal import Decimal
 from time import sleep
 
 import simplejson as json
-import six
 import stripe
 from dateutil.relativedelta import relativedelta
 from django import dispatch
@@ -232,7 +231,8 @@ class StripeCoupon(StripeBasicModel):
         ),
     )
     livemode = models.BooleanField(
-        default=False, help_text=_("Flag indicating whether the object exists in live mode or test mode.")
+        default=False,
+        help_text=_("Flag indicating whether the object exists in live mode or test mode."),
     )
     max_redemptions = models.PositiveIntegerField(
         blank=True,
@@ -255,10 +255,13 @@ class StripeCoupon(StripeBasicModel):
         ),
     )
     redeem_by = models.DateTimeField(
-        blank=True, null=True, help_text=_("Date after which the coupon can no longer be redeemed.")
+        blank=True,
+        null=True,
+        help_text=_("Date after which the coupon can no longer be redeemed."),
     )
     times_redeemed = models.PositiveIntegerField(
-        default=0, help_text=_("Number of times this coupon has been applied to a customer.")
+        default=0,
+        help_text=_("Number of times this coupon has been applied to a customer."),
     )
     valid = models.BooleanField(
         default=False,
@@ -294,7 +297,7 @@ class StripeCoupon(StripeBasicModel):
             update_data["amount_off"] = Decimal(update_data["amount_off"]) / 100
 
         # also make sure the object is up to date (without the need to call database)
-        for key, value in six.iteritems(update_data):
+        for key, value in update_data.items():
             setattr(self, key, value)
 
         if commit:
@@ -337,7 +340,10 @@ class StripeCoupon(StripeBasicModel):
                         coupon.is_deleted = True
                         super(StripeCoupon, coupon).save()  # use super save() to call pre/post save signals
                 # update all fields in the local object in case someone tried to change them
-                self.update_from_stripe_data(stripe_coupon, exclude_fields=["metadata"] if not force_retrieve else [])
+                self.update_from_stripe_data(
+                    stripe_coupon,
+                    exclude_fields=["metadata"] if not force_retrieve else [],
+                )
                 self.stripe_response = stripe_coupon
             except stripe.error.InvalidRequestError:
                 if force_retrieve:
@@ -400,7 +406,10 @@ class StripeCharge(StripeBasicModel):
         customer = StripeCustomer.get_latest_active_customer_for_user(self.user)
         self.customer = customer
         if customer:
-            metadata = {"object_id": self.object_id, "content_type_id": self.content_type_id}
+            metadata = {
+                "object_id": self.object_id,
+                "content_type_id": self.content_type_id,
+            }
             idempotency_key = "{}-{}-{}".format(metadata["object_id"], metadata["content_type_id"], idempotency_key)
 
             params = {
@@ -470,13 +479,17 @@ class StripeCharge(StripeBasicModel):
         if (amount_to_refund + self.amount_refunded) > self.amount:
             raise StripeMethodNotAllowed("Refunds exceed charge")
 
-        idempotency_key = "{}-{}-{}-{}".format(self.object_id, self.content_type_id,
-                                               self.amount_refunded, amount_to_refund)
+        idempotency_key = "{}-{}-{}-{}".format(
+            self.object_id, self.content_type_id, self.amount_refunded, amount_to_refund
+        )
 
         refund_id = ""
         try:
-            stripe_refund = stripe.Refund.create(idempotency_key=idempotency_key,
-                                                 charge=self.stripe_charge_id, amount=amount_to_refund)
+            stripe_refund = stripe.Refund.create(
+                idempotency_key=idempotency_key,
+                charge=self.stripe_charge_id,
+                amount=amount_to_refund,
+            )
             refund_id = stripe_refund["id"]
         except stripe.error.InvalidRequestError as e:
             # retry if we're not already retrying (prevent infinite loop)
@@ -488,7 +501,9 @@ class StripeCharge(StripeBasicModel):
                 pass
             else:
                 stripe_charge = stripe.Charge.retrieve(self.stripe_charge_id)
+
                 if stripe_charge.amount_refunded != self.amount_refunded and e.code != "charge_already_refunded":
+
                     # refresh data and retry
                     self.amount_refunded = stripe_charge.amount_refunded
                     # set amount_to_refund to None to request maximum refund
@@ -523,7 +538,8 @@ class StripeSubscriptionPlan(StripeBasicModel):
         default="USD",
     )
     name = models.CharField(
-        max_length=255, help_text=_("Name of the plan, to be displayed on invoices and in the web interface.")
+        max_length=255,
+        help_text=_("Name of the plan, to be displayed on invoices and in the web interface."),
     )
     interval = models.CharField(
         max_length=10,
@@ -607,7 +623,10 @@ class StripeSubscription(StripeBasicModel):
         blank=True,
         choices=STATUS_CHOICES,
     )
-    metadata = JSONField(blank=True, help_text="https://stripe.com/docs/api/python#create_subscription-metadata")
+    metadata = JSONField(
+        blank=True,
+        help_text="https://stripe.com/docs/api/python#create_subscription-metadata",
+    )
     tax_percent = models.DecimalField(
         default=0,
         validators=[MinValueValidator(0), MaxValueValidator(100)],

@@ -32,8 +32,26 @@ def flake8_main(args):
 
 def isort_main():
     print("Running isort code checking")
-    ret = subprocess.call(["isort", "--recursive", "-p", "aa_stripe", "-sd", "THIRDPARTY", "-m", "0", "-w", "120", "-y",
-                           "-s", "venv", "-s", ".tox", "--check-only"])
+    ret = subprocess.call(
+        [
+            "isort",
+            ".",
+            "--recursive",
+            "-p",
+            "aa_stripe",
+            "-sd",
+            "THIRDPARTY",
+            "-m",
+            "0",
+            "-w",
+            "120",
+            "-s",
+            "venv",
+            "-s",
+            ".tox",
+            "--check-only",
+        ]
+    )
 
     if ret:
         print("isort failed: Some modules have incorrectly ordered imports. Fix by running `./run_isort`")
@@ -94,11 +112,7 @@ if __name__ == "__main__":
         except ValueError:
             pass
         else:
-            pytest_args = [
-                "--cov-report",
-                "xml",
-                "--cov",
-                "aa_stripe"] + pytest_args
+            pytest_args = ["--cov-report", "xml", "--cov", "aa_stripe"] + pytest_args
 
         if first_arg.startswith("-"):
             # `runtests.py [flags]`

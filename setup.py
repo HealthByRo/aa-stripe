@@ -27,9 +27,11 @@ def get_packages(package):
     """
     Return root package and all sub-packages.
     """
-    return [dirpath
-            for dirpath, dirnames, filenames in os.walk(package)
-            if os.path.exists(os.path.join(dirpath, "__init__.py"))]
+    return [
+        dirpath
+        for dirpath, dirnames, filenames in os.walk(package)
+        if os.path.exists(os.path.join(dirpath, "__init__.py"))
+    ]
 
 
 def get_package_data(package):
@@ -37,14 +39,15 @@ def get_package_data(package):
     Return all files under the root package, that are not in a
     package themselves.
     """
-    walk = [(dirpath.replace(package + os.sep, "", 1), filenames)
-            for dirpath, dirnames, filenames in os.walk(package)
-            if not os.path.exists(os.path.join(dirpath, "__init__.py"))]
+    walk = [
+        (dirpath.replace(package + os.sep, "", 1), filenames)
+        for dirpath, dirnames, filenames in os.walk(package)
+        if not os.path.exists(os.path.join(dirpath, "__init__.py"))
+    ]
 
     filepaths = []
     for base, filenames in walk:
-        filepaths.extend([os.path.join(base, filename)
-                          for filename in filenames])
+        filepaths.extend([os.path.join(base, filename) for filename in filenames])
     return {package: filepaths}
 
 
@@ -53,6 +56,9 @@ version = get_version("aa_stripe")
 
 requirements = local_open("requirements/requirements-base.txt")
 required_to_install = [dist.strip() for dist in requirements.readlines()]
+
+requirements_django = local_open("requirements/requirements-django.txt")
+required_to_install += [dist.strip() for dist in requirements_django.readlines()]
 
 
 setup(
@@ -75,9 +81,9 @@ setup(
         "Intended Audience :: Developers",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Topic :: Internet :: WWW/HTTP",
-    ]
+    ],
 )

@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+##[0.10.0]
+### Removed
+- Added support for python 3.5
+### Added
+- Added support for python 3.8
+- Added support for Django 3.0 and 3.1
+
+
 ##[0.9.7]
 ### Changed
 - Handle refunds when part of the charge has already been manually refunded.
