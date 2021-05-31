@@ -1,7 +1,7 @@
 =========
 aa-stripe
 =========
-|travis|_ |pypi|_ |coveralls|_
+|pypi|_ |coveralls|_
 
 Stripe integration for Django-based projects
 
@@ -203,9 +203,6 @@ Support
 =======
 * Django 2.2-3.2
 * Python 3.6-3.9
-
-.. |travis| image:: https://secure.travis-ci.org/HealthByRo/aa-stripe.svg?branch=master
-.. _travis: http://travis-ci.org/HealthByRo/aa-stripe
 
 .. |pypi| image:: https://img.shields.io/pypi/v/aa-stripe.svg
 .. _pypi: https://pypi.python.org/pypi/aa-stripe
