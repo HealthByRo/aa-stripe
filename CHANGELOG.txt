@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+##[0.10.1]
+### Added
+- Added support for python 3.9
+- Added support for Django 3.2
+
+
 ##[0.10.0]
 ### Removed
 - Added support for python 3.5
