@@ -15,7 +15,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import dateformat, timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django_extensions.db.fields.json import JSONField
 
 from aa_stripe.exceptions import (StripeCouponAlreadyExists, StripeInternalError, StripeMethodNotAllowed,
@@ -29,7 +29,7 @@ USER_MODEL = getattr(settings, "STRIPE_USER_MODEL", settings.AUTH_USER_MODEL)
 logger = logging.getLogger("aa-stripe")
 
 # signals
-webhook_pre_parse = dispatch.Signal(providing_args=["instance", "event_type", "event_model", "event_action"])
+webhook_pre_parse = dispatch.Signal()
 
 
 class StripeBasicModel(models.Model):
