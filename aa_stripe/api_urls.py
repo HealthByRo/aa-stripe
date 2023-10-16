@@ -8,7 +8,7 @@ urlpatterns = [
     re_path(r"^aa-stripe/coupons/(?P<coupon_id>.*)$", CouponDetailsAPI.as_view(), name="stripe-coupon-details"),
     re_path(r"^aa-stripe/customers$", CustomersAPI.as_view(), name="stripe-customers"),
     re_path(r"^aa-stripe/customers/(?P<stripe_customer_id>[\w\-]+)$", CustomerDetailsAPI.as_view(),
-        name="stripe-customer-details"),
+            name="stripe-customer-details"),
     re_path(r"^aa-stripe/webhooks$", WebhookAPI.as_view(), name="stripe-webhooks")
 ]
 
