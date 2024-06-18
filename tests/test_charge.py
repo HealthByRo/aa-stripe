@@ -144,6 +144,8 @@ class TestCharges(TestCase):
             metadata={
                 "object_id": self.charge.object_id,
                 "content_type_id": self.charge.content_type_id,
+                "origin": "roman_api",
+                "member_uuid": str(self.user.uuid),
             },
         )
 

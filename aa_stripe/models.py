@@ -410,7 +410,7 @@ class StripeCharge(StripeBasicModel):
                 "object_id": self.object_id,
                 "content_type_id": self.content_type_id,
                 "member_uuid": str(self.user.uuid),
-                "custody": "roman_api",
+                "origin": "roman_api",
             }
             if payment_uuid:
                 metadata["payment_uuid"] = str(payment_uuid)
