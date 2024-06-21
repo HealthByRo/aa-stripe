@@ -409,9 +409,11 @@ class StripeCharge(StripeBasicModel):
             metadata = {
                 "object_id": self.object_id,
                 "content_type_id": self.content_type_id,
-                "member_uuid": str(self.user.uuid),
-                "origin": "roman_api",
             }
+            if settings.PAYMENT_ORIGIN:
+                metadata["origin"] = settings.PAYMENT_ORIGIN
+            if hasattr(self.user, "uuid"):
+                metadata["member_uuid"] = str(self.user.uuid)
             if payment_uuid:
                 metadata["payment_uuid"] = str(payment_uuid)
 

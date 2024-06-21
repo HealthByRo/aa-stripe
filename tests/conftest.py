@@ -23,6 +23,7 @@ def pytest_configure():
             "tests",
         ),
         AUTH_USER_MODEL="tests.TestUser",
+        PAYMENT_ORIGIN="test-roman_api",
         ROOT_URLCONF="aa_stripe.api_urls",
         TESTING=True,
         ENV_PREFIX="test-env",

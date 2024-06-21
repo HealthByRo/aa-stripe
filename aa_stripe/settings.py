@@ -11,6 +11,7 @@ and the settings can be accessed by the aa_stripe.settings.stripe_settings objec
 from aa_stripe.settings import stripe_settings
 stripe_settings.API_KEY  # "api_key"
 """
+
 from __future__ import unicode_literals
 
 from django.conf import settings
@@ -20,8 +21,12 @@ DEFAULTS = {
     "PENDING_WEBHOOKS_THRESHOLD": 20,
     "API_KEY": "",
     "WEBHOOK_ENDPOINT_SECRET": "",
-    "USER_MODEL": settings.AUTH_USER_MODEL
+    "USER_MODEL": settings.AUTH_USER_MODEL,
 }
+
+PAYMENT_ORIGIN = (
+    settings.PAYMENT_ORIGIN if hasattr(settings, "PAYMENT_ORIGIN") else None
+)
 
 
 class StripeSettings(object):
