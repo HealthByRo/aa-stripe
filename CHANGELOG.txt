@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+##[0.13.0]
+### Added
+- optional metadata field for member identitifer `member_uuid`
+- optional metadata field for payment identifier `payment_uuid`
+
+
 ##[0.12.0]
 ### Removed
 - Removed support for Python <3.9
