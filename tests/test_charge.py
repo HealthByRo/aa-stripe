@@ -1,9 +1,11 @@
 """Test charging users through the StripeCharge model"""
+
 import sys
 from io import StringIO
 
 import mock
 import stripe
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
@@ -144,6 +146,8 @@ class TestCharges(TestCase):
             metadata={
                 "object_id": self.charge.object_id,
                 "content_type_id": self.charge.content_type_id,
+                "origin": settings.PAYMENT_ORIGIN,
+                "member_uuid": str(self.user.uuid),
             },
         )
 

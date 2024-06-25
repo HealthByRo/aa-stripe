@@ -396,7 +396,7 @@ class StripeCharge(StripeBasicModel):
     source = generic.GenericForeignKey("content_type", "object_id")
     statement_descriptor = models.CharField(max_length=22, blank=True)
 
-    def charge(self, idempotency_key=None):
+    def charge(self, idempotency_key=None, payment_uuid=None):
         self.refresh_from_db()  # to minimize the chance of double charging
 
         if self.is_charged:
@@ -410,7 +410,16 @@ class StripeCharge(StripeBasicModel):
                 "object_id": self.object_id,
                 "content_type_id": self.content_type_id,
             }
-            idempotency_key = "{}-{}-{}".format(metadata["object_id"], metadata["content_type_id"], idempotency_key)
+            if settings.PAYMENT_ORIGIN:
+                metadata["origin"] = settings.PAYMENT_ORIGIN
+            if hasattr(self.user, "uuid"):
+                metadata["member_uuid"] = str(self.user.uuid)
+            if payment_uuid:
+                metadata["payment_uuid"] = str(payment_uuid)
+
+            idempotency_key = "{}-{}-{}".format(
+                metadata["object_id"], metadata["content_type_id"], idempotency_key
+            )
 
             params = {
                 "amount": self.amount,
