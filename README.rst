@@ -24,6 +24,64 @@ Add ``STRIPE_USER_MODEL`` if it is different than settings.AUTH_USER_MODEL. In e
 Add ``aa_stripe.api_urls`` into your url conf.
 
 
+Development
+===========
+
+This is not a full Django app, but a library.
+To take advantage of Django’s toolset, you need to temporarily:
+- configure `aa_stripe/settings.py` to include all the required modules
+- create a `manage.py` file at the root of this project to run Django commands
+
+
+Here are the changes required in the `app_stripe/settings.py`:
+```
+INSTALLED_APPS = [
+    "django.contrib.contenttypes",
+    "django.contrib.auth",
+    "aa_stripe",
+]
+```
+
+
+And here is an example of a minimalistic `manage.py` file:
+```
+#!/usr/bin/env python
+import os
+import sys
+
+def main():
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aa_stripe.settings')
+    try:
+        from django.core.management import execute_from_command_line
+    except ImportError as exc:
+        raise ImportError(
+            "Couldn't import Django. Are you sure it's installed and available on your PYTHONPATH environment variable?"
+        ) from exc
+    execute_from_command_line(sys.argv)
+
+if __name__ == '__main__':
+    main()
+```
+Remember to make it executable by `chmod +x manage.py`.
+
+
+Then, after activating your `virtual env` you can run the `./manage.py` command like in regular Django project.
+For example, you will be able to create migrations automatically:
+
+```bash
+./manage.py makemigrations aa_stripe
+```
+
+
+Running Tests
+=============
+This project relies on `tox`, so in your shell please use the following command:
+
+```bash
+tox
+```
+
+
 Usage
 =====
 
