@@ -378,8 +378,18 @@ class StripeCoupon(StripeBasicModel):
 
 
 class StripeCharge(StripeBasicModel):
-    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name="stripe_charges", db_index=False)
-    customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True, db_index=False)
+    user = models.ForeignKey(
+        USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="stripe_charges",
+        db_index=False,
+    )
+    customer = models.ForeignKey(
+        StripeCustomer,
+        on_delete=models.SET_NULL,
+        null=True,
+        db_index=False,
+    )
     amount = models.IntegerField(null=True, help_text=_("in cents"))
     amount_refunded = models.IntegerField(null=True, help_text=_("in cents"), default=0)
     is_charged = models.BooleanField(default=False)
