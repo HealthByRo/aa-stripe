@@ -28,12 +28,6 @@ PAYMENT_ORIGIN = (
     settings.PAYMENT_ORIGIN if hasattr(settings, "PAYMENT_ORIGIN") else None
 )
 
-INSTALLED_APPS = [
-    "django.contrib.contenttypes",
-    "django.contrib.auth",
-    "aa_stripe",
-]
-
 
 class StripeSettings(object):
     def __getattr__(self, attr):
