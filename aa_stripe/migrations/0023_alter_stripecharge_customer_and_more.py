@@ -4,7 +4,6 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
-
 remove_indexes = [
     "DROP INDEX CONCURRENTLY IF EXISTS aa_stripe_stripecharge_user_id_6f76c244",
     "DROP INDEX CONCURRENTLY IF EXISTS aa_stripe_stripecharge_stripe_refund_id_78d16b7f_like",
