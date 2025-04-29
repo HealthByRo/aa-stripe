@@ -15,6 +15,20 @@ remove_indexes = [
 ]
 
 
+def drop_indexes_postgresql(apps, schema_editor):
+    """
+    This function drops indexes for PostgreSQL database.
+    It will NOT run on SQLite during testing as it does NOT support:
+    - DROP INDEX CONCURRENTLY
+    - IF EXISTS
+    """
+    if schema_editor.connection.vendor != "postgresql":
+        return  # Skip for SQLite or other DBs
+
+    for sql in remove_indexes:
+        schema_editor.execute(sql)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -25,7 +39,12 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.SeparateDatabaseAndState(
-            database_operations=[migrations.RunSQL(sql) for sql in remove_indexes],
+            database_operations=[
+                migrations.RunPython(
+                    drop_indexes_postgresql,
+                    reverse_code=migrations.RunPython.noop,
+                ),
+            ],
             state_operations=[
                 migrations.AlterField(
                     model_name="stripecharge",
