@@ -5,32 +5,58 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+remove_indexes = [
+    "DROP INDEX CONCURRENTLY IF EXISTS aa_stripe_stripecharge_user_id_6f76c244",
+    "DROP INDEX CONCURRENTLY IF EXISTS aa_stripe_stripecharge_stripe_refund_id_78d16b7f_like",
+    "DROP INDEX CONCURRENTLY IF EXISTS aa_stripe_stripecharge_stripe_refund_id_78d16b7f",
+    "DROP INDEX CONCURRENTLY IF EXISTS aa_stripe_stripecharge_stripe_charge_id_86aca19a",
+    "DROP INDEX CONCURRENTLY IF EXISTS aa_stripe_stripecharge_stripe_charge_id_86aca19a_like",
+    "DROP INDEX CONCURRENTLY IF EXISTS aa_stripe_stripecharge_customer_id_a6cd951b",
+]
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('aa_stripe', '0022_stripecharge_amount_refunded'),
+        ("aa_stripe", "0022_stripecharge_amount_refunded"),
     ]
+    atomic = False  # CONCURRENTLY cannot run inside a transaction block
 
     operations = [
-        migrations.AlterField(
-            model_name='stripecharge',
-            name='customer',
-            field=models.ForeignKey(db_index=False, null=True, on_delete=django.db.models.deletion.SET_NULL, to='aa_stripe.stripecustomer'),
-        ),
-        migrations.AlterField(
-            model_name='stripecharge',
-            name='stripe_charge_id',
-            field=models.CharField(blank=True, max_length=255),
-        ),
-        migrations.AlterField(
-            model_name='stripecharge',
-            name='stripe_refund_id',
-            field=models.CharField(blank=True, max_length=255),
-        ),
-        migrations.AlterField(
-            model_name='stripecharge',
-            name='user',
-            field=models.ForeignKey(db_index=False, on_delete=django.db.models.deletion.CASCADE, related_name='stripe_charges', to=settings.AUTH_USER_MODEL),
-        ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[migrations.RunSQL(sql) for sql in remove_indexes],
+            state_operations=[
+                migrations.AlterField(
+                    model_name="stripecharge",
+                    name="customer",
+                    field=models.ForeignKey(
+                        db_index=False,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="aa_stripe.stripecustomer",
+                    ),
+                ),
+                migrations.AlterField(
+                    model_name="stripecharge",
+                    name="stripe_charge_id",
+                    field=models.CharField(blank=True, max_length=255),
+                ),
+                migrations.AlterField(
+                    model_name="stripecharge",
+                    name="stripe_refund_id",
+                    field=models.CharField(blank=True, max_length=255),
+                ),
+                migrations.AlterField(
+                    model_name="stripecharge",
+                    name="user",
+                    field=models.ForeignKey(
+                        db_index=False,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="stripe_charges",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+            ],
+        )
     ]
