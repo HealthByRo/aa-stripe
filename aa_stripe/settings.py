@@ -52,7 +52,7 @@ stripe_settings = StripeSettingOutter(StripeSettings())
 
 
 def reload_api_settings(*args, **kwargs):
-    global stripe_settings
+    global stripe_settings  # noqa: F824
     if kwargs["setting"].startswith("STRIPE_"):
         stripe_settings.settings_inner = StripeSettings()
 

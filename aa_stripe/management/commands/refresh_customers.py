@@ -34,15 +34,18 @@ class Command(BaseCommand):
                 retry_count = 0
 
             for stripe_customer in response["data"]:
-                updated_count += StripeCustomer.objects.filter(stripe_customer_id=stripe_customer["id"]).update(
-                    sources=stripe_customer["sources"]["data"], default_source=stripe_customer["default_source"]
-                )
+                try:
+                    updated_count += StripeCustomer.objects.filter(stripe_customer_id=stripe_customer["id"]).update(
+                        sources=stripe_customer["sources"]["data"], default_source=stripe_customer["default_source"]
+                    )
+                except Exception as err:
+                    print(f"Error updating customer with id {stripe_customer['id']}: {err}")
 
             if not response["has_more"]:
                 break
 
             if verbose:
-                sys.stdout.write(".")  # indicate that the command did not hung up
+                sys.stdout.write(".")  # indicate that the command did not hang up
                 sys.stdout.flush()
             last_customer = response["data"][-1]
 
