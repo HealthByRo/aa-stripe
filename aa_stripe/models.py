@@ -378,8 +378,18 @@ class StripeCoupon(StripeBasicModel):
 
 
 class StripeCharge(StripeBasicModel):
-    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name="stripe_charges")
-    customer = models.ForeignKey(StripeCustomer, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(
+        USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="stripe_charges",
+        db_index=False,
+    )
+    customer = models.ForeignKey(
+        StripeCustomer,
+        on_delete=models.SET_NULL,
+        null=True,
+        db_index=False,
+    )
     amount = models.IntegerField(null=True, help_text=_("in cents"))
     amount_refunded = models.IntegerField(null=True, help_text=_("in cents"), default=0)
     is_charged = models.BooleanField(default=False)
@@ -387,8 +397,8 @@ class StripeCharge(StripeBasicModel):
     # if True, it will not be triggered through stripe_charge command
     is_manual_charge = models.BooleanField(default=False)
     charge_attempt_failed = models.BooleanField(default=False)
-    stripe_charge_id = models.CharField(max_length=255, blank=True, db_index=True)
-    stripe_refund_id = models.CharField(max_length=255, blank=True, db_index=True)
+    stripe_charge_id = models.CharField(max_length=255, blank=True, db_index=False)
+    stripe_refund_id = models.CharField(max_length=255, blank=True, db_index=False)
     description = models.CharField(max_length=255, help_text=_("Description sent to Stripe"))
     comment = models.CharField(max_length=255, help_text=_("Comment for internal information"))
     content_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
