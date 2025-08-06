@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 import logging
 from decimal import Decimal
-from enum import StrEnum
+from enum import Enum
 from time import sleep
 
 import simplejson as json
@@ -33,7 +33,7 @@ logger = logging.getLogger("aa-stripe")
 webhook_pre_parse = dispatch.Signal()
 
 
-class StripeObject(StrEnum):
+class StripeObject(str, Enum):
     TOKEN = "token"
     PAYMENT_METHOD = "payment_method"
 
