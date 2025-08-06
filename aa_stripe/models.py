@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import logging
 from decimal import Decimal
+from enum import StrEnum
 from time import sleep
 
 import simplejson as json
@@ -30,6 +31,11 @@ logger = logging.getLogger("aa-stripe")
 
 # signals
 webhook_pre_parse = dispatch.Signal()
+
+
+class StripeObject(StrEnum):
+    TOKEN = "token"
+    PAYMENT_METHOD = "payment_method"
 
 
 class StripeBasicModel(models.Model):
@@ -62,7 +68,17 @@ class StripeCustomer(StripeBasicModel):
             description = "{user} id: {user.id}".format(user=self.user)
 
         stripe.api_key = stripe_settings.API_KEY
-        customer = stripe.Customer.create(source=self.stripe_js_response["id"], description=description)
+        stripe_response = self.stripe_js_response
+        if not stripe_response:
+            raise StripeMethodNotAllowed("StripeCustomer.stripe_js_response must be set before creating customer.")
+
+        args = {"description": description}
+        if stripe_response["object"] == StripeObject.PAYMENT_METHOD:
+            args["payment_method"] = stripe_response["id"]
+        else:
+            args["source"] = stripe_response["id"]
+
+        customer = stripe.Customer.create(**args)
         self.stripe_customer_id = customer["id"]
         self.stripe_response = customer
         self.sources = customer.sources.data

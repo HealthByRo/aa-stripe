@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+##[0.15.0]
+### Added
+- support for passing `payment_method` as stripe_js_response
+
 ##[0.14.0]
 ### Changed
 - Handle exceptions when `default_source` is missing in refresh_customers cronjob

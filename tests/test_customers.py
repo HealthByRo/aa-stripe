@@ -11,49 +11,94 @@ from tests.test_utils import BaseTestCase
 
 UserModel = get_user_model()
 
+TOKEN_RESPONSE = {
+    "id": "tok_1RtAy3BszOVoiLmgtnBTx33m",
+    "object": "token",
+    "card": {
+        "id": "card_1RtAy3BszOVoiLmgqyW058jV",
+        "object": "card",
+        "address_city": None,
+        "address_country": None,
+        "address_line1": None,
+        "address_line1_check": None,
+        "address_line2": None,
+        "address_state": None,
+        "address_zip": "42424",
+        "address_zip_check": "unchecked",
+        "brand": "Visa",
+        "country": "US",
+        "cvc_check": "unchecked",
+        "dynamic_last4": None,
+        "exp_month": 12,
+        "exp_year": 2028,
+        "funding": "credit",
+        "last4": "4242",
+        "name": None,
+        "networks": {"preferred": None},
+        "regulated_status": "unregulated",
+        "tokenization_method": None,
+        "wallet": None,
+    },
+    "client_ip": "0.0.0.0",
+    "created": 1754500655,
+    "livemode": False,
+    "type": "card",
+    "used": False,
+}
+PAYMENT_METHOD_RESPONSE = {
+    "id": "pm_1Q0PsIJvEtkwdCNYMSaVuRz6",
+    "object": "payment_method",
+    "allow_redisplay": "unspecified",
+    "billing_details": {
+        "address": {
+            "city": None,
+            "country": None,
+            "line1": None,
+            "line2": None,
+            "postal_code": None,
+            "state": None,
+        },
+        "email": None,
+        "name": "John Doe",
+        "phone": None,
+    },
+    "created": 1726673582,
+    "customer": None,
+    "livemode": False,
+    "metadata": {},
+    "type": "us_bank_account",
+    "us_bank_account": {
+        "account_holder_type": "individual",
+        "account_type": "checking",
+        "bank_name": "STRIPE TEST BANK",
+        "financial_connections_account": None,
+        "fingerprint": "LstWJFsCK7P349Bg",
+        "last4": "6789",
+        "networks": {"preferred": "ach", "supported": ["ach"]},
+        "routing_number": "110000000",
+        "status_details": {},
+    },
+}
+
 
 class TestCreatingUsers(BaseTestCase):
     def setUp(self):
         self.user = self._create_user()
-        self.stripe_js_response = {
-            "id": "tok_193mTaHSTEMJ0IPXhhZ5vuTX",
-            "object": "customer",
-            "client_ip": None,
-            "created": 1476277734,
-            "livemode": False,
-            "type": "card",
-            "used": False,
-            "card": {
-                "id": "card_193mTaHSTEMJ0IPXIoOiuOdF",
-                "object": "card",
-                "address_city": None,
-                "address_country": None,
-                "address_line1": None,
-                "address_line1_check": None,
-                "address_line2": None,
-                "address_state": None,
-                "address_zip": None,
-                "address_zip_check": None,
-                "brand": "Visa",
-                "country": "US",
-                "cvc_check": None,
-                "dynamic_last4": None,
-                "exp_month": 8,
-                "exp_year": 2017,
-                "funding": "credit",
-                "last4": "4242",
-                "name": None,
-                "customerization_method": None,
-                "metadata": {},
-            },
-        }
 
-    def test_user_create(self):
+    def test_user_create_with_token(self):
+        stripe_js_response = TOKEN_RESPONSE
+        self._test_user_create(stripe_js_response)
+
+    def test_user_create_with_payment_method(self):
+        stripe_js_response = PAYMENT_METHOD_RESPONSE
+        self._test_user_create(stripe_js_response)
+
+    def _test_user_create(self, stripe_js_response):
         self.assertEqual(StripeCustomer.objects.count(), 0)
         url = reverse("stripe-customers")
 
-        data = {}
-        response = self.client.post(url, format="json")
+        data = {"stripe_js_response": stripe_js_response}
+        response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, 403)  # not logged
 
         self.client.force_authenticate(user=self.user)
@@ -116,8 +161,10 @@ class TestCreatingUsers(BaseTestCase):
             )
 
             # test response error
-            stripe_customer_qs = StripeCustomer.objects.filter(is_created_at_stripe=True)
-            data = {"stripe_js_response": self.stripe_js_response}
+            stripe_customer_qs = StripeCustomer.objects.filter(
+                is_created_at_stripe=True
+            )
+            data = {"stripe_js_response": stripe_js_response}
             self.client.force_authenticate(user=self.user)
             response = self.client.post(url, data, format="json")
             self.assertEqual(response.status_code, 400)
@@ -134,19 +181,20 @@ class TestCreatingUsers(BaseTestCase):
             customer = stripe_customer_qs.first()
             self.assertTrue(customer.is_active)
             self.assertEqual(customer.user, self.user)
-            self.assertEqual(customer.stripe_js_response, self.stripe_js_response)
+            self.assertEqual(customer.stripe_js_response, stripe_js_response)
             self.assertEqual(customer.stripe_customer_id, "cus_9Oop0gQ1R1ATMi")
             self.assertEqual(customer.stripe_response["id"], "cus_9Oop0gQ1R1ATMi")
             self.assertEqual(customer.sources, [{"id": "card_xyz", "object": "card"}])
             self.assertEqual(customer.default_source, "card_xyz")
 
     def test_change_description(self):
-        customer_id = self.stripe_js_response["id"]
+        stripe_js_response = TOKEN_RESPONSE
+        customer_id = stripe_js_response["id"]
         customer = StripeCustomer(user=self.user, stripe_customer_id=customer_id)
         api_url = "https://api.stripe.com/v1/customers/{customer_id}".format(customer_id=customer_id)
         with requests_mock.Mocker() as m:
-            m.register_uri("GET", api_url, text=json.dumps(self.stripe_js_response))
-            m.register_uri("POST", api_url, text=json.dumps(self.stripe_js_response))
+            m.register_uri("GET", api_url, text=json.dumps(stripe_js_response))
+            m.register_uri("POST", api_url, text=json.dumps(stripe_js_response))
             customer.change_description("abc")
 
 
