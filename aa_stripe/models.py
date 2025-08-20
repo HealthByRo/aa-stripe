@@ -72,13 +72,14 @@ class StripeCustomer(StripeBasicModel):
         if not stripe_response:
             raise StripeMethodNotAllowed("StripeCustomer.stripe_js_response must be set before creating customer.")
 
-        args = {"description": description}
         if stripe_response["object"] == StripeObject.PAYMENT_METHOD:
-            args["payment_method"] = stripe_response["id"]
+            customer = self._create_customer_with_payment_method(stripe, description, stripe_response["id"])
         else:
-            args["source"] = stripe_response["id"]
+            customer = stripe.Customer.create(
+                description=description,
+                source=stripe_response["id"]
+            )
 
-        customer = stripe.Customer.create(**args)
         self.stripe_customer_id = customer["id"]
         self.stripe_response = customer
         self.sources = customer.sources.data
@@ -86,6 +87,15 @@ class StripeCustomer(StripeBasicModel):
         self.is_created_at_stripe = True
         self.save()
         return self
+
+    def _create_customer_with_payment_method(self, stripe, description, payment_method):
+        customer = stripe.Customer.create(
+            description=description,
+            payment_method=payment_method,
+        )
+        customer = stripe.Customer.modify(customer["id"], default_source=payment_method)
+
+        return customer
 
     @classmethod
     def get_latest_active_customer_for_user(cls, user):
