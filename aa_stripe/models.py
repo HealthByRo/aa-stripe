@@ -459,8 +459,7 @@ class StripeCharge(StripeBasicModel):
                 logger.warning("[AA Stripe] user has no local default source")
                 stripe_customer = stripe.Customer.retrieve(customer.stripe_customer_id)
                 if (
-                    stripe_customer.invoice_settings
-                    and stripe_customer.invoice_settings.default_payment_method
+                    stripe_customer.invoice_settings and stripe_customer.invoice_settings.default_payment_method
                 ):
                     logger.info("[AA Stripe] using invoice settings default payment method")
                     params["payment_method"] = (
