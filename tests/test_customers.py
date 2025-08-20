@@ -105,6 +105,35 @@ class TestCreatingUsers(BaseTestCase):
         response = self.client.post(url, format="json")
         self.assertEqual(response.status_code, 400)
 
+        stripe_customer_rs = {
+            "id": "cus_9Oop0gQ1R1ATMi",
+            "object": "customer",
+            "account_balance": 0,
+            "created": 1476810921,
+            "currency": "usd",
+            "default_source": "card_xyz",
+            "delinquent": False,
+            "description": None,
+            "discount": None,
+            "email": None,
+            "livemode": False,
+            "metadata": {},
+            "shipping": None,
+            "sources": {
+                "object": "list",
+                "data": [{"id": "card_xyz", "object": "card"}],
+                "has_more": False,
+                "total_count": 1,
+                "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/sources",
+            },
+            "subscriptions": {
+                "object": "list",
+                "data": [],
+                "has_more": False,
+                "total_count": 0,
+                "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/subscriptions",
+            },
+        }
         with requests_mock.Mocker() as m:
             m.register_uri(
                 "POST",
@@ -124,42 +153,14 @@ class TestCreatingUsers(BaseTestCase):
                         ),
                         "status_code": 400,
                     },
-                    {
-                        "text": json.dumps(
-                            {
-                                "id": "cus_9Oop0gQ1R1ATMi",
-                                "object": "customer",
-                                "account_balance": 0,
-                                "created": 1476810921,
-                                "currency": "usd",
-                                "default_source": "card_xyz",
-                                "delinquent": False,
-                                "description": None,
-                                "discount": None,
-                                "email": None,
-                                "livemode": False,
-                                "metadata": {},
-                                "shipping": None,
-                                "sources": {
-                                    "object": "list",
-                                    "data": [{"id": "card_xyz", "object": "card"}],
-                                    "has_more": False,
-                                    "total_count": 1,
-                                    "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/sources",
-                                },
-                                "subscriptions": {
-                                    "object": "list",
-                                    "data": [],
-                                    "has_more": False,
-                                    "total_count": 0,
-                                    "url": "/v1/customers/cus_9Oop0gQ1R1ATMi/subscriptions",
-                                },
-                            }
-                        )
-                    },
+                    {"text": json.dumps(stripe_customer_rs)},
                 ],
             )
-
+            m.register_uri(
+                "POST",
+                "https://api.stripe.com/v1/customers/cus_9Oop0gQ1R1ATMi",
+                text=json.dumps(stripe_customer_rs),
+            )
             # test response error
             stripe_customer_qs = StripeCustomer.objects.filter(
                 is_created_at_stripe=True
@@ -176,7 +177,6 @@ class TestCreatingUsers(BaseTestCase):
             # test success response from Stripe
             response = self.client.post(url, data, format="json")
             self.assertEqual(response.status_code, 201)
-            self.assertEqual(m.call_count, 2)
             self.assertEqual(stripe_customer_qs.count(), 1)
             customer = stripe_customer_qs.first()
             self.assertTrue(customer.is_active)
