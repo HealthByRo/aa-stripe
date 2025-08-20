@@ -63,6 +63,7 @@ class TestCharges(TestCase):
             user=self.user,
             stripe_customer_id=self.data["customer_id"],
             stripe_js_response='"foo"',
+            default_source="card_1F5C7LBszOVoiLmg4k3b2eKX",
         )
         self.charge = StripeCharge.objects.create(
             user=self.user,

@@ -76,26 +76,23 @@ class StripeCustomer(StripeBasicModel):
             customer = self._create_customer_with_payment_method(stripe, description, stripe_response["id"])
         else:
             customer = stripe.Customer.create(
-                description=description,
-                source=stripe_response["id"]
+                description=description, source=stripe_response["id"]
             )
 
         self.stripe_customer_id = customer["id"]
         self.stripe_response = customer
         self.sources = customer.sources.data
-        self.default_source = customer.default_source
+        self.default_source = customer.default_source or ""
         self.is_created_at_stripe = True
         self.save()
         return self
 
     def _create_customer_with_payment_method(self, stripe, description, payment_method):
-        customer = stripe.Customer.create(
+        return stripe.Customer.create(
             description=description,
             payment_method=payment_method,
+            invoice_settings={"default_payment_method": payment_method},
         )
-        customer = stripe.Customer.modify(customer["id"], default_source=payment_method)
-
-        return customer
 
     @classmethod
     def get_latest_active_customer_for_user(cls, user):
@@ -457,6 +454,18 @@ class StripeCharge(StripeBasicModel):
             if self.statement_descriptor:
                 params["statement_descriptor"] = self.statement_descriptor
 
+            # payment method, will not be automatically picked up
+            if not customer.default_source:
+                logger.warning("[AA Stripe] user has no local default source")
+                stripe_customer = stripe.Customer.retrieve(customer.stripe_customer_id)
+                if (
+                    stripe_customer.invoice_settings
+                    and stripe_customer.invoice_settings.default_payment_method
+                ):
+                    logger.info("[AA Stripe] using invoice settings default payment method")
+                    params["payment_method"] = (
+                        stripe_customer.invoice_settings.default_payment_method
+                    )
             try:
                 stripe_charge = stripe.Charge.create(idempotency_key=idempotency_key, **params)
             except stripe.error.CardError as e:
