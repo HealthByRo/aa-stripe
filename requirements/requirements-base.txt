@@ -2,3 +2,4 @@ django-extensions>=2.1.3
 stripe>=2.35.1,<3.0.0
 djangorestframework>=3.6.0
 simplejson>=3.10.0
+rodeo-utils[logcfg] @ git+ssh://git@github.com/HealthByRo/rodeo-py-utils@v0.178

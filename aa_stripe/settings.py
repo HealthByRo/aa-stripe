@@ -28,6 +28,10 @@ PAYMENT_ORIGIN = (
     settings.PAYMENT_ORIGIN if hasattr(settings, "PAYMENT_ORIGIN") else None
 )
 
+MIDDLEWARE: tuple = (
+    "rodeo_utils.audit_log.tooling.middlewares.django.Middleware",
+)
+AUDIT_LOGGER_ROUTE_MAP = "audit_logger.ROUTE_MAP"
 
 class StripeSettings(object):
     def __getattr__(self, attr):

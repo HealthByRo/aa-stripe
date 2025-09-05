@@ -23,6 +23,12 @@ class CustomersAPI(CreateAPIView):
     serializer_class = StripeCustomerSerializer
     permission_classes = (IsAuthenticated,)
 
+    def post(self, request, *args, **kwargs):
+        if request.user:
+            request.audit_logger_details.add_patient(request.user.uuid)
+        return super().post(request, *args, **kwargs)
+
+
 
 class CustomerDetailsAPI(RetrieveUpdateAPIView):
     queryset = StripeCustomer.objects.all()
@@ -33,6 +39,11 @@ class CustomerDetailsAPI(RetrieveUpdateAPIView):
     def get_queryset(self):
         return super().get_queryset().filter(user=self.request.user)
 
+    def get(self, request, *args, **kwargs):
+        if request.user:
+            request.audit_logger_details.add_patient(request.user.uuid)
+        return super().get(request, *args, **kwargs)
+
 
 class WebhookAPI(CreateAPIView):
     queryset = StripeWebhook.objects.all()
@@ -40,6 +51,8 @@ class WebhookAPI(CreateAPIView):
     permission_classes = (AllowAny,)
 
     def post(self, request, *args, **kwargs):
+        if request.user:
+            request.audit_logger_details.add_patient(request.user.uuid)
         payload = request.body.decode("utf-8")
         sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
         event = None
