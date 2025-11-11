@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import logging
 from decimal import Decimal
+from enum import Enum
 from time import sleep
 
 import simplejson as json
@@ -30,6 +31,11 @@ logger = logging.getLogger("aa-stripe")
 
 # signals
 webhook_pre_parse = dispatch.Signal()
+
+
+class StripeObject(str, Enum):
+    TOKEN = "token"
+    PAYMENT_METHOD = "payment_method"
 
 
 class StripeBasicModel(models.Model):
@@ -62,14 +68,31 @@ class StripeCustomer(StripeBasicModel):
             description = "{user} id: {user.id}".format(user=self.user)
 
         stripe.api_key = stripe_settings.API_KEY
-        customer = stripe.Customer.create(source=self.stripe_js_response["id"], description=description)
+        stripe_response = self.stripe_js_response
+        if not stripe_response:
+            raise StripeMethodNotAllowed("StripeCustomer.stripe_js_response must be set before creating customer.")
+
+        if stripe_response["object"] == StripeObject.PAYMENT_METHOD:
+            customer = self._create_customer_with_payment_method(stripe, description, stripe_response["id"])
+        else:
+            customer = stripe.Customer.create(
+                description=description, source=stripe_response["id"]
+            )
+
         self.stripe_customer_id = customer["id"]
         self.stripe_response = customer
         self.sources = customer.sources.data
-        self.default_source = customer.default_source
+        self.default_source = customer.default_source or ""
         self.is_created_at_stripe = True
         self.save()
         return self
+
+    def _create_customer_with_payment_method(self, stripe, description, payment_method):
+        return stripe.Customer.create(
+            description=description,
+            payment_method=payment_method,
+            invoice_settings={"default_payment_method": payment_method},
+        )
 
     @classmethod
     def get_latest_active_customer_for_user(cls, user):
@@ -431,6 +454,17 @@ class StripeCharge(StripeBasicModel):
             if self.statement_descriptor:
                 params["statement_descriptor"] = self.statement_descriptor
 
+            # payment method, will not be automatically picked up
+            if not customer.default_source:
+                logger.warning("[AA Stripe] user has no local default source")
+                stripe_customer = stripe.Customer.retrieve(customer.stripe_customer_id)
+                if (
+                    stripe_customer.invoice_settings and stripe_customer.invoice_settings.default_payment_method
+                ):
+                    logger.info("[AA Stripe] using invoice settings default payment method")
+                    params["payment_method"] = (
+                        stripe_customer.invoice_settings.default_payment_method
+                    )
             try:
                 stripe_charge = stripe.Charge.create(idempotency_key=idempotency_key, **params)
             except stripe.error.CardError as e:
